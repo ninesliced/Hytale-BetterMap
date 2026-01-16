@@ -24,7 +24,7 @@ public class BetterMapConfig {
     private transient Path configPath;
 
     public enum MapQuality {
-        LOW(0.25f, 20000),
+        LOW(0.25f, 30000),
         MEDIUM(0.5f, 10000),
         HIGH(1.0f, 3000);
 
