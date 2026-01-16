@@ -14,6 +14,7 @@ import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.*;
 import dev.ninesliced.listeners.ExplorationEventListener;
 import dev.ninesliced.managers.ExplorationManager;
+import dev.ninesliced.managers.PlayerConfigManager;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
@@ -78,6 +79,9 @@ public class BetterMap extends JavaPlugin {
 
             Path serverRoot = Paths.get(".").toAbsolutePath().normalize();
             BetterMapConfig.getInstance().initialize(serverRoot);
+
+            PlayerConfigManager.initialize(serverRoot.resolve("mods").resolve("BetterMap"));
+            LOGGER.info("Player Config Manager: INITIALIZED");
 
             ExplorationManager.config()
                     .updateRate(0.5f)

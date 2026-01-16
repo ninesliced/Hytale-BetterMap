@@ -1,6 +1,8 @@
 package dev.ninesliced.listeners;
 
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent;
@@ -15,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import dev.ninesliced.exploration.*;
 import dev.ninesliced.managers.ExplorationManager;
+import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WorldMapHook;
 
@@ -40,6 +43,11 @@ public class ExplorationEventListener {
         try {
             Player player = event.getPlayer();
             String playerName = player.getDisplayName();
+
+            if (player.getReference() != null && player.getReference().isValid()) {
+                UUID uuid = player.getReference().getStore().getComponent(player.getReference(), UUIDComponent.getComponentType()).getUuid();
+                PlayerConfigManager.getInstance().loadPlayerConfig(uuid);
+            }
 
             WorldMapHook.sendMapSettingsToPlayer(player);
 
@@ -226,11 +234,14 @@ public class ExplorationEventListener {
     public static void onPlayerQuit(@Nonnull PlayerDisconnectEvent event) {
         LOGGER.info("[DEBUG] PlayerDisconnectEvent FIRED!");
         try {
-            com.hypixel.hytale.server.core.universe.PlayerRef playerRef = event.getPlayerRef();
+            PlayerRef playerRef = event.getPlayerRef();
 
             if (playerRef != null) {
                 String playerName = playerRef.getUsername();
                 java.util.UUID playerUUID = playerRef.getUuid();
+
+                PlayerConfigManager.getInstance().unloadPlayerConfig(playerUUID);
+
                 LOGGER.info("[DEBUG] Player " + playerName + " disconnecting from server");
 
                 ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(playerName);
@@ -238,11 +249,11 @@ public class ExplorationEventListener {
 
                 if (data != null) {
                     LOGGER.info("[DEBUG] Data still exists, performing fallback save");
-                    com.hypixel.hytale.component.Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> ref = playerRef.getReference();
+                    Ref<EntityStore> ref = playerRef.getReference();
                     if (ref != null && ref.isValid()) {
                         try {
-                            com.hypixel.hytale.component.Store<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> store = ref.getStore();
-                            com.hypixel.hytale.server.core.universe.world.World world = store.getExternalData().getWorld();
+                            Store<EntityStore> store = ref.getStore();
+                            World world = store.getExternalData().getWorld();
                             String worldName = world.getName();
 
                             if (isDefaultWorld(world)) {

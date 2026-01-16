@@ -3,6 +3,7 @@ package dev.ninesliced.commands;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import dev.ninesliced.commands.config.ConfigCommand;
 import dev.ninesliced.configs.BetterMapConfig;
 
 import javax.annotation.Nonnull;
@@ -25,12 +26,10 @@ public class BetterMapCommand extends AbstractCommand {
         super("bettermap", "Manage BetterMap plugin");
         this.addAliases("bm", "map");
 
-        this.addSubCommand(new MapMinScaleCommand());
-        this.addSubCommand(new MapMaxScaleCommand());
-        this.addSubCommand(new MapExplorationRadiusCommand());
+        this.addSubCommand(new ConfigCommand());
         this.addSubCommand(new ReloadCommand());
-        this.addSubCommand(new DebugCommand());
-        this.addSubCommand(new MapQualityCommand());
+        this.addSubCommand(new PlayerMinScaleCommand());
+        this.addSubCommand(new PlayerMaxScaleCommand());
     }
 
     @Override

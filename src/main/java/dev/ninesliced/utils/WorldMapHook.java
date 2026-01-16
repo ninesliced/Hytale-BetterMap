@@ -5,16 +5,20 @@ import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.packets.worldmap.MapChunk;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMapSettings;
+import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
+import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.managers.MapExpansionManager;
+import dev.ninesliced.managers.PlayerConfigManager;
 
 import javax.annotation.Nonnull;
 import java.util.*;
@@ -128,11 +132,11 @@ public class WorldMapHook {
     public static void hookWorldMapResolution(@Nonnull com.hypixel.hytale.server.core.universe.world.World world) {
         try {
             LOGGER.info("Hooking WorldMap resolution for world: " + world.getName());
-            com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager manager = world.getWorldMapManager();
+            WorldMapManager manager = world.getWorldMapManager();
             if (manager == null) return;
 
             LOGGER.info("Modifying WorldMapSettings for world: " + world.getName());
-            com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings settings = manager.getWorldMapSettings();
+            WorldMapSettings settings = manager.getWorldMapSettings();
             if (settings == null) return;
 
             BetterMapConfig.MapQuality quality = BetterMapConfig.getInstance().getActiveMapQuality();
@@ -314,7 +318,29 @@ public class WorldMapHook {
             UpdateWorldMapSettings packet = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
 
             if (packet != null) {
-                sendPacket(player, (Packet) packet);
+                synchronized (packet) {
+                    float originalMin = packet.minScale;
+                    float originalMax = packet.maxScale;
+
+                    Ref<EntityStore> ref = player.getReference();
+                    if (ref == null || !ref.isValid())
+                        return;
+
+                    UUIDComponent uuidComp = ref.getStore().getComponent(ref, UUIDComponent.getComponentType());
+                    PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(uuidComp.getUuid());
+
+                    if (playerConfig != null) {
+                        packet.minScale = playerConfig.getMinScale();
+                        packet.maxScale = playerConfig.getMaxScale();
+                    }
+
+                    sendPacket(player, packet);
+
+                    if (playerConfig != null) {
+                        packet.minScale = originalMin;
+                        packet.maxScale = originalMax;
+                    }
+                }
                 LOGGER.fine("Sent custom map settings to " + player.getDisplayName());
             }
         } catch (Exception e) {

@@ -1,4 +1,4 @@
-package dev.ninesliced.commands;
+package dev.ninesliced.commands.config;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -6,11 +6,9 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import com.hypixel.hytale.server.core.command.system.arguments.types.ArgumentType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -18,25 +16,25 @@ import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to set the maximum map scale (zoom in level).
+ * Command to set the minimum map scale (zoom out level).
  */
-public class MapMaxScaleCommand extends AbstractCommand {
-    private final RequiredArg<Float> zoomValueArg = (RequiredArg<Float>) this.withRequiredArg("value", "Max zoom value", (ArgumentType) ArgTypes.FLOAT);
+public class MapMinScaleCommand extends AbstractCommand {
+    private final RequiredArg<Float> zoomValueArg = this.withRequiredArg("value", "Min zoom value", ArgTypes.FLOAT);
 
     /**
-     * Constructs the MapMaxScale command.
+     * Constructs the MapMinScale command.
      */
-    public MapMaxScaleCommand() {
-        super("max", "Set max map zoom scale (higher = zoom in closer)");
+    public MapMinScaleCommand() {
+        super("min", "Set min map zoom scale (lower = zoom out further)");
     }
 
     @Override
     protected String generatePermissionNode() {
-        return "command.bettermap.max";
+        return "command.bettermap.min";
     }
 
     /**
-     * Executes the max scale command, validating and updating the configuration.
+     * Executes the min scale command, validating and updating the configuration.
      *
      * @param context The command execution context.
      * @return A future that completes when execution is finished.
@@ -49,9 +47,9 @@ public class MapMaxScaleCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
         try {
-            Float newMax = (Float) context.get(this.zoomValueArg);
-            if (newMax.floatValue() <= 0.0f) {
-                context.sendMessage(Message.raw("Max scale must be greater than 0").color(Color.RED));
+            Float newMin = context.get(this.zoomValueArg);
+            if (newMin < 2.0f) {
+                context.sendMessage(Message.raw("Min scale must be greater or equals to 2").color(Color.RED));
                 return CompletableFuture.completedFuture(null);
             }
             World world = this.findWorld(context);
@@ -61,17 +59,14 @@ public class MapMaxScaleCommand extends AbstractCommand {
             }
 
             BetterMapConfig config = BetterMapConfig.getInstance();
-            if (newMax <= config.getMinScale()) {
-                context.sendMessage(Message.raw("Max scale must be greater than min scale (" + config.getMinScale() + ")").color(Color.RED));
+            if (newMin >= config.getMaxScale()) {
+                context.sendMessage(Message.raw("Min scale must be less than max scale (" + config.getMaxScale() + ")").color(Color.RED));
                 return CompletableFuture.completedFuture(null);
             }
 
-            config.setMaxScale(newMax);
+            config.setMinScale(newMin);
 
-            WorldMapHook.updateWorldMapConfigs(world);
-            WorldMapHook.broadcastMapSettings(world);
-
-            context.sendMessage(Message.raw("Map max scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMax)).color(Color.YELLOW)));
+            context.sendMessage(Message.raw("Map min scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMin)).color(Color.YELLOW)));
 
         } catch (Exception e) {
             context.sendMessage(Message.raw("Error: " + e.getMessage()).color(Color.RED));

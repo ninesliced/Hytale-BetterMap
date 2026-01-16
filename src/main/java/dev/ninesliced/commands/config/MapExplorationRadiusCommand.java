@@ -1,4 +1,4 @@
-package dev.ninesliced.commands;
+package dev.ninesliced.commands.config;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;

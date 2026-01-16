@@ -1,4 +1,4 @@
-package dev.ninesliced.commands;
+package dev.ninesliced.commands.config;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -18,25 +18,25 @@ import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to set the minimum map scale (zoom out level).
+ * Command to set the maximum map scale (zoom in level).
  */
-public class MapMinScaleCommand extends AbstractCommand {
-    private final RequiredArg<Float> zoomValueArg = this.withRequiredArg("value", "Min zoom value", ArgTypes.FLOAT);
+public class MapMaxScaleCommand extends AbstractCommand {
+    private final RequiredArg<Float> zoomValueArg = (RequiredArg<Float>) this.withRequiredArg("value", "Max zoom value", (ArgumentType) ArgTypes.FLOAT);
 
     /**
-     * Constructs the MapMinScale command.
+     * Constructs the MapMaxScale command.
      */
-    public MapMinScaleCommand() {
-        super("min", "Set min map zoom scale (lower = zoom out further)");
+    public MapMaxScaleCommand() {
+        super("max", "Set max map zoom scale (higher = zoom in closer)");
     }
 
     @Override
     protected String generatePermissionNode() {
-        return "command.bettermap.min";
+        return "command.bettermap.max";
     }
 
     /**
-     * Executes the min scale command, validating and updating the configuration.
+     * Executes the max scale command, validating and updating the configuration.
      *
      * @param context The command execution context.
      * @return A future that completes when execution is finished.
@@ -49,11 +49,12 @@ public class MapMinScaleCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
         try {
-            Float newMin = context.get(this.zoomValueArg);
-            if (newMin < 2.0f) {
-                context.sendMessage(Message.raw("Min scale must be greater or equals to 2").color(Color.RED));
+            Float newMax = (Float) context.get(this.zoomValueArg);
+            if (newMax.floatValue() <= 0.0f) {
+                context.sendMessage(Message.raw("Max scale must be greater than 0").color(Color.RED));
                 return CompletableFuture.completedFuture(null);
             }
+
             World world = this.findWorld(context);
             if (world == null) {
                 context.sendMessage(Message.raw("Could not access world").color(Color.RED));
@@ -61,17 +62,14 @@ public class MapMinScaleCommand extends AbstractCommand {
             }
 
             BetterMapConfig config = BetterMapConfig.getInstance();
-            if (newMin >= config.getMaxScale()) {
-                context.sendMessage(Message.raw("Min scale must be less than max scale (" + config.getMaxScale() + ")").color(Color.RED));
+            if (newMax <= config.getMinScale()) {
+                context.sendMessage(Message.raw("Max scale must be greater than min scale (" + config.getMinScale() + ")").color(Color.RED));
                 return CompletableFuture.completedFuture(null);
             }
 
-            config.setMinScale(newMin);
+            config.setMaxScale(newMax);
 
-            WorldMapHook.updateWorldMapConfigs(world);
-            WorldMapHook.broadcastMapSettings(world);
-
-            context.sendMessage(Message.raw("Map min scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMin)).color(Color.YELLOW)));
+            context.sendMessage(Message.raw("Map max scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMax)).color(Color.YELLOW)));
 
         } catch (Exception e) {
             context.sendMessage(Message.raw("Error: " + e.getMessage()).color(Color.RED));
