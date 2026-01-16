@@ -1,0 +1,60 @@
+$Common = "../../Common.ui";
+
+@InfoLabelStyle = LabelStyle(
+    FontSize: 16,
+    TextColor: #dddddd,
+    FontName: "Default"
+);
+
+Group #Location {
+  Anchor: (Left: 20, Top: 20, Width: 260, Height: 160);
+
+  Group #Background {
+    Background: (TexturePath: "../../Common/ContainerFullPatch.png", Border: 20);
+    Anchor: (Left: 0, Top: 0, Right: 0, Bottom: 0);
+
+    Group #Content {
+      Anchor: (Left: 0, Top: 0, Right: 0, Bottom: 0);
+      Padding: (Left: 16, Top: 16, Right: 16, Bottom: 16);
+      LayoutMode: Top;
+
+      Label {
+        Anchor: (Height: 24, Left: 0, Right: 0);
+        Text: "LOCATION INFO";
+        Style: $Common.@DefaultButtonLabelStyle;
+      }
+
+      Group { Anchor: (Height: 12); }
+
+      Group #InfoPanel {
+        LayoutMode: Top;
+        Anchor: (Left: 0, Right: 0);
+
+        Label #PositionLabel {
+          Style: @InfoLabelStyle;
+          Anchor: (Height: 24, Left: 0, Right: 0);
+          Text: "Loading...";
+        }
+
+        Label #WorldNameLabel {
+          Style: @InfoLabelStyle;
+          Anchor: (Height: 24, Left: 0, Right: 0);
+          Text: "Loading...";
+        }
+
+        Label #BiomeNameLabel {
+          Style: @InfoLabelStyle;
+          Anchor: (Height: 24, Left: 0, Right: 0);
+          Text: "Loading...";
+        }
+
+        Label #ZoneNameLabel {
+          Style: @InfoLabelStyle;
+          Anchor: (Height: 24, Left: 0, Right: 0);
+          Text: "Loading...";
+        }
+      }
+    }
+  }
+}
+

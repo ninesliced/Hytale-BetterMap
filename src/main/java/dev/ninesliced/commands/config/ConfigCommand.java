@@ -26,6 +26,7 @@ public class ConfigCommand extends AbstractCommand {
         this.addSubCommand(new MapExplorationRadiusCommand());
         this.addSubCommand(new DebugCommand());
         this.addSubCommand(new MapQualityCommand());
+        this.addSubCommand(new LocationCommand());
     }
 
     @Override

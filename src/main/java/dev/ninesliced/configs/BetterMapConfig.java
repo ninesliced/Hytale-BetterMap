@@ -25,6 +25,7 @@ public class BetterMapConfig {
     private float minScale = 10.0f;
     private float maxScale = 256.0f;
     private boolean debug = false;
+    private boolean locationEnabled = true;
 
     private transient Path configPath;
     private transient MapQuality activeMapQuality;
@@ -110,6 +111,12 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("debug")) {
                         this.debug = loaded.debug;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("locationEnabled")) {
+                        this.locationEnabled = loaded.locationEnabled;
                     } else {
                         needsSave = true;
                     }
@@ -283,6 +290,14 @@ public class BetterMapConfig {
     public void setQuality(MapQuality mapQuality) {
         this.mapQuality = mapQuality;
         save();
+    }
+
+    public boolean isLocationEnabled() {
+        return locationEnabled;
+    }
+
+    public void setLocationEnabled(boolean locationEnabled) {
+        this.locationEnabled = locationEnabled;
     }
 
     /**

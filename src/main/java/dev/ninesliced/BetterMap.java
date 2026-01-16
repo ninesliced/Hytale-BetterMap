@@ -15,6 +15,8 @@ import dev.ninesliced.exploration.*;
 import dev.ninesliced.listeners.ExplorationEventListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.providers.LocationHudProvider;
+import dev.ninesliced.systems.LocationSystem;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
@@ -30,6 +32,7 @@ public class BetterMap extends JavaPlugin {
     private static final Logger LOGGER = Logger.getLogger(BetterMap.class.getName());
     private static BetterMap instance;
     private ComponentType<EntityStore, ExplorationComponent> explorationComponentType;
+    private LocationHudProvider locationHudProvider;
 
     /**
      * Constructor for the BetterMap plugin.
@@ -47,6 +50,15 @@ public class BetterMap extends JavaPlugin {
      */
     public static BetterMap get() {
         return instance;
+    }
+
+    /**
+     * Gets the LocationHudProvider instance.
+     *
+     * @return The active LocationHudProvider.
+     */
+    public LocationHudProvider getLocationHudProvider() {
+        return locationHudProvider;
     }
 
     /**
@@ -94,7 +106,11 @@ public class BetterMap extends JavaPlugin {
             LOGGER.info("Exploration Ticker: STARTED");
 
             this.getCommandRegistry().registerCommand(new BetterMapCommand());
-            LOGGER.info("Example Command: REGISTERED");
+            LOGGER.info("Mod Command: REGISTERED");
+
+            this.locationHudProvider = new LocationHudProvider();
+            this.getEntityStoreRegistry().registerSystem(new LocationSystem());
+            LOGGER.info("Location Display: INITIALIZED");
 
             this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ExplorationEventListener::onPlayerReady);
             this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, ExplorationEventListener::onPlayerQuit);
@@ -115,5 +131,13 @@ public class BetterMap extends JavaPlugin {
             e.printStackTrace();
             throw new RuntimeException("Plugin initialization failed", e);
         }
+    }
+
+    @Override
+    protected void shutdown() {
+        if (this.locationHudProvider != null) {
+            this.locationHudProvider.cleanup();
+        }
+        super.shutdown();
     }
 }

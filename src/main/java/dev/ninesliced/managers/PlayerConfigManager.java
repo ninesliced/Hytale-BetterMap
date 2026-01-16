@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -47,7 +48,11 @@ public class PlayerConfigManager {
         return INSTANCE;
     }
 
+    @Nullable
     public PlayerConfig getPlayerConfig(UUID uuid) {
+        if (!playerConfigs.containsKey(uuid)) {
+            loadPlayerConfig(uuid);
+        }
         return playerConfigs.get(uuid);
     }
 
@@ -94,7 +99,10 @@ public class PlayerConfigManager {
 
     private PlayerConfig createDefaultConfig(UUID uuid) {
         BetterMapConfig mainConfig = BetterMapConfig.getInstance();
-        return new PlayerConfig(uuid, mainConfig.getMinScale(), mainConfig.getMaxScale());
+        return new PlayerConfig(uuid,
+                mainConfig.getMinScale(),
+                mainConfig.getMaxScale(),
+                mainConfig.isLocationEnabled()
+        );
     }
 }
-
