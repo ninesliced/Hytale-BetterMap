@@ -1,10 +1,17 @@
 package dev.ninesliced.managers;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.exploration.ExplorationTracker;
 
 import javax.annotation.Nonnull;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 
@@ -140,45 +147,26 @@ public class ExplorationManager {
      * @return A set of all explored chunks.
      */
     public java.util.Set<Long> getAllExploredChunks(String worldName) {
-        java.util.Set<Long> allChunks = new java.util.HashSet<>();
+        Set<Long> allChunks = new HashSet<>();
 
         if (persistenceEnabled) {
             allChunks.addAll(persistence.loadAllChunks(worldName));
         }
 
-        // Add currently active data (which might be newer than persistence)
-        // We iterate over all loaded players to find those in the target world
-        // Since tracker doesn't index by world, we have to rely on persistence + iterating known players?
-        // But Tracker stores by name.
-        // We can't easily know which world a tracker entry belongs to without the player object.
-        // However, ExplorationEventListener keeps track of player worlds in `playerWorlds` map, but it's private there.
-        // But better: we can iterate over server players.
-
-        // Actually, we can just iterate `ExplorationTracker` data if we assume we can check their world.
-        // But `ExplorationTracker` only has `PlayerExplorationData`. It doesn't store the player entity or world name directly.
-        // But usually only ONLINE players are in `ExplorationTracker`.
-        // So we can assume if they are in `ExplorationTracker` they are online.
-
-        // Wait, getting online players is easy via `Universe`.
-        // But I don't want to depend on Universe here if I can avoid it.
-        // Let's rely on persistence for offline. For online, we can use `ExplorationTracker`.
-        // But we need to filter by world.
-
-        // Maybe we just let the caller handle it?
-        // No, `ExplorationManager` is central.
-
-        // Let's iterate `ExplorationTracker` keys, get player by name from server?
-        // Or simply:
-
-        com.hypixel.hytale.server.core.universe.Universe universe = com.hypixel.hytale.server.core.universe.Universe.get();
+        Universe universe = Universe.get();
         if (universe != null) {
-            com.hypixel.hytale.server.core.universe.world.World world = universe.getWorld(worldName);
+            World world = universe.getWorld(worldName);
             if (world != null) {
-                for (Player player : world.getPlayers()) {
-                     dev.ninesliced.exploration.ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player);
-                     if (data != null) {
-                         allChunks.addAll(data.getExploredChunks().getExploredChunks());
-                     }
+                for (PlayerRef playerRef : world.getPlayerRefs()) {
+                    Holder<EntityStore> holder = playerRef.getHolder();
+                    if (holder == null) continue;
+                    Player player = holder.getComponent(Player.getComponentType());
+                    if (player == null) continue;
+                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player);
+
+                    if (data != null) {
+                        allChunks.addAll(data.getExploredChunks().getExploredChunks());
+                    }
                 }
             }
         }

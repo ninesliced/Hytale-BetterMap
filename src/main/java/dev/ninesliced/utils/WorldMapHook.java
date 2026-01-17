@@ -131,7 +131,7 @@ public class WorldMapHook {
      *
      * @param world The world.
      */
-    public static void hookWorldMapResolution(@Nonnull com.hypixel.hytale.server.core.universe.world.World world) {
+    public static void hookWorldMapResolution(@Nonnull World world) {
         try {
             LOGGER.info("Hooking WorldMap resolution for world: " + world.getName());
             WorldMapManager manager = world.getWorldMapManager();
@@ -427,7 +427,7 @@ public class WorldMapHook {
             Set<Long> exploredWorldChunks;
 
             if (BetterMapConfig.getInstance().isShareAllExploration()) {
-                com.hypixel.hytale.server.core.universe.world.World world = tracker.getPlayer().getWorld();
+                World world = tracker.getPlayer().getWorld();
                 String worldName = world != null ? world.getName() : "world";
                 exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
             } else {
