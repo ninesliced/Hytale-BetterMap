@@ -46,9 +46,13 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             UUID viewerUuid = ((CommandSender) viewingPlayer).getUuid();
 
             BetterMapConfig config = BetterMapConfig.getInstance();
-            if (!config.isRadarEnabled()) {
+            if (!config.isRadarEnabled() || config.isHidePlayersOnMap()) {
                 return;
             }
+
+            int radarRange = config.getRadarRange();
+            boolean infiniteRange = radarRange < 0;
+            int rangeSquared = infiniteRange ? Integer.MAX_VALUE : radarRange * radarRange;
 
             Store<EntityStore> store = world.getEntityStore().getStore();
             Ref<EntityStore> ref = viewingPlayer.getReference();
@@ -57,10 +61,6 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             if (transformComponent == null) return;
 
             Vector3d viewerPos = transformComponent.getPosition();
-
-            int range = config.getRadarRange();
-            boolean infiniteRange = range < 0;
-            int rangeSquared = infiniteRange ? Integer.MAX_VALUE : range * range;
 
             for (PlayerRef otherPlayerRef : world.getPlayerRefs()) {
                 if (otherPlayerRef.getUuid().equals(viewerUuid)) {

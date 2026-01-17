@@ -58,6 +58,7 @@ public class BetterMapCommand extends AbstractCommand {
         context.sendMessage(Message.raw("Map Quality: ").color(Color.YELLOW).insert(Message.raw(config.getMapQuality().name()).color(Color.WHITE)));
         context.sendMessage(Message.raw("Debug Mode: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(config.isDebug())).color(Color.WHITE)));
         context.sendMessage(Message.raw("Player Radar: ").color(Color.YELLOW).insert(Message.raw(config.isRadarEnabled() ? "Enabled" : "Disabled").color(Color.WHITE)));
+        context.sendMessage(Message.raw("Hide Players: ").color(Color.YELLOW).insert(Message.raw(config.isHidePlayersOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));
         String radarRange = config.getRadarRange() == -1 ? "Infinite" : config.getRadarRange() + " blocks";
         context.sendMessage(Message.raw("Radar Range: ").color(Color.YELLOW).insert(Message.raw(radarRange).color(Color.WHITE)));
         context.sendMessage(Message.raw("NOTE: The server must be restarted for map quality changes to take effect."));

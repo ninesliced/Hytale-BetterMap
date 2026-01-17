@@ -30,6 +30,7 @@ public class BetterMapConfig {
     private int maxChunksToLoad = 10000;
     private boolean radarEnabled = true;
     private int radarRange = -1;
+    private boolean hidePlayersOnMap = false;
 
     private transient Path configPath;
     private transient Path configDir;
@@ -164,6 +165,12 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("radarRange")) {
                         this.radarRange = loaded.radarRange;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("hidePlayersOnMap")) {
+                        this.hidePlayersOnMap = loaded.hidePlayersOnMap;
                     } else {
                         needsSave = true;
                     }
@@ -414,16 +421,6 @@ public class BetterMapConfig {
     }
 
     /**
-     * Sets the default radar enabled state.
-     *
-     * @param radarEnabled True to enable radar by default.
-     */
-    public void setRadarEnabled(boolean radarEnabled) {
-        this.radarEnabled = radarEnabled;
-        save();
-    }
-
-    /**
      * Gets the default radar range in blocks.
      *
      * @return The default radar range, or -1 for infinite.
@@ -433,9 +430,38 @@ public class BetterMapConfig {
     }
 
     /**
-     * Sets the default radar range.
+     * Checks if players should be hidden on the map.
      *
-     * @param radarRange The default radar range in blocks, or -1 for infinite.
+     * @return True if players are hidden on the map.
+     */
+    public boolean isHidePlayersOnMap() {
+        return hidePlayersOnMap;
+    }
+
+    /**
+     * Sets whether players should be hidden on the map.
+     *
+     * @param hidePlayersOnMap True to hide players.
+     */
+    public void setHidePlayersOnMap(boolean hidePlayersOnMap) {
+        this.hidePlayersOnMap = hidePlayersOnMap;
+        save();
+    }
+
+    /**
+     * Sets whether radar is enabled.
+     *
+     * @param radarEnabled True to enable radar.
+     */
+    public void setRadarEnabled(boolean radarEnabled) {
+        this.radarEnabled = radarEnabled;
+        save();
+    }
+
+    /**
+     * Sets the radar range.
+     *
+     * @param radarRange The new radar range.
      */
     public void setRadarRange(int radarRange) {
         this.radarRange = radarRange;
