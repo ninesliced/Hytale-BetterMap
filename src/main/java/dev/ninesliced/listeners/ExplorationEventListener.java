@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.*;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -52,21 +53,24 @@ public class ExplorationEventListener {
 
             WorldMapHook.sendMapSettingsToPlayer(player);
 
+            World world = player.getWorld();
             if (playerWorlds.containsKey(playerName)) {
-                LOGGER.info("[DEBUG] Player " + playerName + " already tracked, skipping PlayerReadyEvent");
-                return;
+                String trackedWorld = playerWorlds.get(playerName);
+                String currentWorld = world != null ? world.getName() : null;
+                if (trackedWorld != null && trackedWorld.equals(currentWorld)) {
+                    LOGGER.info("[DEBUG] Player " + playerName + " already tracked in world " + currentWorld + ", skipping PlayerReadyEvent");
+                    return;
+                }
             }
-
             LOGGER.info("Player ready (initial join): " + playerName);
 
-            World world = player.getWorld();
             if (world == null)
                 return;
 
             String worldName = world.getName();
             playerWorlds.put(playerName, worldName);
 
-            if (isDefaultWorld(world)) {
+            if (isTrackedWorld(world)) {
                 ExplorationTracker.getInstance().getOrCreatePlayerData(player);
                 ExplorationManager.getInstance().loadPlayerData(player);
 
@@ -112,7 +116,7 @@ public class ExplorationEventListener {
                 LOGGER.info("[DEBUG] Unhooking tracker for " + player.getDisplayName());
                 WorldMapHook.unhookPlayerMapTracker(player, tracker);
 
-                if (isDefaultWorld(world)) {
+                if (isTrackedWorld(world)) {
                     UUID uuid = playerRef.getUuid();
                     ExplorationManager.getInstance().savePlayerData(player.getDisplayName(), uuid, worldName);
                 }
@@ -159,7 +163,7 @@ public class ExplorationEventListener {
                     LOGGER.info("[DEBUG] Unhooking tracker for old world " + oldWorldName);
                     WorldMapHook.unhookPlayerMapTracker(player, tracker);
 
-                    if (isDefaultWorld(oldWorld)) {
+                    if (isTrackedWorld(oldWorld)) {
                         LOGGER.info("[DEBUG] Saving data for default world");
                         UUID uuid = playerRef.getUuid();
                         ExplorationManager.getInstance().savePlayerData(playerName, uuid, oldWorldName);
@@ -168,7 +172,7 @@ public class ExplorationEventListener {
                     ExplorationTracker.getInstance().removePlayerData(playerName);
                 }
 
-                if (!isDefaultWorld(newWorld)) {
+                if (!isTrackedWorld(newWorld)) {
                     WorldMapTracker tracker = player.getWorldMapTracker();
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
                 } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
@@ -248,7 +252,7 @@ public class ExplorationEventListener {
                         World world = store.getExternalData().getWorld();
                         String worldName = world.getName();
 
-                        if (isDefaultWorld(world)) {
+                        if (isTrackedWorld(world)) {
                             LOGGER.info("[DEBUG] Fallback save for player " + playerName + " disconnecting from default world");
                             ExplorationManager.getInstance().savePlayerData(playerName, playerUUID, worldName);
                         }
@@ -271,36 +275,10 @@ public class ExplorationEventListener {
         }
     }
 
-    public static boolean isDefaultWorld(@javax.annotation.Nullable World world) {
-        try {
-            if (world == null) {
-                return false;
-            }
-
-            Universe universe = Universe.get();
-            World defaultWorld = universe != null ? universe.getDefaultWorld() : null;
-
-            if (defaultWorld == null) {
-                return World.DEFAULT.equals(world.getName());
-            }
-
-            if (world == defaultWorld) {
-                return true;
-            }
-
-            try {
-                String dw = defaultWorld.getName();
-                String w = world.getName();
-                if (dw.equals(w)) {
-                    return true;
-                }
-            } catch (Exception ignore) {
-            }
-
-            return World.DEFAULT.equals(world.getName());
-        } catch (Exception e) {
-            LOGGER.warning("[DEBUG] Could not evaluate default world: " + e.getMessage());
+    public static boolean isTrackedWorld(@javax.annotation.Nullable World world) {
+        if (world == null) {
             return false;
         }
+        return BetterMapConfig.getInstance().isTrackedWorld(world.getName());
     }
 }

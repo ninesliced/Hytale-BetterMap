@@ -50,7 +50,7 @@ public class WaypointManager {
     @Nullable
     public static MapMarker[] getWaypoints(@Nonnull Player player) {
         World world = player.getWorld();
-        if (world == null) return new MapMarker[0];
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return new MapMarker[0];
 
         ensureLoaded(player, world);
 
@@ -61,7 +61,7 @@ public class WaypointManager {
 
     public static void addWaypoint(@Nonnull Player player, @Nonnull String name, @Nonnull String icon, @Nonnull Transform transform, boolean global) {
         World world = player.getWorld();
-        if (world == null) return;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return;
 
         ensureLoaded(player, world);
 
@@ -77,7 +77,7 @@ public class WaypointManager {
 
     public static boolean removeWaypoint(@Nonnull Player player, @Nonnull String idOrName) {
         World world = player.getWorld();
-        if (world == null) return false;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return false;
 
         ensureLoaded(player, world);
 
@@ -119,7 +119,7 @@ public class WaypointManager {
 
     public static boolean updateWaypoint(@Nonnull Player player, @Nonnull String id, @Nullable String newName, @Nullable String newIcon, @Nullable Transform newTransform) {
         World world = player.getWorld();
-        if (world == null) return false;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return false;
 
         ensureLoaded(player, world);
 
@@ -174,7 +174,7 @@ public class WaypointManager {
 
     public static MapMarker getWaypoint(@Nonnull Player player, @Nonnull String id) {
         World world = player.getWorld();
-        if (world == null) return null;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return null;
 
         ensureLoaded(player, world);
 
@@ -189,7 +189,7 @@ public class WaypointManager {
 
     public static MapMarker findWaypoint(@Nonnull Player player, @Nonnull String nameOrId) {
         World world = player.getWorld();
-        if (world == null) return null;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return null;
 
         ensureLoaded(player, world);
 
@@ -207,7 +207,7 @@ public class WaypointManager {
 
     private static void refreshPlayerMarkers(@Nonnull Player player) {
         World world = player.getWorld();
-        if (world == null) return;
+        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return;
 
         PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
         MapMarker[] currentMarkers = perWorldData.getWorldMapMarkers();
@@ -233,7 +233,7 @@ public class WaypointManager {
             return;
         }
 
-        if (!isDefaultWorld(world)) {
+        if (!isTrackedWorld(world)) {
             return;
         }
 
@@ -293,7 +293,7 @@ public class WaypointManager {
     }
 
     private static void persistPersonal(@Nonnull Player player, @Nonnull String worldName, @Nonnull List<MapMarker> markers) {
-        if (persistence == null || !isDefaultWorld(player.getWorld())) {
+        if (persistence == null || !ExplorationEventListener.isTrackedWorld(player.getWorld())) {
             return;
         }
         List<StoredWaypoint> stored = new ArrayList<>();
@@ -309,7 +309,7 @@ public class WaypointManager {
     }
 
     private static void saveGlobalMarker(@Nonnull MapMarker marker, @Nonnull World world, @Nonnull Player player) {
-        if (persistence == null || !isDefaultWorld(world)) {
+        if (persistence == null || !ExplorationEventListener.isTrackedWorld(world)) {
             return;
         }
         List<StoredWaypoint> existing = persistence.loadGlobal();
@@ -466,8 +466,8 @@ public class WaypointManager {
         return input.replaceAll("<[^>]*>", "");
     }
 
-    public static boolean isDefaultWorld(@Nullable World world) {
-        return ExplorationEventListener.isDefaultWorld(world);
+    public static boolean isTrackedWorld(@Nullable World world) {
+        return ExplorationEventListener.isTrackedWorld(world);
     }
 
     private static final class WaypointPersistence {

@@ -7,6 +7,9 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,6 +33,7 @@ public class BetterMapConfig {
     private int maxChunksToLoad = 10000;
     private boolean radarEnabled = true;
     private int radarRange = -1;
+    private List<String> allowedWorlds = new ArrayList<>(Arrays.asList("default", "world"));
 
     private transient Path configPath;
     private transient Path configDir;
@@ -164,6 +168,12 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("radarRange")) {
                         this.radarRange = loaded.radarRange;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowedWorlds") && loaded.allowedWorlds != null) {
+                        this.allowedWorlds = loaded.allowedWorlds;
                     } else {
                         needsSave = true;
                     }
@@ -440,6 +450,68 @@ public class BetterMapConfig {
     public void setRadarRange(int radarRange) {
         this.radarRange = radarRange;
         save();
+    }
+    
+    /**
+     * Gets the list of allowed worlds.
+     *
+     * @return The list of allowed worlds.
+     */
+    public List<String> getAllowedWorlds() {
+        return allowedWorlds;
+    }
+
+    /**
+     * Checks if a world is allowed/tracked.
+     *
+     * @param worldName The world name.
+     * @return True if allowed.
+     */
+    public boolean isTrackedWorld(String worldName) {
+        return allowedWorlds != null && allowedWorlds.contains(worldName);
+    }
+
+    /**
+     * Sets the list of allowed worlds.
+     *
+     * @param allowedWorlds The new list.
+     */
+    public void setAllowedWorlds(List<String> allowedWorlds) {
+        this.allowedWorlds = allowedWorlds;
+        save();
+    }
+
+    /**
+     * Adds a world to the allowed list if not present.
+     *
+     * @param worldName The world name to add.
+     * @return True if added, false if already present.
+     */
+    public boolean addAllowedWorld(String worldName) {
+        if (this.allowedWorlds == null) {
+            this.allowedWorlds = new ArrayList<>();
+        }
+        if (!this.allowedWorlds.contains(worldName)) {
+            this.allowedWorlds.add(worldName);
+            save();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Removes a world from the allowed list if present.
+     *
+     * @param worldName The world name to remove.
+     * @return True if removed, false if not present.
+     */
+    public boolean removeAllowedWorld(String worldName) {
+        if (this.allowedWorlds != null && this.allowedWorlds.contains(worldName)) {
+            this.allowedWorlds.remove(worldName);
+            save();
+            return true;
+        }
+        return false;
     }
 
     /**

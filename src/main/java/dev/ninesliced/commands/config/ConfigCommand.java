@@ -31,6 +31,8 @@ public class ConfigCommand extends AbstractCommand {
         this.addSubCommand(new MaxChunksToLoadCommand());
         this.addSubCommand(new RadarToggleCommand());
         this.addSubCommand(new RadarRangeCommand());
+        this.addSubCommand(new TrackWorldCommand());
+        this.addSubCommand(new UntrackWorldCommand());
     }
 
     @Override
