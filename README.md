@@ -95,6 +95,12 @@ You can either do `/op add <player>` to give full access or assign specific perm
 * `/bm config hideplayers`
 * Hides player cursors on the map.
 
+* `/bm config waypointteleport`
+* Toggles waypoint teleports.
+
+* `/bm config markerteleport`
+* Toggles map marker teleports.
+
 
 * `/bm config shareallexploration`
 * Toggles "Linked Map" mode (shared exploration data).
@@ -143,6 +149,8 @@ You can modify the plugin settings in `mods/bettermap/config.json`.
   "radarEnabled": true,
   "radarRange": -1,
   "hidePlayersOnMap": false,
+  "allowWaypointTeleports": true,
+  "allowMapMarkerTeleports": true,
   "autoSaveInterval": 5,
   "allowedWorlds": [
     "default",

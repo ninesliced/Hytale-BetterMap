@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.PositionUtil;
+import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.listeners.ExplorationEventListener;
 import dev.ninesliced.utils.PermissionsUtil;
 import java.io.BufferedReader;
@@ -179,7 +180,8 @@ public class WaypointManager {
         List<ContextMenuItem> menuItems = new ArrayList<>();
         boolean isGlobal = isGlobalId(markerId);
         menuItems.add(new ContextMenuItem(isGlobal ? "Global Waypoint" : "Personal Waypoint", ""));
-        if (PermissionsUtil.canTeleport(player)) {
+        if (PermissionsUtil.canTeleport(player)
+            && BetterMapConfig.getInstance().isAllowWaypointTeleports()) {
             menuItems.add(new ContextMenuItem("Teleport To", "bm waypoint teleport " + markerId));
         }
         if (isGlobal) {

@@ -32,6 +32,8 @@ public class ConfigCommand extends AbstractCommand {
         this.addSubCommand(new RadarToggleCommand());
         this.addSubCommand(new RadarRangeCommand());
         this.addSubCommand(new HidePlayersCommand());
+        this.addSubCommand(new WaypointTeleportCommand());
+        this.addSubCommand(new MarkerTeleportCommand());
         this.addSubCommand(new TrackWorldCommand());
         this.addSubCommand(new UntrackWorldCommand());
         this.addSubCommand(new AutoSaveIntervalCommand());

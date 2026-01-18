@@ -34,6 +34,8 @@ public class BetterMapConfig {
     private boolean radarEnabled = true;
     private int radarRange = -1;
     private boolean hidePlayersOnMap = false;
+    private boolean allowWaypointTeleports = true;
+    private boolean allowMapMarkerTeleports = true;
     private int autoSaveInterval = 5;
     private List<String> allowedWorlds = new ArrayList<>(Arrays.asList("default", "world"));
 
@@ -176,6 +178,18 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("hidePlayersOnMap")) {
                         this.hidePlayersOnMap = loaded.hidePlayersOnMap;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowWaypointTeleports")) {
+                        this.allowWaypointTeleports = loaded.allowWaypointTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowMapMarkerTeleports")) {
+                        this.allowMapMarkerTeleports = loaded.allowMapMarkerTeleports;
                     } else {
                         needsSave = true;
                     }
@@ -495,6 +509,44 @@ public class BetterMapConfig {
      */
     public void setHidePlayersOnMap(boolean hidePlayersOnMap) {
         this.hidePlayersOnMap = hidePlayersOnMap;
+        save();
+    }
+
+    /**
+     * Checks if waypoint teleports are allowed.
+     *
+     * @return True if waypoint teleports are enabled.
+     */
+    public boolean isAllowWaypointTeleports() {
+        return allowWaypointTeleports;
+    }
+
+    /**
+     * Sets whether waypoint teleports are allowed.
+     *
+     * @param allowWaypointTeleports True to allow waypoint teleports.
+     */
+    public void setAllowWaypointTeleports(boolean allowWaypointTeleports) {
+        this.allowWaypointTeleports = allowWaypointTeleports;
+        save();
+    }
+
+    /**
+     * Checks if map marker teleports are allowed.
+     *
+     * @return True if map marker teleports are enabled.
+     */
+    public boolean isAllowMapMarkerTeleports() {
+        return allowMapMarkerTeleports;
+    }
+
+    /**
+     * Sets whether map marker teleports are allowed.
+     *
+     * @param allowMapMarkerTeleports True to allow map marker teleports.
+     */
+    public void setAllowMapMarkerTeleports(boolean allowMapMarkerTeleports) {
+        this.allowMapMarkerTeleports = allowMapMarkerTeleports;
         save();
     }
 
