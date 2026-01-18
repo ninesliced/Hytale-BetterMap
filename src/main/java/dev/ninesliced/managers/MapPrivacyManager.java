@@ -97,25 +97,27 @@ public class MapPrivacyManager {
             for (World world : this.monitoredWorlds) {
                 if (world == null) continue;
 
-                if (hide) {
-                    this.removeProvider(world);
-                }
-
-                try {
-                    for (PlayerRef playerRef : world.getPlayerRefs()) {
-                        if (playerRef == null) continue;
-
-                        Holder<EntityStore> holder = playerRef.getHolder();
-                        if (holder == null) continue;
-                        Player player = holder.getComponent(Player.getComponentType());
-                        if (player == null) continue;
-
-                        WorldMapTracker tracker = player.getWorldMapTracker();
-                        tracker.setPlayerMapFilter(ignored -> !hide);
-                        boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
-                        tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+                world.execute(() -> {
+                    if (hide) {
+                        this.removeProvider(world);
                     }
-                } catch (Exception e) {}
+
+                    try {
+                        for (PlayerRef playerRef : world.getPlayerRefs()) {
+                            if (playerRef == null) continue;
+
+                            Holder<EntityStore> holder = playerRef.getHolder();
+                            if (holder == null) continue;
+                            Player player = holder.getComponent(Player.getComponentType());
+                            if (player == null) continue;
+
+                            WorldMapTracker tracker = player.getWorldMapTracker();
+                            tracker.setPlayerMapFilter(ignored -> !hide);
+                            boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
+                            tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+                        }
+                    } catch (Exception _) {}
+                });
             }
 
         } catch (Exception e) {

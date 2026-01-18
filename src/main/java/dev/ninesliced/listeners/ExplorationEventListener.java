@@ -51,21 +51,23 @@ public class ExplorationEventListener {
                 PlayerConfigManager.getInstance().loadPlayerConfig(uuid);
             }
 
-            WorldMapHook.sendMapSettingsToPlayer(player);
-
             World world = player.getWorld();
+            if (world == null) {
+                LOGGER.warning("Player " + playerName + " has no world!");
+                return;
+            }
+
+            world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
+
             if (playerWorlds.containsKey(playerName)) {
                 String trackedWorld = playerWorlds.get(playerName);
-                String currentWorld = world != null ? world.getName() : null;
+                String currentWorld = world.getName();
                 if (trackedWorld != null && trackedWorld.equals(currentWorld)) {
                     LOGGER.info("[DEBUG] Player " + playerName + " already tracked in world " + currentWorld + ", skipping PlayerReadyEvent");
                     return;
                 }
             }
             LOGGER.info("Player ready (initial join): " + playerName);
-
-            if (world == null)
-                return;
 
             String worldName = world.getName();
             playerWorlds.put(playerName, worldName);

@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.WorldMapHook;
@@ -48,12 +49,18 @@ public class PlayerMaxScaleCommand extends AbstractCommand {
 
             UUID uuid = context.sender().getUuid();
             Player player = (Player) context.sender();
+            World world = player.getWorld();
             PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
+
+            if (world == null) {
+                context.sendMessage(Message.raw("Could not access world").color(Color.RED));
+                return CompletableFuture.completedFuture(null);
+            }
 
             if (config != null) {
                 config.setMaxScale(scale);
                 PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                WorldMapHook.sendMapSettingsToPlayer(player);
+                world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                 context.sendMessage(Message.raw("Set player max scale to " + scale).color(Color.GREEN));
             } else {
                  context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));

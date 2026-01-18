@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.WorldMapHook;
@@ -34,36 +35,36 @@ public class PlayerMinScaleCommand extends AbstractCommand {
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
-        if (!context.isPlayer()) {
-            context.sendMessage(Message.raw("This command must be run by a player").color(Color.RED));
-            return CompletableFuture.completedFuture(null);
-        }
+        return CompletableFuture.runAsync(() -> {
+            if (!context.isPlayer()) {
+                context.sendMessage(Message.raw("This command must be run by a player").color(Color.RED));
+                return;
+            }
 
-        try {
             Float scale = context.get(this.scaleArg);
             if (scale <= 0) {
                 context.sendMessage(Message.raw("Scale must be greater than 0").color(Color.RED));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             UUID uuid = context.sender().getUuid();
             Player player = (Player) context.sender();
+            World world = player.getWorld();
             PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
+
+            if (world == null) {
+                context.sendMessage(Message.raw("Could not access world").color(Color.RED));
+                return;
+            }
 
             if (config != null) {
                 config.setMinScale(scale);
                 PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                WorldMapHook.sendMapSettingsToPlayer(player);
+                world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                 context.sendMessage(Message.raw("Set player min scale to " + scale).color(Color.GREEN));
             } else {
                  context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));
             }
-
-        } catch (Exception e) {
-            context.sendMessage(Message.raw("Error setting min scale: " + e.getMessage()).color(Color.RED));
-            e.printStackTrace();
-        }
-
-        return CompletableFuture.completedFuture(null);
+        });
     }
 }

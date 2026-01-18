@@ -47,13 +47,11 @@ public class ReloadCommand extends AbstractCommand {
 
         Universe universe = Universe.get();
         if (universe != null) {
-            universe.getWorlds().values().forEach(world -> {
-                try {
-                    WorldMapHook.updateWorldMapConfigs(world);
-                    WorldMapHook.broadcastMapSettings(world);
-                    WorldMapHook.refreshTrackers(world);
-                } catch (Exception _) {}
-            });
+            universe.getWorlds().values().forEach(world -> world.execute(() -> {
+                WorldMapHook.updateWorldMapConfigs(world);
+                WorldMapHook.broadcastMapSettings(world);
+                WorldMapHook.refreshTrackers(world);
+            }));
         }
 
         context.sendMessage(Message.raw("BetterMap configuration reloaded!").color(Color.GREEN));

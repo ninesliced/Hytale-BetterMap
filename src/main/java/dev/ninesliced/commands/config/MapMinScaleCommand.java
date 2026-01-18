@@ -42,52 +42,27 @@ public class MapMinScaleCommand extends AbstractCommand {
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
-        if (!context.isPlayer()) {
-            context.sendMessage(Message.raw("This command must be run by a player").color(Color.RED));
-            return CompletableFuture.completedFuture(null);
-        }
-        try {
+        return CompletableFuture.runAsync(() -> {
+            if (!context.isPlayer()) {
+                context.sendMessage(Message.raw("This command must be run by a player").color(Color.RED));
+                return;
+            }
+
             Float newMin = context.get(this.zoomValueArg);
             if (newMin < 2.0f) {
                 context.sendMessage(Message.raw("Min scale must be greater or equals to 2").color(Color.RED));
-                return CompletableFuture.completedFuture(null);
-            }
-            World world = this.findWorld(context);
-            if (world == null) {
-                context.sendMessage(Message.raw("Could not access world").color(Color.RED));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             BetterMapConfig config = BetterMapConfig.getInstance();
             if (newMin >= config.getMaxScale()) {
                 context.sendMessage(Message.raw("Min scale must be less than max scale (" + config.getMaxScale() + ")").color(Color.RED));
-                return CompletableFuture.completedFuture(null);
+                return;
             }
 
             config.setMinScale(newMin);
 
             context.sendMessage(Message.raw("Map min scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMin)).color(Color.YELLOW)));
-
-        } catch (Exception e) {
-            context.sendMessage(Message.raw("Error: " + e.getMessage()).color(Color.RED));
-            e.printStackTrace();
-        }
-        return CompletableFuture.completedFuture(null);
-    }
-
-    /**
-     * Helper method to find the world associated with the command sender.
-     *
-     * @param context The command context.
-     * @return The world the sender is in, or null if not applicable.
-     */
-    private World findWorld(CommandContext context) {
-        try {
-            CommandSender sender = context.sender();
-            if (sender instanceof Player) {
-                return ((Player) sender).getWorld();
-            }
-        } catch (Exception _) {}
-        return null;
+        });
     }
 }
