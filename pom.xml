@@ -6,7 +6,7 @@
 
     <groupId>dev.ninesliced</groupId>
     <artifactId>BetterMap</artifactId>
-    <version>1.2</version>
+    <version>1.2.1</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>

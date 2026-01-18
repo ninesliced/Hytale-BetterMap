@@ -1,7 +1,10 @@
 # Hytale BetterMap Plugin
 
+<img width="2582" height="720" alt="bettermap_banner" src="https://github.com/user-attachments/assets/70cd978d-6ded-4382-aefa-93c1600e183a" />
+
 **Enhance your world exploration with saved map data, customizable zoom, waypoints, shared mapping, and performance-optimized rendering.**
 
+***
 ## License
 
 **ALL RIGHTS RESERVED.**
@@ -19,29 +22,34 @@ By default, the Hytale in-game map is fleeting. It only displays a small circula
 
 ## Key Features
 
-* **Persistent Exploration:** The map retains all previously visited areas across sessions. Data is saved automatically to prevent loss during server crashes.
-* **Waypoint System:** Never lose a location again. Open the waypoint menu to add markers at your current position, customize their names and colors, and share them with other players.
-* **Teleport:** Players with permission can teleport directly to their saved waypoints.
-
-
-* **Linked Exploration (Shared Map):** Optionally enable a shared map mode where all players contribute to a single global map, allowing you to see areas discovered by friends in real-time.
-* **Compass Radar:** Easily locate other players nearby directly on your compass. The range can be customized or toggled off by admins.
-* **Location Overlay:** Display your current coordinates and direction on-screen via a toggleable HUD (`/bm location`).
-* **Customizable Zoom:** You are no longer locked to the default zoom. Set your own Minimum (zoom out) and Maximum (zoom in) scales. Settings are saved per player.
-* **Multi-World Support:** Whitelist specific worlds for the mod to track, resolving compatibility issues with server hosts (like Apex) that change default world names.
+1.  **Persistent Exploration:** The map retains all previously visited areas across sessions. Data is saved automatically to prevent loss during server crashes.
+    
+2.  **Waypoint System:** Never lose a location again. Open the waypoint menu to add markers at your current position, customize their names and colors, and share them with other players.
+    
+3.  **Teleport:** Players with permission can teleport directly to their saved waypoints.
+    
+4.  **Linked Exploration (Shared Map):** Optionally enable a shared map mode where all players contribute to a single global map, allowing you to see areas discovered by friends in real-time.
+    
+5.  **Compass Radar:** Easily locate other players nearby directly on your compass. The range can be customized or toggled off by admins.
+    
+6.  **Location Overlay:** Display your current coordinates and direction on-screen via a toggleable HUD (`/bm location`). (Currently disabled, coming soon!)
+    
+7.  **Customizable Zoom:** You are no longer locked to the default zoom. Set your own Minimum (zoom out) and Maximum (zoom in) scales. Settings are saved per player.
+    
+8.  **Multi-World Support:** Whitelist specific worlds for the mod to track, resolving compatibility issues with server hosts (like Apex) that change default world names.
+    
 
 ## Performance & Optimization
 
-* **Dynamic Chunk Loading:** The plugin intelligently manages memory by loading only the explored chunks nearest to the player and unloading distant ones.
-* **Map Quality Settings:** Admins can balance visual fidelity and performance by choosing between `LOW`, `MEDIUM`, or `HIGH` quality.
-* `LOW`: Loads up to 30,000 chunks (8x8 resolution).
-* `MEDIUM`: Loads up to 10,000 chunks (16x16 resolution).
-* `HIGH`: Loads up to 3,000 chunks (32x32 resolution). 
+*   **Dynamic Chunk Loading:** The plugin intelligently manages memory by loading only the explored chunks nearest to the player and unloading distant ones.
+*   **Map Quality Settings:** Admins can balance visual fidelity and performance by choosing between `LOW`, `MEDIUM`, or `HIGH` quality.
+*   `LOW`: Loads up to 30,000 chunks (8x8 resolution).
+*   `MEDIUM`: Loads up to 10,000 chunks (16x16 resolution).
+*   `HIGH`: Loads up to 3,000 chunks (32x32 resolution).
 
-*Note: High quality strictly limits loaded chunks to prevent memory errors.*
+_Note: High quality strictly limits loaded chunks to prevent memory errors._
 
 You can also manually set the maximum number of loaded chunks via `/bm config maxchunk`, within recommended limits.
-
 
 ## Commands & Permissions
 
@@ -53,32 +61,27 @@ You can either do `/op add <player>` to give full access or assign specific perm
 
 **Permission:** `dev.ninesliced.bettermap.command.base`
 
-* `/bettermap` (or `/bm`)
-* Displays current map settings and status.
-
-
-* `/bm waypoint` (or `/bm menu`)
-* Opens the Waypoint UI to manage, share, or delete waypoints.
-
-
-* `/bm location`
-* Toggles the personal coordinate display HUD.
-
-
-* `/bm min <value>`
-* Sets your personal minimum zoom scale (default base is 32).
-
-
-* `/bm max <value>`
-* Sets your personal maximum zoom scale (default base is 256).
-
-
+1.  `/bettermap` (or `/bm`)
+    
+    *   Displays current map settings and status.
+2.  `/bm waypoint` (or `/bm menu`)
+    
+    *   Opens the Waypoint UI to manage, share, or delete waypoints.
+3.  `/bm location`
+    
+    *   Toggles the personal coordinate display HUD.
+4.  `/bm min <value>`
+    
+    *   Sets your personal minimum zoom scale (default base is 32).
+5.  `/bm max <value>`
+    
+    *   Sets your personal maximum zoom scale (default base is 256).
 
 ### Teleportation
 
 **Permission:** `dev.ninesliced.bettermap.command.base.teleport`
 
-* **Waypoint Teleport:** Allows the user to teleport to locations via the Waypoint UI buttons.
+*   **Waypoint Teleport:** Allows the user to teleport to locations via the Waypoint UI buttons.
 
 ### Admin & Configuration Commands
 
@@ -95,20 +98,26 @@ You can either do `/op add <player>` to give full access or assign specific perm
 * `/bm config hideplayers`
 * Hides player cursors on the map.
 
+
 * `/bm config hidewarps`
 * Hides other players' warps on the map.
+
 
 * `/bm config hideunexploredwarps`
 * Hides warps in unexplored regions.
 
+
 * `/bm config hidepois`
 * Hides all POI markers on the map.
+
 
 * `/bm config hideunexploredpoi`
 * Hides POIs in unexplored regions.
 
+
 * `/bm config waypointteleport`
 * Toggles waypoint teleports.
+
 
 * `/bm config markerteleport`
 * Toggles map marker teleports.
@@ -134,6 +143,30 @@ You can either do `/op add <player>` to give full access or assign specific perm
 * Reloads the configuration file immediately.
 
 
+1.  `/bm config radar <range>`
+    
+    *   Sets the radar range (use `-1` for infinite).
+2.  `/bm config location`
+    
+    *   Toggles the server-wide default for the location HUD.
+3.  `/bm config hideplayers`
+    
+    *   Hides player cursors on the map.
+4.  `/bm config shareallexploration`
+    
+    *   Toggles "Linked Map" mode (shared exploration data).
+5.  `/bm config track` / `untrack`
+    
+    *   Adds or removes the current world from the active whitelist.
+6.  `/bm config maxchunk <number>`
+    
+    *   Manually overrides the maximum number of loaded chunks.
+7.  `/bm config autosave <minutes>`
+    
+    *   Sets the interval for auto-saving map data.
+8.  `/bm reload`
+    
+    *   Reloads the configuration file immediately.
 
 ## Configuration & Data Storage
 
@@ -143,11 +176,11 @@ All plugin files are located within the server's `mods` directory.
 
 You can modify the plugin settings in `mods/bettermap/config.json`.
 
-*Note: Changing `mapQuality` or `maxChunksToLoad` requires a server restart to take effect.*
+_Note: Changing `mapQuality` or `maxChunksToLoad` requires a server restart to take effect._
 
 **Default Configuration:**
 
-```json
+```
 {
   "explorationRadius": 16,
   "updateRateMs": 500,
@@ -174,7 +207,6 @@ You can modify the plugin settings in `mods/bettermap/config.json`.
     "world"
   ]
 }
-
 ```
 
 ### Saved Exploration Data
@@ -185,9 +217,21 @@ Map data is saved per world. You can find the saved exploration files here: `mod
 
 This project was created to improve the exploration quality of life in Hytale.
 
-* **Created by:** Paralaxe and Theobosse
-* **Team:** [Ninesliced](https://ninesliced.com/)
+*   **Created by:** Paralaxe and Theobosse
+*   **Team:** [Ninesliced](https://ninesliced.com/)
 
----
+## Examples:
 
-*Found a bug? Have a suggestion? Please report it in the comments!*
+*   Waypoint list using command `/bettermap waypoint menu`:
+
+![alt text](https://media.forgecdn.net/attachments/1473/704/waypoint-menu-png.png)
+
+*   Waypoint on map: ![alt text](https://media.forgecdn.net/attachments/1473/705/waypoint-example-png.png)
+*   Waypoint edit menu: ![alt text](https://media.forgecdn.net/attachments/1473/706/waypoint-edit-png.png)
+*   High Quality map: ![alt text](https://media.forgecdn.net/attachments/1467/936/capture-decran-2026-01-15-181745.png)
+*   Medium Quality map: ![alt text](https://media.forgecdn.net/attachments/1470/4/example-map-quality-medium-png.png)
+*   Low Quality map: ![alt text](https://media.forgecdn.net/attachments/1470/2/example-map-quality-low-png.png)
+
+***
+
+_Found a bug? Have a suggestion? Please report it in the comments!_

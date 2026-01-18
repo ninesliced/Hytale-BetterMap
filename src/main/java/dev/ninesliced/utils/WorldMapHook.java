@@ -168,6 +168,11 @@ public class WorldMapHook {
                 return;
             }
 
+            World world = player.getWorld();
+            if (world != null) {
+                explorationData.setWorldName(world.getName());
+            }
+
             int playerChunkX = ChunkUtil.blockToChunkCoord(x);
             int playerChunkZ = ChunkUtil.blockToChunkCoord(z);
 

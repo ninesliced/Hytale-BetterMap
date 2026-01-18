@@ -1,5 +1,6 @@
 package dev.ninesliced.commands;
 
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -14,6 +15,7 @@ import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 import dev.ninesliced.BetterMap;
 
+import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
 
@@ -27,8 +29,8 @@ public class PlayerLocationCommand extends AbstractCommand {
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**
@@ -44,7 +46,8 @@ public class PlayerLocationCommand extends AbstractCommand {
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {
-        if (!commandContext.isPlayer()) {
+        /**
+         * if (!commandContext.isPlayer()) {
             return CompletableFuture.completedFuture(null);
         }
 
@@ -79,5 +82,9 @@ public class PlayerLocationCommand extends AbstractCommand {
                 config.setLocationEnabled(true);
             }
         }, world);
+        */
+
+       commandContext.sendMessage(Message.raw("This feature is currently disabled. We are working on a fix.").color(Color.RED));
+       return CompletableFuture.completedFuture(null);
     }
 }

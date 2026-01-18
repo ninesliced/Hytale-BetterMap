@@ -21,8 +21,8 @@ public class LocationCommand extends AbstractCommand {
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

@@ -6,6 +6,7 @@ import dev.ninesliced.managers.MapExpansionManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -105,6 +106,16 @@ public class ExplorationTracker {
     }
 
     /**
+     * Gets a snapshot of all player exploration data.
+     *
+     * @return A copy of the current player data map.
+     */
+    @Nonnull
+    public Map<String, PlayerExplorationData> getAllPlayerDataSnapshot() {
+        return new HashMap<>(playerExplorationData);
+    }
+
+    /**
      * Holds the runtime exploration state for a single player.
      */
     public static class PlayerExplorationData {
@@ -113,6 +124,7 @@ public class ExplorationTracker {
         private long lastUpdateTime;
         private int lastChunkX = Integer.MAX_VALUE;
         private int lastChunkZ = Integer.MAX_VALUE;
+        private volatile String worldName;
 
         /**
          * Creates new player exploration data.
@@ -196,6 +208,25 @@ public class ExplorationTracker {
         public void resetLastChunkPosition() {
             this.lastChunkX = Integer.MAX_VALUE;
             this.lastChunkZ = Integer.MAX_VALUE;
+        }
+
+        /**
+         * Gets the current world name for this player data.
+         *
+         * @return The world name, or null if unknown.
+         */
+        @Nullable
+        public String getWorldName() {
+            return worldName;
+        }
+
+        /**
+         * Sets the current world name for this player data.
+         *
+         * @param worldName The world name.
+         */
+        public void setWorldName(@Nullable String worldName) {
+            this.worldName = worldName;
         }
 
         /**

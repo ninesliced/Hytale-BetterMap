@@ -28,7 +28,7 @@ public class AutoSaveIntervalCommand extends AbstractCommand {
 
     @Override
     protected String generatePermissionNode() {
-        return "config.autosave";
+        return "autosave";
     }
 
     @Nullable

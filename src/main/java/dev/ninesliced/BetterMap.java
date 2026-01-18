@@ -129,9 +129,9 @@ public class BetterMap extends JavaPlugin {
             this.getCommandRegistry().registerCommand(new BetterMapCommand());
             LOGGER.info("Mod Command: REGISTERED");
 
-            this.locationHudProvider = new LocationHudProvider();
-            this.getEntityStoreRegistry().registerSystem(new LocationSystem());
-            LOGGER.info("Location Display: INITIALIZED");
+            //this.locationHudProvider = new LocationHudProvider();
+            //this.getEntityStoreRegistry().registerSystem(new LocationSystem());
+            //LOGGER.info("Location Display: INITIALIZED");
 
             PlayerRadarManager.getInstance();
             LOGGER.info("Player Radar: INITIALIZED");

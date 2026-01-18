@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.2.1 - Compatibility Fix
+
+**Fixes**
+
+* **Location Command Disabled:** Temporarily disabled the `/bm location` command due to compatibility issues. We are actively working on a fix and will re-enable this feature in a future update.
+
 ## v1.2.0 - Waypoints, Radar & Shared Map
 
 **New Features**
@@ -79,7 +85,7 @@ Permissions have been restructured. You can either do `/op add <player>` to give
 * Allows access to all server-wide configuration commands.
 * `/bm config radar <range>` - Toggle radar/set range.
 * `/bm config hideplayers` - Hide player cursors on map.
-* `/bm config location` - Toggle server default location UI.
+* `/bm config location` - Toggle server default location UI. (disabled by default)
 * `/bm config track` / `untrack` - Add/Remove current world from whitelist.
 * `/bm config maxchunk <number>` - Set max loaded chunks.
 * `/bm config shareallexploration` - Toggle linked maps.

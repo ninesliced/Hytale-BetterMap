@@ -1,15 +1,10 @@
 package dev.ninesliced.managers;
 
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
-import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.listeners.ExplorationEventListener;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
@@ -166,19 +161,12 @@ public class ExplorationManager {
 
         Universe universe = Universe.get();
         if (universe != null) {
-            World world = universe.getWorld(worldName);
-            if (world != null) {
-                for (PlayerRef playerRef : world.getPlayerRefs()) {
-                    Holder<EntityStore> holder = playerRef.getHolder();
-                    if (holder == null) continue;
-                    Player player = holder.getComponent(Player.getComponentType());
-                    if (player == null) continue;
-                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player);
-
-                    if (data != null) {
-                        allChunks.addAll(data.getExploredChunks().getExploredChunks());
-                    }
+            for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
+                String dataWorld = data.getWorldName();
+                if (dataWorld == null || !dataWorld.equals(worldName)) {
+                    continue;
                 }
+                allChunks.addAll(data.getExploredChunks().getExploredChunks());
             }
         }
 

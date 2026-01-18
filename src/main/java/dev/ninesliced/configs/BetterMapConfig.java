@@ -28,7 +28,7 @@ public class BetterMapConfig {
     private float minScale = 10.0f;
     private float maxScale = 256.0f;
     private boolean debug = false;
-    private boolean locationEnabled = true;
+    private boolean locationEnabled = false;
     private boolean shareAllExploration = false;
     private int maxChunksToLoad = 10000;
     private boolean radarEnabled = true;
