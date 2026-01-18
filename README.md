@@ -1,5 +1,7 @@
 # Hytale BetterMap Plugin
 
+<img width="2582" height="720" alt="bettermap_banner" src="https://github.com/user-attachments/assets/70cd978d-6ded-4382-aefa-93c1600e183a" />
+
 **Enhance your world exploration with saved map data, customizable zoom, waypoints, shared mapping, and performance-optimized rendering.**
 
 ***
