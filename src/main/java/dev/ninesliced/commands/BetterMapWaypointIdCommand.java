@@ -23,8 +23,8 @@ public class BetterMapWaypointIdCommand extends AbstractPlayerCommand {
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @Override

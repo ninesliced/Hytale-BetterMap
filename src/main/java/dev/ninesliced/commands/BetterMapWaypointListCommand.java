@@ -17,8 +17,8 @@ import javax.annotation.Nonnull;
 public class BetterMapWaypointListCommand extends AbstractPlayerCommand {
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     public BetterMapWaypointListCommand() {

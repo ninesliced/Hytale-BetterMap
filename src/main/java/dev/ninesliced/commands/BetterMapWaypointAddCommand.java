@@ -32,8 +32,8 @@ public class BetterMapWaypointAddCommand extends AbstractPlayerCommand {
     private static final Pattern AUTO_NAME_PATTERN = Pattern.compile("Waypoint_\\d+");
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     public BetterMapWaypointAddCommand() {

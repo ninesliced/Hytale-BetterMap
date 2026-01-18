@@ -13,10 +13,9 @@ import dev.ninesliced.ui.WaypointMenuPage;
 import javax.annotation.Nonnull;
 
 public class BetterMapWaypointCommand extends AbstractCommandCollection {
-
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     public BetterMapWaypointCommand() {

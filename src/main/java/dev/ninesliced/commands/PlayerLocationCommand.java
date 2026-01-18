@@ -29,8 +29,8 @@ public class PlayerLocationCommand extends AbstractCommand {
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**
