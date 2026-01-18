@@ -75,7 +75,6 @@ public class WaypointManager {
             savePersonalMarker(player, world, marker);
         }
         
-        // Force reload of this player's waypoints on next access
         UUID playerUuid = ((CommandSender) player).getUuid();
         loadedPlayers.remove(playerUuid);
     }
@@ -96,6 +95,9 @@ public class WaypointManager {
             if (result) {
                 UUID playerUuid = ((CommandSender) player).getUuid();
                 loadedPlayers.remove(playerUuid);
+
+                refreshAllPlayersMarkers(world);
+                ensureLoaded(player, world);
             }
             return result;
         }

@@ -25,12 +25,12 @@ public class MapQualityCommand extends AbstractCommand {
      */
     protected MapQualityCommand() {
         super("quality", "Set the map quality (low, medium, high)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @NullableDecl
     @Override
-    protected String generatePermissionNode() {
-        return "quality";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

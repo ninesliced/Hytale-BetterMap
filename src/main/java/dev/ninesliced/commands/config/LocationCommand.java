@@ -1,5 +1,6 @@
 package dev.ninesliced.commands.config;
 
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -18,6 +19,7 @@ public class LocationCommand extends AbstractCommand {
 
     public LocationCommand() {
         super("Location", "Toggle the mini-map HUD display");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override

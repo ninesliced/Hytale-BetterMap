@@ -24,6 +24,12 @@ public class ReloadCommand extends AbstractCommand {
      */
     protected ReloadCommand() {
         super("reload", "Reload BetterMap configuration");
+        this.requirePermission("dev.ninesliced.bettermap.command.reload");
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @Override

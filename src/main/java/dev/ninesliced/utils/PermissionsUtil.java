@@ -10,9 +10,9 @@ import javax.annotation.Nonnull;
 public final class PermissionsUtil {
     private static final String ADMIN_PERMISSION = "bettermap.admin";
     private static final String ADMIN_COMMAND_PERMISSION = "command.bettermap.admin";
-    private static final String TELEPORT_PERMISSION = "dev.ninesliced.bettermap.command.base.teleport";
+    private static final String TELEPORT_PERMISSION = "dev.ninesliced.bettermap.command.teleport";
     private static final String WARP_GO_PERMISSION = "hytale.command.warp.go";
-    private static final String GLOBAL_WAYPOINT_PERMISSION = "dev.ninesliced.bettermap.command.base.waypoint.global";
+    private static final String GLOBAL_WAYPOINT_PERMISSION = "dev.ninesliced.bettermap.command.waypoint.global";
 
     private PermissionsUtil() {
     }

@@ -2,6 +2,7 @@ package dev.ninesliced.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -14,11 +15,8 @@ import javax.annotation.Nonnull;
 public class BetterMapMenuCommand extends AbstractPlayerCommand {
     public BetterMapMenuCommand() {
         super("menu", "Open waypoint menu");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.setPermissionGroup(GameMode.Adventure);
+        this.setPermissionGroup(GameMode.Creative);
     }
 
     @Override

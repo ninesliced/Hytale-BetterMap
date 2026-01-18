@@ -25,11 +25,12 @@ public class TrackWorldCommand extends AbstractCommand {
      */
     public TrackWorldCommand() {
         super("track", "Add a world to the exploration tracking list");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "track";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

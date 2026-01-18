@@ -25,6 +25,11 @@ public class BetterMapWaypointDeleteGlobalCommand extends AbstractPlayerCommand 
         return "waypoint.global";
     }
 
+    @Override
+    protected boolean canGeneratePermission() {
+        return true;
+    }
+
     public BetterMapWaypointDeleteGlobalCommand() {
         super("removeglobal", "Remove a global map waypoint");
         this.addAliases("deleteglobal", "delglobal");
@@ -45,8 +50,17 @@ public class BetterMapWaypointDeleteGlobalCommand extends AbstractPlayerCommand 
         MapMarker marker = WaypointManager.findWaypoint(player, target);
 
         if (marker == null) {
-             context.sendMessage(Message.raw("Could not find global waypoint with that name or id."));
-             return;
+            if (!WaypointManager.isGlobalId(target)) {
+                context.sendMessage(Message.raw("Could not find global waypoint with that name or id."));
+                return;
+            }
+            boolean deletedFallback = WaypointManager.removeWaypoint(player, target);
+            if (deletedFallback) {
+                context.sendMessage(Message.raw("Global waypoint has been removed."));
+            } else {
+                context.sendMessage(Message.raw("Could not find global waypoint with that name or id."));
+            }
+            return;
         }
 
         if (!WaypointManager.isGlobalId(marker.id)) {

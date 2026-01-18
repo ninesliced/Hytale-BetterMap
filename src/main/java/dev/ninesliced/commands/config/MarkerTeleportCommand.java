@@ -23,7 +23,13 @@ public class MarkerTeleportCommand extends AbstractCommand {
 
     public MarkerTeleportCommand() {
         super("markerteleport", "Toggle map marker teleports (POIs/warps)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
         this.addAliases("markertp");
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl

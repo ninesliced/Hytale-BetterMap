@@ -23,11 +23,12 @@ public class MaxChunksToLoadCommand extends AbstractCommand {
      */
     public MaxChunksToLoadCommand() {
         super("maxchunks", "Set max chunks to load (limit depends on quality)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "maxchunks";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

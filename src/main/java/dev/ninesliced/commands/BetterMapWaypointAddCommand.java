@@ -2,6 +2,7 @@ package dev.ninesliced.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
@@ -31,14 +32,11 @@ public class BetterMapWaypointAddCommand extends AbstractPlayerCommand {
     private final OptionalArg<Boolean> globalArg = this.withOptionalArg("global", "Save as global waypoint (requires permission)", ArgTypes.BOOLEAN);
     private static final Pattern AUTO_NAME_PATTERN = Pattern.compile("Waypoint_\\d+");
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     public BetterMapWaypointAddCommand() {
         super("add", "Add a waypoint at your current location");
         this.addAliases("create");
+        this.setPermissionGroup(GameMode.Adventure);
+        this.setPermissionGroup(GameMode.Creative);
     }
 
     @Override

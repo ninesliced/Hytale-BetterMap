@@ -29,6 +29,12 @@ public class RadarRangeCommand extends AbstractCommand {
 
     public RadarRangeCommand() {
         super("radarrange", "Set player radar range (usage: /bm radarrange <number|-1>)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

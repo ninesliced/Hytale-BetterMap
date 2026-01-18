@@ -23,11 +23,12 @@ public class DebugCommand extends AbstractCommand {
      */
     public DebugCommand() {
         super("debug", "Toggle debug logging");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "debug";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

@@ -2,6 +2,7 @@ package dev.ninesliced.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -22,14 +23,11 @@ import javax.annotation.Nonnull;
 public class BetterMapWaypointDeleteCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Waypoint name or marker id", ArgTypes.STRING);
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     public BetterMapWaypointDeleteCommand() {
         super("remove", "Remove a map waypoint by name");
         this.addAliases("delete", "del");
+        this.setPermissionGroup(GameMode.Adventure);
+        this.setPermissionGroup(GameMode.Creative);
     }
 
     @Override

@@ -23,11 +23,12 @@ public class MapExplorationRadiusCommand extends AbstractCommand {
      */
     public MapExplorationRadiusCommand() {
         super("radius", "Set exploration radius in chunks");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "radius";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

@@ -25,6 +25,12 @@ public class RadarToggleCommand extends AbstractCommand {
 
     public RadarToggleCommand() {
         super("radar", "Toggle player radar visibility on the map");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

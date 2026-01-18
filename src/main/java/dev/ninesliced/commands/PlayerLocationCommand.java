@@ -1,5 +1,6 @@
 package dev.ninesliced.commands;
 
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -26,11 +27,8 @@ public class PlayerLocationCommand extends AbstractCommand {
 
     public PlayerLocationCommand() {
         super("location", "Toggle the location HUD display");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.setPermissionGroup(GameMode.Adventure);
+        this.setPermissionGroup(GameMode.Creative);
     }
 
     /**

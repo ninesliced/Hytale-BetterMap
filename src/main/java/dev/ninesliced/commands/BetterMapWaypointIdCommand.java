@@ -2,6 +2,7 @@ package dev.ninesliced.commands;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -20,11 +21,8 @@ public class BetterMapWaypointIdCommand extends AbstractPlayerCommand {
 
     public BetterMapWaypointIdCommand() {
         super("id", "Get the marker id for a waypoint by name");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.setPermissionGroup(GameMode.Adventure);
+        this.setPermissionGroup(GameMode.Creative);
     }
 
     @Override

@@ -18,12 +18,13 @@ public class ShareAllExplorationCommand extends AbstractCommand {
 
     public ShareAllExplorationCommand() {
         super("shareallexploration", "Toggle sharing of all exploration data");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
         this.addAliases("shareall");
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "shareallexploration";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @Override

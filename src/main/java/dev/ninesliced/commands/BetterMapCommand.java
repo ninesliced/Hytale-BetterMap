@@ -1,5 +1,6 @@
 package dev.ninesliced.commands;
 
+import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -37,6 +38,11 @@ public class BetterMapCommand extends AbstractCommand {
     @Override
     protected boolean canGeneratePermission() {
         return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 
     /**

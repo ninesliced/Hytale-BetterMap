@@ -23,6 +23,12 @@ public class HideAllPoiCommand extends AbstractCommand {
 
     public HideAllPoiCommand() {
         super("hidepois", "Toggle hiding all POI markers");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl

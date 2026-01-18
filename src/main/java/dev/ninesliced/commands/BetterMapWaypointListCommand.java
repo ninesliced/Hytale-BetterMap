@@ -16,11 +16,6 @@ import javax.annotation.Nonnull;
 
 public class BetterMapWaypointListCommand extends AbstractPlayerCommand {
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     public BetterMapWaypointListCommand() {
         super("list", "List all your map waypoints");
         this.addAliases("markers");

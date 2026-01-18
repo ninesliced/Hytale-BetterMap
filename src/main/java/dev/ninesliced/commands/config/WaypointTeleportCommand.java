@@ -23,6 +23,12 @@ public class WaypointTeleportCommand extends AbstractCommand {
     public WaypointTeleportCommand() {
         super("waypointteleport", "Toggle waypoint teleports");
         this.addAliases("waypointtp");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl

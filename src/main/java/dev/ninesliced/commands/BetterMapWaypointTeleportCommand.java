@@ -26,7 +26,12 @@ public class BetterMapWaypointTeleportCommand extends AbstractPlayerCommand {
 
     @Override
     protected String generatePermissionNode() {
-        return "teleport";
+        return "waypoint.teleport";
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return true;
     }
 
     public BetterMapWaypointTeleportCommand() {

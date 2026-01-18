@@ -23,6 +23,12 @@ public class HideUnexploredWarpsCommand extends AbstractCommand {
 
     public HideUnexploredWarpsCommand() {
         super("hideunexploredwarps", "Toggle hiding warps in unexplored regions");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl

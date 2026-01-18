@@ -3,6 +3,7 @@ package dev.ninesliced.commands.config;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.basecommands.AbstractCommandCollection;
 import dev.ninesliced.commands.ReloadCommand;
 
 import javax.annotation.Nonnull;
@@ -13,13 +14,15 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Command for managing global BetterMap configuration.
  */
-public class ConfigCommand extends AbstractCommand {
+public class ConfigCommand extends AbstractCommandCollection {
+    public static final String CONFIG_PERMISSION = "dev.ninesliced.bettermap.command.config";
 
     /**
      * Constructs the ConfigCommand and registers subcommands.
      */
     public ConfigCommand() {
         super("config", "Manage global BetterMap configuration");
+        this.requirePermission(CONFIG_PERMISSION);
 
         this.addSubCommand(new MapMinScaleCommand());
         this.addSubCommand(new MapMaxScaleCommand());
@@ -48,10 +51,8 @@ public class ConfigCommand extends AbstractCommand {
         return "config";
     }
 
-    @Nullable
     @Override
-    protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
-         context.sendMessage(Message.raw("Usage: /bettermap config <subcommand>").color(Color.RED));
-         return CompletableFuture.completedFuture(null);
+    protected boolean canGeneratePermission() {
+        return false;
     }
 }

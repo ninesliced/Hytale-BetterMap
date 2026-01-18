@@ -23,6 +23,12 @@ public class HideOtherWarpsCommand extends AbstractCommand {
 
     public HideOtherWarpsCommand() {
         super("hidewarps", "Toggle hiding other players' warps on the world map");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl

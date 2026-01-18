@@ -26,11 +26,12 @@ public class MapMaxScaleCommand extends AbstractCommand {
      */
     public MapMaxScaleCommand() {
         super("maxscale", "Set max map zoom scale (higher = zoom in closer)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "maxscale";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

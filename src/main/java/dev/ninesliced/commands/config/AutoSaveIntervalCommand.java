@@ -24,11 +24,12 @@ public class AutoSaveIntervalCommand extends AbstractCommand {
      */
     public AutoSaveIntervalCommand() {
         super("autosave", "Get or set the exploration auto-save interval");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "autosave";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @Nullable

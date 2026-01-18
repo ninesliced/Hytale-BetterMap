@@ -25,11 +25,12 @@ public class UntrackWorldCommand extends AbstractCommand {
      */
     public UntrackWorldCommand() {
         super("untrack", "Remove a world from the exploration tracking list");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
     @Override
-    protected String generatePermissionNode() {
-        return "untrack";
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

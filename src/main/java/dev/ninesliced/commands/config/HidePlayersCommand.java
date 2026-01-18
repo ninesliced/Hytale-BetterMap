@@ -26,6 +26,12 @@ public class HidePlayersCommand extends AbstractCommand {
 
     public HidePlayersCommand() {
         super("hideplayers", "Toggle global map privacy (Hides players from map)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     /**

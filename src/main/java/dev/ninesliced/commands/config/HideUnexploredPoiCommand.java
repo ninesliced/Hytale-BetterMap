@@ -23,6 +23,12 @@ public class HideUnexploredPoiCommand extends AbstractCommand {
 
     public HideUnexploredPoiCommand() {
         super("hideunexploredpoi", "Toggle hiding POIs in unexplored regions");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
     }
 
     @NullableDecl
