@@ -17,6 +17,7 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.*;
+import dev.ninesliced.managers.EasyClaimsCompatManager;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PlayerRadarManager;
@@ -77,6 +78,7 @@ public class ExplorationEventListener {
                 WorldMapTracker tracker = player.getWorldMapTracker();
                 WorldMapHook.hookPlayerMapTracker(player, tracker);
                 WorldMapHook.hookWorldMapResolution(world);
+                EasyClaimsCompatManager.apply(world);
 
                 PlayerRadarManager.getInstance().registerForPlayer(player);
 
@@ -193,6 +195,7 @@ public class ExplorationEventListener {
                     LOGGER.info("[DEBUG] Hooking tracker for world " + newWorldName);
                     WorldMapHook.hookPlayerMapTracker(player, tracker);
                     WorldMapHook.hookWorldMapResolution(newWorld);
+                    EasyClaimsCompatManager.apply(newWorld);
 
                     PlayerRadarManager.getInstance().registerForWorld(newWorld);
 
