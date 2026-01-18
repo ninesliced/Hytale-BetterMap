@@ -1,5 +1,56 @@
 # Changelog
 
+## v1.2.2 - Fixes & Configuration Expansion
+
+**Fixes & Improvements**
+
+* **Global Waypoints:** Temporarily **disabled** due to a bug. We will fix this in the next update.
+* **Shared Map Generation:** Fixed a critical issue where the "Linked Map" (Shared Exploration) would stop generating new chunks. It now updates correctly for all players.
+* **Map Zoom:** Fixed issues regarding map zoom changes when using the `minscale` command.
+* **Player Radar & Visibility:** Fixed the show/hide players functionality and enhanced the Player Radar to correctly sync with player visibility settings.
+
+### **New Configuration Toggles**
+
+We added several new commands to control map visibility and interaction. These require the config permission.
+
+* `/bm config hidewarps`
+* Hides other players' warps on the map.
+
+
+* `/bm config hideunexploredwarps`
+* Hides warps located in unexplored regions.
+
+
+* `/bm config hidepois`
+* Hides all POI markers on the map.
+
+
+* `/bm config hideunexploredpoi`
+* Hides POIs located in unexplored regions.
+
+
+* `/bm config waypointteleport`
+* Toggles the ability to teleport to waypoints.
+
+
+* `/bm config markerteleport`
+* Toggles the ability to teleport to map markers.
+
+### **Permission Changes**
+
+Permissions have been restructured to make basic features accessible to everyone by default.
+
+**Public Access (No Permission Required)**
+
+* `/bettermap` (or `/bm`) - Main command.
+* `/bm waypoint` (or `/bm menu`) - Opens Waypoint UI.
+
+**Admin Permissions**
+
+* `dev.ninesliced.bettermap.command.config`: Required for all `/bm config` commands (including the new visibility toggles).
+* `dev.ninesliced.bettermap.command.reload`: Required for `/bm reload`.
+
+
 ## v1.2.1 - Compatibility Fix
 
 **Fixes**
