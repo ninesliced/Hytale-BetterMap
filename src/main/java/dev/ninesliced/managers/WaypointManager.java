@@ -120,10 +120,10 @@ public class WaypointManager {
         }
 
         if (found) {
-            perWorldData.setWorldMapMarkers(newMarkerList.toArray(new MapMarker[0]));
             persistPersonal(player, world.getName(), newMarkerList);
             UUID playerUuid = ((CommandSender) player).getUuid();
             loadedPlayers.remove(playerUuid);
+            ensureLoaded(player, world);
         }
         return found;
     }
@@ -167,10 +167,10 @@ public class WaypointManager {
             return false;
         }
 
-        perWorldData.setWorldMapMarkers(rebuilt.toArray(new MapMarker[0]));
         persistPersonal(player, world.getName(), rebuilt);
         UUID playerUuid = ((CommandSender) player).getUuid();
         loadedPlayers.remove(playerUuid);
+        ensureLoaded(player, world);
         return true;
     }
 
