@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.3 - Minor Fixes
+
+**Fixes**
+
+* **Reactivated Global Waypoints:** Fixed an issue where global waypoints were not properly synchronizing between server and client in certain scenarios.
+* **/bm waypoint Command:** Resolved a bug that caused the Waypoint UI to not open for the correct rights (no permission required now).
+* **Player Radar Sync:** Fixed the double player display issue on the radar when player visibility settings were toggled.
+
+
 ## v1.2.2 - Fixes & Configuration Expansion
 
 **Fixes & Improvements**

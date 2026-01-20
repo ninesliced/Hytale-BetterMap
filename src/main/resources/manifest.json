@@ -1,12 +1,17 @@
 {
   "Group": "dev.ninesliced",
   "Name": "BetterMap",
-  "Version": "1.2.2",
+  "Version": "1.2.3",
   "Description": "A Hytale server plugin that enhance your world exploration with saved map data, customizable zoom, waypoints, shared mapping, and performance-optimized rendering.",
   "Authors": [
     {
       "Name": "Paralaxe",
       "Email": "paralaxepvp@gmail.com",
+      "Url": "https://ninesliced.com"
+    },
+    {
+      "Name": "Theoboss",
+      "Email": "theodore.billotte@epitech.eu",
       "Url": "https://ninesliced.com"
     }
   ],

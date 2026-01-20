@@ -25,7 +25,7 @@ By default, the Hytale in-game map is fleeting. It only displays a small circula
 
 1. **Persistent Exploration:** The map retains all previously visited areas across sessions. Data is saved automatically to prevent loss during server crashes.
 2. **Waypoint System:** Never lose a location again. Open the waypoint menu to add markers at your current position, customize their names and colors, and share them with other players.
-* *(Note: Global shared waypoints are temporarily disabled in v1.2.2 due to a bug)*
+* *(Note: Global shared waypoints are now back in v1.2.3)*
 
 
 3. **Teleport:** Players with permission can teleport directly to their saved waypoints.
@@ -192,14 +192,6 @@ You can modify the plugin settings in `mods/bettermap/config.json`.
 
 Map data is saved per world. You can find the saved exploration files here: `mods/bettermap/data/`
 
-## Credits
-
-This project was created to improve the exploration quality of life in Hytale.
-
-* **Created by:** Paralaxe and Theobosse
-* **Contributors:** Xytronix
-* **Team:** [Ninesliced](https://ninesliced.com/)
-
 ## Examples:
 
 *   Waypoint list using command `/bettermap waypoint menu`:
@@ -211,6 +203,14 @@ This project was created to improve the exploration quality of life in Hytale.
 *   High Quality map: ![alt text](https://media.forgecdn.net/attachments/1467/936/capture-decran-2026-01-15-181745.png)
 *   Medium Quality map: ![alt text](https://media.forgecdn.net/attachments/1470/4/example-map-quality-medium-png.png)
 *   Low Quality map: ![alt text](https://media.forgecdn.net/attachments/1470/2/example-map-quality-low-png.png)
+
+## Credits
+
+This project was created to improve the exploration quality of life in Hytale.
+
+* **Created by:** Paralaxe and Theobosse
+* **Contributors:** Xytronix
+* **Team:** [Ninesliced](https://ninesliced.com/)
 
 ***
 
