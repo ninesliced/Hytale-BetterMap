@@ -42,6 +42,9 @@ public class BetterMapConfig {
     private boolean hideUnexploredPoiOnMap = true;
     private List<String> hiddenPoiNames = new ArrayList<>();
     private int autoSaveInterval = 5;
+    private int maxPlayersPerWorldPerTick = 8;
+    private double explorationMinMoveBlocks = 4.0;
+    private long radarUpdateRateMs = 500L;
     private List<String> allowedWorlds = new ArrayList<>(Arrays.asList("default", "world"));
 
     private transient Path configPath;
@@ -235,6 +238,24 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("allowedWorlds") && loaded.allowedWorlds != null) {
                         this.allowedWorlds = loaded.allowedWorlds;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("maxPlayersPerWorldPerTick")) {
+                        this.maxPlayersPerWorldPerTick = loaded.maxPlayersPerWorldPerTick;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("explorationMinMoveBlocks")) {
+                        this.explorationMinMoveBlocks = loaded.explorationMinMoveBlocks;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("radarUpdateRateMs")) {
+                        this.radarUpdateRateMs = loaded.radarUpdateRateMs;
                     } else {
                         needsSave = true;
                     }
@@ -729,6 +750,33 @@ public class BetterMapConfig {
     public void setAllowedWorlds(List<String> allowedWorlds) {
         this.allowedWorlds = allowedWorlds;
         save();
+    }
+
+    /**
+     * Max number of players processed per world per tick.
+     *
+     * @return The max players per tick per world.
+     */
+    public int getMaxPlayersPerWorldPerTick() {
+        return maxPlayersPerWorldPerTick <= 0 ? 8 : maxPlayersPerWorldPerTick;
+    }
+
+    /**
+     * Minimum movement in blocks required before updating exploration state for a player.
+     *
+     * @return Minimum movement threshold in blocks.
+     */
+    public double getExplorationMinMoveBlocks() {
+        return explorationMinMoveBlocks <= 0 ? 4.0 : explorationMinMoveBlocks;
+    }
+
+    /**
+     * Radar update rate in milliseconds.
+     *
+     * @return Radar update rate in ms.
+     */
+    public long getRadarUpdateRateMs() {
+        return radarUpdateRateMs <= 0 ? 500L : radarUpdateRateMs;
     }
 
     /**
