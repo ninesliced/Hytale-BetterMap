@@ -176,7 +176,9 @@ public class ExplorationEventListener {
 
                 if (!isTrackedWorld(newWorld)) {
                     WorldMapTracker tracker = player.getWorldMapTracker();
+                    WorldMapHook.unhookPlayerMapTracker(player, tracker);
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
+                    LOGGER.info("[DEBUG] " + playerName + " joined untracked world; leaving map vanilla.");
                 } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
                     LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
 
