@@ -283,13 +283,19 @@ public class ExplorationEventListener {
         }
     }
 
-    public boolean isTrackedWorld(String worldName) {
-        if (worldName == null || worldName.isBlank()) return true;
-        if (allowedWorlds == null || allowedWorlds.isEmpty()) return true;
-        if (allowedWorlds.contains("*")) return true;
-
-        return allowedWorlds.contains(worldName);
+    private static boolean isTrackedWorld(World world) {
+        if (world == null) return false;
+        try {
+            return BetterMapConfig.getInstance().isTrackedWorld(world.getName());
+        } catch (Exception e) {
+            return false;
+        }
     }
+
+    private static boolean isTrackedWorldName(String worldName) {
+        return BetterMapConfig.getInstance().isTrackedWorld(worldName);
+    }
+
 
     private static void safeResetMapTrackerUpdateTimer(WorldMapTracker tracker) {
         if (tracker == null) return;
