@@ -199,21 +199,27 @@ public class ExplorationEventListener {
                     PlayerRadarManager.getInstance().registerForWorld(newWorld);
 
                     ExplorationTicker.getInstance().scheduleUpdate(() -> {
-                        LOGGER.info("[DEBUG] Scheduled immediate update executing for " + playerName);
-                        TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
-                        if (tc != null) {
-                            var pos = tc.getPosition();
-                            WorldMapHook.updateExplorationState(player, tracker, pos.x, pos.z);
-                        } else {
-                            LOGGER.warning("[DEBUG] TransformComponent expected but null for immediate update");
-                        }
-
                         try {
-                            ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
+                            newWorld.execute(() -> {
+                                LOGGER.info("[DEBUG] Scheduled immediate update executing for " + playerName);
+
+                                TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
+                                if (tc != null) {
+                                    var pos = tc.getPosition();
+                                    WorldMapHook.updateExplorationState(player, tracker, pos.x, pos.z);
+
+                                    safeResetMapTrackerUpdateTimer(tracker);
+                                } else {
+                                    LOGGER.warning("[DEBUG] TransformComponent expected but null for immediate update");
+                                }
+                            });
+                        } catch (IllegalThreadStateException its) {
+                            LOGGER.fine("[DEBUG] Skipping immediate update; world not accepting tasks: " + newWorldName);
                         } catch (Exception e) {
-                            LOGGER.warning("[DEBUG] Could not reset updateTimer: " + e.getMessage());
+                            LOGGER.warning("[DEBUG] Immediate update failed: " + e.getMessage());
                         }
                     });
+
                 }
 
                 playerWorlds.put(playerName, newWorldName);
@@ -283,6 +289,27 @@ public class ExplorationEventListener {
         if (allowedWorlds.contains("*")) return true;
 
         return allowedWorlds.contains(worldName);
+    }
+
+    private static void safeResetMapTrackerUpdateTimer(WorldMapTracker tracker) {
+        if (tracker == null) return;
+        try {
+            Object current = ReflectionHelper.getFieldValueRecursive(tracker, "updateTimer");
+            if (current instanceof Float) {
+                ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
+            } else if (current instanceof Double) {
+                ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0d);
+            } else if (current instanceof Integer) {
+                ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0);
+            } else if (current instanceof Long) {
+                ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0L);
+            } else {
+                // Unknown type: don't touch it.
+                LOGGER.fine("[DEBUG] updateTimer has unexpected type: " + (current == null ? "null" : current.getClass().getName()));
+            }
+        } catch (Exception e) {
+            LOGGER.fine("[DEBUG] Could not reset updateTimer safely: " + e.getMessage());
+        }
     }
 
 }
