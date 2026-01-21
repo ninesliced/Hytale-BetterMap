@@ -139,6 +139,7 @@ public class ExplorationEventListener {
     /**
      * Handles the AddPlayerToWorldEvent.
      * Manages world transitions, saving old data and loading new data if applicable.
+     * Uses synchronized operations to prevent race conditions during rapid world changes.
      *
      * @param event The event.
      */
@@ -149,77 +150,96 @@ public class ExplorationEventListener {
             PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
             Player player = playerRef.getComponent(Player.getComponentType());
 
-            if (player != null) {
-                String playerName = player.getDisplayName();
-                World newWorld = event.getWorld();
-                String newWorldName = newWorld.getName();
-                String oldWorldName = playerWorlds.get(playerName);
-                World oldWorld = oldWorldName != null ? Universe.get().getWorld(oldWorldName) : null;
+            if (player == null) return;
 
-                LOGGER.info("[DEBUG] Player " + playerName + " joining world: " + newWorldName + " (previous: " + oldWorldName + ")");
+            String playerName = player.getDisplayName();
+            World newWorld = event.getWorld();
+            if (newWorld == null) return;
 
-                if (oldWorldName != null && !oldWorldName.equals(newWorldName)) {
-                    LOGGER.info("[DEBUG] WORLD CHANGE DETECTED: " + playerName + " from " + oldWorldName + " to " + newWorldName);
+            String newWorldName = newWorld.getName();
+            String oldWorldName = playerWorlds.get(playerName);
+            World oldWorld = oldWorldName != null ? Universe.get().getWorld(oldWorldName) : null;
 
-                    WorldMapTracker tracker = player.getWorldMapTracker();
+            LOGGER.info("[DEBUG] Player " + playerName + " joining world: " + newWorldName + " (previous: " + oldWorldName + ")");
+
+            if (oldWorldName != null && !oldWorldName.equals(newWorldName)) {
+                LOGGER.info("[DEBUG] WORLD CHANGE DETECTED: " + playerName + " from " + oldWorldName + " to " + newWorldName);
+
+                WorldMapTracker tracker = player.getWorldMapTracker();
+                if (tracker != null) {
                     LOGGER.info("[DEBUG] Unhooking tracker for old world " + oldWorldName);
                     WorldMapHook.unhookPlayerMapTracker(player, tracker);
-
-                    if (isTrackedWorld(oldWorld)) {
-                        LOGGER.info("[DEBUG] Saving data for default world");
-                        UUID uuid = playerRef.getUuid();
-                        ExplorationManager.getInstance().savePlayerData(playerName, uuid, oldWorldName);
-                    }
-
-                    ExplorationTracker.getInstance().removePlayerData(playerName);
                 }
 
-                if (!isTrackedWorld(newWorld)) {
-                    WorldMapTracker tracker = player.getWorldMapTracker();
+                if (isTrackedWorld(oldWorld)) {
+                    LOGGER.info("[DEBUG] Saving data for default world");
+                    UUID uuid = playerRef.getUuid();
+                    ExplorationManager.getInstance().savePlayerData(playerName, uuid, oldWorldName);
+                }
+
+                ExplorationTracker.getInstance().removePlayerData(playerName);
+            }
+
+            playerWorlds.put(playerName, newWorldName);
+
+            if (!isTrackedWorld(newWorld)) {
+                WorldMapTracker tracker = player.getWorldMapTracker();
+                if (tracker != null) {
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
-                } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
-                    LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
+                }
+            } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
+                LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
 
-                    ExplorationTracker.getInstance().getOrCreatePlayerData(player);
+                ExplorationTracker.getInstance().getOrCreatePlayerData(player);
 
-                    ExplorationTracker.PlayerExplorationData newData = ExplorationTracker.getInstance().getPlayerData(playerName);
-                    if (newData != null) {
-                        newData.resetLastChunkPosition();
-                        LOGGER.info("[DEBUG] Reset last chunk position for fresh start in " + newWorldName);
-                    }
+                ExplorationTracker.PlayerExplorationData newData = ExplorationTracker.getInstance().getPlayerData(playerName);
+                if (newData != null) {
+                    newData.resetLastChunkPosition();
+                    LOGGER.info("[DEBUG] Reset last chunk position for fresh start in " + newWorldName);
+                }
 
-                    LOGGER.info("[DEBUG] Loading data for world: " + newWorldName);
-                    ExplorationManager.getInstance().loadPlayerData(player, newWorldName);
+                LOGGER.info("[DEBUG] Loading data for world: " + newWorldName);
+                ExplorationManager.getInstance().loadPlayerData(player, newWorldName);
 
-                    WorldMapTracker tracker = player.getWorldMapTracker();
+                WorldMapTracker tracker = player.getWorldMapTracker();
+                if (tracker != null) {
                     LOGGER.info("[DEBUG] Hooking tracker for world " + newWorldName);
                     WorldMapHook.hookPlayerMapTracker(player, tracker);
                     WorldMapHook.hookWorldMapResolution(newWorld);
-
-                    PlayerRadarManager.getInstance().registerForWorld(newWorld);
-
-                    ExplorationTicker.getInstance().scheduleUpdate(() -> {
-                        LOGGER.info("[DEBUG] Scheduled immediate update executing for " + playerName);
-                        TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
-                        if (tc != null) {
-                            var pos = tc.getPosition();
-                            WorldMapHook.updateExplorationState(player, tracker, pos.x, pos.z);
-                        } else {
-                            LOGGER.warning("[DEBUG] TransformComponent expected but null for immediate update");
-                        }
-
-                        try {
-                            ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
-                        } catch (Exception e) {
-                            LOGGER.warning("[DEBUG] Could not reset updateTimer: " + e.getMessage());
-                        }
-                    });
                 }
 
-                playerWorlds.put(playerName, newWorldName);
+                PlayerRadarManager.getInstance().registerForWorld(newWorld);
+
+                final WorldMapTracker finalTracker = tracker;
+                final String finalNewWorldName = newWorldName;
+                ExplorationTicker.getInstance().scheduleUpdate(() -> {
+                    LOGGER.info("[DEBUG] Scheduled immediate update executing for " + playerName);
+
+                    World currentWorld = player.getWorld();
+                    if (currentWorld == null || !currentWorld.getName().equals(finalNewWorldName)) {
+                        LOGGER.info("[DEBUG] Player " + playerName + " already changed worlds, skipping scheduled update");
+                        return;
+                    }
+
+                    TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
+                    if (tc != null && finalTracker != null) {
+                        var pos = tc.getPosition();
+                        WorldMapHook.updateExplorationState(player, finalTracker, pos.x, pos.z);
+                    } else {
+                        LOGGER.fine("[DEBUG] TransformComponent or tracker was null for immediate update");
+                    }
+
+                    try {
+                        if (finalTracker != null) {
+                            ReflectionHelper.setFieldValueRecursive(finalTracker, "updateTimer", 0.0f);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.fine("[DEBUG] Could not reset updateTimer: " + e.getMessage());
+                    }
+                });
             }
         } catch (Exception e) {
-            LOGGER.warning("[DEBUG] Error in AddPlayerToWorldEvent: " + e.getMessage());
+            LOGGER.warning("Error in AddPlayerToWorldEvent: " + e.getMessage());
             e.printStackTrace();
         }
     }

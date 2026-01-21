@@ -354,7 +354,6 @@ public class BetterMapConfig {
      * @return The active max chunks.
      */
     public int getActiveMaxChunksToLoad() {
-        // If 0 (uninitialized), return current config value as fallback, though it should be init by initialize()
         return activeMaxChunksToLoad > 0 ? activeMaxChunksToLoad : maxChunksToLoad;
     }
 

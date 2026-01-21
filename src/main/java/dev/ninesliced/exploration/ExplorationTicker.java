@@ -75,60 +75,61 @@ public class ExplorationTicker {
     }
 
     private void tick() {
-        if (!isRunning) {
-            return;
-        }
+        if (!isRunning) return;
 
         Universe universe = Universe.get();
-        if (universe == null) {
-            return;
-        }
+        if (universe == null) return;
 
         universe.getWorlds().values().forEach(world -> {
+            if (world == null || !world.isAlive()) return;
+
             try {
                 world.execute(() -> {
+                    if (!world.isAlive()) return;
                     updateWorldPlayers(world);
                     PlayerRadarManager.getInstance().updateRadarData(world);
                 });
-            } catch (IllegalThreadStateException its) {
-                LOGGER.fine("[DEBUG] Skipping world update; world not accepting tasks: " + world.getName());
+            } catch (IllegalThreadStateException ignored) {
+            } catch (Exception ignored) {
             }
         });
     }
 
     private void updateWorldPlayers(World world) {
-        if (world != null && !world.isAlive()) {
-            return;
-        }
+        if (world == null || !world.isAlive()) return;
 
         try {
-            for (PlayerRef ref : Universe.get().getPlayers()) {
-                Ref<EntityStore> playerRef = ref.getReference();
-                if (playerRef != null && playerRef.isValid()) {
-                    try {
-                        if (playerRef.getStore().getExternalData().getWorld() == world) {
-                            Player player = playerRef.getStore().getComponent(playerRef, Player.getComponentType());
-                            if (player != null) {
-                                ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player.getDisplayName());
-                                if (data == null) {
-                                    continue;
-                                }
+            for (PlayerRef ref : world.getPlayerRefs()) {
+                if (ref == null) continue;
 
-                                WorldMapTracker tracker = player.getWorldMapTracker();
-                                TransformComponent tc = playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType());
-                                if (tc != null) {
-                                    var pos = tc.getPosition();
-                                    WorldMapHook.updateExplorationState(player, tracker, pos.x, pos.z);
-                                }
-                            }
-                        }
-                    } catch (IllegalThreadStateException its) {
-                        return;
+                Ref<EntityStore> playerRef = ref.getReference();
+                if (playerRef == null || !playerRef.isValid()) continue;
+
+                try {
+                    Player player = playerRef.getStore().getComponent(playerRef, Player.getComponentType());
+                    if (player == null) continue;
+
+                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player.getDisplayName());
+                    if (data == null) continue;
+
+                    World playerWorld = player.getWorld();
+                    if (playerWorld == null || !playerWorld.getName().equals(world.getName())) continue;
+
+                    WorldMapTracker tracker = player.getWorldMapTracker();
+                    if (tracker == null) continue;
+
+                    TransformComponent tc = playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType());
+                    if (tc != null) {
+                        var pos = tc.getPosition();
+                        WorldMapHook.updateExplorationState(player, tracker, pos.x, pos.z);
                     }
+                } catch (IllegalThreadStateException its) {
+                    return;
+                } catch (Exception e) {
+                    LOGGER.fine("Error updating player in world " + world.getName() + ": " + e.getMessage());
                 }
             }
-        } catch (Exception e) {
-            LOGGER.warning("ExplorationTicker failed: " + e.getMessage());
+        } catch (Exception ignored) {
         }
     }
 }
