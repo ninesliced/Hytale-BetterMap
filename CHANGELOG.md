@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.5 - Waypoint Fixes
+
+*  **Waypoint creation & management:** Fixed several issues with waypoint creation, updating, and deletion where local waypoints were not being deleted or updated correctly.
+
 ## v1.2.4 - Various Fixes
 
 **Fixes & Improvements**
