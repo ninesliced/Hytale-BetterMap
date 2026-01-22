@@ -27,8 +27,16 @@ public class BetterMapWaypointUpdateCommand extends AbstractPlayerCommand {
     public BetterMapWaypointUpdateCommand() {
         super("update", "Update a map waypoint");
         this.addAliases("edit");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 
     @Override

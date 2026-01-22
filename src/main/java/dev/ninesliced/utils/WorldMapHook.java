@@ -73,6 +73,9 @@ public class WorldMapHook {
                 ((RestrictedSpiralIterator) spiralIterator).stop();
             }
 
+            CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
+            vanillaIterator.init(0, 0, 0, 1);
+            ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
             try {
@@ -81,7 +84,7 @@ public class WorldMapHook {
                     ((Map<?, ?>) pendingReloadFutures).clear();
                 }
             } catch (Exception e) {
-                LOGGER.warning("Could not clear pendingReloadFutures: " + e.getMessage());
+                LOGGER.fine("Could not clear pendingReloadFutures: " + e.getMessage());
             }
 
             try {
@@ -90,12 +93,12 @@ public class WorldMapHook {
                     ((Set<?>) pendingReloadChunks).clear();
                 }
             } catch (Exception e) {
-                LOGGER.warning("Could not clear pendingReloadChunks: " + e.getMessage());
+                LOGGER.fine("Could not clear pendingReloadChunks: " + e.getMessage());
             }
 
             try {
                 ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 999.0f);
-            } catch (Exception _) {}
+            } catch (Exception ignored) {}
 
             LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName());
         } catch (Exception e) {
@@ -117,7 +120,11 @@ public class WorldMapHook {
             }
 
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
-            ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", new CircleSpiralIterator());
+
+            CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
+            vanillaIterator.init(0, 0, 0, 1);
+            ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
+
             ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
 
             LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName());
@@ -382,29 +389,39 @@ public class WorldMapHook {
 
     /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
+     * Thread-safe implementation to prevent race conditions with the WorldMap thread.
      */
     public static class RestrictedSpiralIterator extends CircleSpiralIterator {
         private final ExplorationTracker.PlayerExplorationData data;
         private final WorldMapTracker tracker;
-        private Iterator<Long> currentIterator;
-        private List<Long> targetMapChunks = new ArrayList<>();
-        private int currentGoalRadius;
+        private volatile Iterator<Long> currentIterator;
+        private volatile List<Long> targetMapChunks = new ArrayList<>();
+        private volatile int currentGoalRadius;
         private volatile boolean stopped = false;
-        private int centerX;
-        private int centerZ;
-        private int currentRadius;
+        private volatile boolean initialized = false;
+        private volatile int centerX;
+        private volatile int centerZ;
+        private volatile int currentRadius;
         private int cleanupTimer = 0;
+        private final Object lock = new Object();
 
         public RestrictedSpiralIterator(ExplorationTracker.PlayerExplorationData data, WorldMapTracker tracker) {
+            super();
+            super.init(0, 0, 0, 1);
             this.data = data;
             this.tracker = tracker;
+            this.currentIterator = Collections.emptyIterator();
+            this.initialized = true;
         }
 
-        /**
-         * Stops the iterator.
-         */
         public void stop() {
-            this.stopped = true;
+            synchronized (lock) {
+                this.stopped = true;
+                this.currentIterator = Collections.emptyIterator();
+                try {
+                    super.init(0, 0, 0, 1);
+                } catch (Exception ignored) {}
+            }
         }
 
         /**
@@ -418,77 +435,105 @@ public class WorldMapHook {
 
         @Override
         public void init(int cx, int cz, int startRadius, int endRadius) {
-            if (stopped) {
-                this.currentIterator = Collections.emptyIterator();
-                return;
-            }
+            try {
+                super.init(cx, cz, startRadius, endRadius);
+            } catch (Exception ignored) {}
 
-            this.centerX = cx;
-            this.centerZ = cz;
-            this.currentRadius = startRadius;
-            this.currentGoalRadius = endRadius;
-
-            Set<Long> mapChunks = new HashSet<>();
-            Set<Long> exploredWorldChunks;
-
-            if (BetterMapConfig.getInstance().isShareAllExploration()) {
-                World world = tracker.getPlayer().getWorld();
-                String worldName = world != null ? world.getName() : "world";
-                exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
-            } else {
-                exploredWorldChunks = data.getExploredChunks().getExploredChunks();
-            }
-
-            for (Long chunkIdx : exploredWorldChunks) {
-                int wx = ChunkUtil.indexToChunkX(chunkIdx);
-                int wz = ChunkUtil.indexToChunkZ(chunkIdx);
-
-                int mx = wx >> 1;
-                int mz = wz >> 1;
-
-                long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(mx, mz);
-                mapChunks.add(mapChunkIdx);
-            }
-
-            List<Long> rankedChunks = new ArrayList<>();
-            MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
-            Set<Long> boundaryChunks = new HashSet<>();
-
-            if (bounds.minX != Integer.MAX_VALUE) {
-                boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
-                boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
-                boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
-                boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
-            }
-
-            for (Long chunk : mapChunks) {
-                if (!boundaryChunks.contains(chunk)) {
-                    rankedChunks.add(chunk);
+            synchronized (lock) {
+                if (stopped) {
+                    this.currentIterator = Collections.emptyIterator();
+                    this.initialized = true;
+                    return;
                 }
-            }
 
-            rankedChunks.sort(Comparator.comparingDouble(idx -> {
-                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                return Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(mz - cz, 2));
-            }));
+                this.centerX = cx;
+                this.centerZ = cz;
+                this.currentRadius = startRadius;
+                this.currentGoalRadius = endRadius;
 
-            int maxChunks = BetterMapConfig.getInstance().getActiveMapQuality().maxChunks;
-            int searchLimit = maxChunks - boundaryChunks.size();
-            if (searchLimit < 0) searchLimit = 0;
+                try {
+                    Set<Long> mapChunks = new HashSet<>();
+                    Set<Long> exploredWorldChunks;
 
-            if (rankedChunks.size() > searchLimit) {
-                rankedChunks = rankedChunks.subList(0, searchLimit);
-            }
+                    Player player = tracker.getPlayer();
+                    if (player == null || data == null) {
+                        this.currentIterator = Collections.emptyIterator();
+                        this.initialized = true;
+                        return;
+                    }
 
-            this.targetMapChunks = new ArrayList<>(boundaryChunks);
-            this.targetMapChunks.addAll(rankedChunks);
+                    if (BetterMapConfig.getInstance().isShareAllExploration()) {
+                        World world = player.getWorld();
+                        String worldName = world != null ? world.getName() : "world";
+                        exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
+                    } else {
+                        exploredWorldChunks = data.getExploredChunks().getExploredChunks();
+                    }
 
-            this.currentIterator = rankedChunks.iterator();
+                    if (exploredWorldChunks == null || exploredWorldChunks.isEmpty()) {
+                        this.currentIterator = Collections.emptyIterator();
+                        this.targetMapChunks = new ArrayList<>();
+                        this.initialized = true;
+                        return;
+                    }
 
-            if (++cleanupTimer > 100) {
-                cleanupTimer = 0;
-                cleanupFarChunks(rankedChunks);
+                    for (Long chunkIdx : exploredWorldChunks) {
+                        int wx = ChunkUtil.indexToChunkX(chunkIdx);
+                        int wz = ChunkUtil.indexToChunkZ(chunkIdx);
+
+                        int mx = wx >> 1;
+                        int mz = wz >> 1;
+
+                        long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(mx, mz);
+                        mapChunks.add(mapChunkIdx);
+                    }
+
+                    List<Long> rankedChunks = new ArrayList<>();
+                    MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
+                    Set<Long> boundaryChunks = new HashSet<>();
+
+                    if (bounds != null && bounds.minX != Integer.MAX_VALUE) {
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
+                    }
+
+                    for (Long chunk : mapChunks) {
+                        if (!boundaryChunks.contains(chunk)) {
+                            rankedChunks.add(chunk);
+                        }
+                    }
+
+                    rankedChunks.sort(Comparator.comparingDouble(idx -> {
+                        int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
+                        int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
+                        return Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(mz - cz, 2));
+                    }));
+
+                    int maxChunks = BetterMapConfig.getInstance().getActiveMapQuality().maxChunks;
+                    int searchLimit = maxChunks - boundaryChunks.size();
+                    if (searchLimit < 0) searchLimit = 0;
+
+                    if (rankedChunks.size() > searchLimit) {
+                        rankedChunks = new ArrayList<>(rankedChunks.subList(0, searchLimit));
+                    }
+
+                    this.targetMapChunks = new ArrayList<>(boundaryChunks);
+                    this.targetMapChunks.addAll(rankedChunks);
+
+                    this.currentIterator = rankedChunks.iterator();
+                    this.initialized = true;
+
+                    if (++cleanupTimer > 100) {
+                        cleanupTimer = 0;
+                        cleanupFarChunks(rankedChunks);
+                    }
+                } catch (Exception e) {
+                    LOGGER.warning("Error in RestrictedSpiralIterator.init(): " + e.getMessage());
+                    this.currentIterator = Collections.emptyIterator();
+                    this.initialized = true;
+                }
             }
         }
 
@@ -526,33 +571,31 @@ public class WorldMapHook {
 
         @Override
         public boolean hasNext() {
-            if (stopped) {
-                return false;
-            }
-            return currentIterator != null && currentIterator.hasNext();
+            if (stopped) return false;
+            Iterator<Long> iter = currentIterator;
+            return iter != null && iter.hasNext();
         }
 
         @Override
         public long next() {
-            if (stopped || currentIterator == null) {
+            Iterator<Long> iter = currentIterator;
+            if (stopped || iter == null || !iter.hasNext())
+                return 0;
+
+            try {
+                long next = iter.next();
+                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(next);
+                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(next);
+                this.currentRadius = (int) Math.sqrt(Math.pow(mx - centerX, 2) + Math.pow(mz - centerZ, 2));
+                return next;
+            } catch (java.util.NoSuchElementException e) {
                 return 0;
             }
-            long next = currentIterator.next();
-
-            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(next);
-            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(next);
-            double dist = Math.sqrt(Math.pow(mx - centerX, 2) + Math.pow(mz - centerZ, 2));
-            this.currentRadius = (int) dist;
-
-            return next;
         }
 
         @Override
         public int getCompletedRadius() {
-            if (stopped) {
-                return currentGoalRadius;
-            }
-            return currentRadius;
+            return stopped ? currentGoalRadius : currentRadius;
         }
     }
 }

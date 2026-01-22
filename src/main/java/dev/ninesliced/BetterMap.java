@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.commands.BetterMapCommand;
+import dev.ninesliced.commands.WaypointCommand;
 import dev.ninesliced.components.ExplorationComponent;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.*;
@@ -127,6 +128,7 @@ public class BetterMap extends JavaPlugin {
             LOGGER.info("Exploration Ticker: STARTED");
 
             this.getCommandRegistry().registerCommand(new BetterMapCommand());
+            this.getCommandRegistry().registerCommand(new WaypointCommand());
             LOGGER.info("Mod Command: REGISTERED");
 
             //this.locationHudProvider = new LocationHudProvider();

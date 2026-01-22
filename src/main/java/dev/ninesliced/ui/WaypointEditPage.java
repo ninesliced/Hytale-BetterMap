@@ -84,11 +84,11 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         ui.set("#SelBlue.Visible", "BlueMarker.png".equals(this.selectedColor));
         ui.set("#SelWhite.Visible", "Coordinate.png".equals(this.selectedColor));
 
-        //boolean canGlobal = PermissionsUtil.canUseGlobalWaypoints(player);
-        //ui.set("#GlobalRow.Visible", canGlobal);
-        //if (canGlobal) {
-        //    ui.set("#GlobalCheckbox.Value", this.global);
-        //}
+        boolean canGlobal = PermissionsUtil.canUseGlobalWaypoints(player);
+        ui.set("#GlobalRow.Visible", canGlobal);
+        if (canGlobal) {
+            ui.set("#GlobalCheckbox.Value", this.global);
+        }
 
         events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#NameInput",  
             new EventData().put(EditData.KEY_NAME_INPUT, "#NameInput.Value"), false);
@@ -120,10 +120,10 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         events.addEventBinding(CustomUIEventBindingType.Activating, "#ColorWhite", 
             new EventData().put(EditData.KEY_ACTION, Action.SET_WHITE.name()), false);
 
-        //if (canGlobal) {
-        //    events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#GlobalCheckbox",
-        //        new EventData().put(EditData.KEY_GLOBAL, "#GlobalCheckbox.Value"), false);
-        //}
+        if (canGlobal) {
+            events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#GlobalCheckbox",
+                new EventData().put(EditData.KEY_GLOBAL, "#GlobalCheckbox.Value"), false);
+        }
     }
 
     @Override

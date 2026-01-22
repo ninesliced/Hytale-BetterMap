@@ -17,8 +17,6 @@ public class BetterMapWaypointCommand extends AbstractCommandCollection {
     public BetterMapWaypointCommand() {
         super("waypoint", "Manage map waypoints");
         this.addAliases("marker");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
         this.addSubCommand(new BetterMapWaypointAddCommand());
         this.addSubCommand(new BetterMapWaypointDeleteCommand());
         this.addSubCommand(new BetterMapWaypointDeleteGlobalCommand());
@@ -27,5 +25,15 @@ public class BetterMapWaypointCommand extends AbstractCommandCollection {
         this.addSubCommand(new BetterMapWaypointTeleportCommand());
         this.addSubCommand(new BetterMapWaypointIdCommand());
         this.addSubCommand(new BetterMapMenuCommand());
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 }

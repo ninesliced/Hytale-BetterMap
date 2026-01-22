@@ -35,8 +35,16 @@ public class BetterMapWaypointAddCommand extends AbstractPlayerCommand {
     public BetterMapWaypointAddCommand() {
         super("add", "Add a waypoint at your current location");
         this.addAliases("create");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 
     @Override

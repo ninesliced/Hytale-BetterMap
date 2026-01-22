@@ -26,8 +26,16 @@ public class BetterMapWaypointDeleteCommand extends AbstractPlayerCommand {
     public BetterMapWaypointDeleteCommand() {
         super("remove", "Remove a map waypoint by name");
         this.addAliases("delete", "del");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 
     @Override

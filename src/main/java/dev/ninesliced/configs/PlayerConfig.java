@@ -34,7 +34,7 @@ public class PlayerConfig {
     }
 
     public void setMinScale(float minScale) {
-        this.minScale = minScale;
+        this.minScale = Math.max(minScale, 2);
     }
 
     public float getMaxScale() {

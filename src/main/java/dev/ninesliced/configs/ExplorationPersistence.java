@@ -141,9 +141,7 @@ public class ExplorationPersistence {
                         }
                     });
                 });
-            } catch (Exception e) {
-                // Ignore errors when scheduling (e.g. world shutting down)
-            }
+            } catch (Exception _) {}
         });
     }
 

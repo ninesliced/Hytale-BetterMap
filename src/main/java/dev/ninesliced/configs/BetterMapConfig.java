@@ -375,7 +375,6 @@ public class BetterMapConfig {
      * @return The active max chunks.
      */
     public int getActiveMaxChunksToLoad() {
-        // If 0 (uninitialized), return current config value as fallback, though it should be init by initialize()
         return activeMaxChunksToLoad > 0 ? activeMaxChunksToLoad : maxChunksToLoad;
     }
 
@@ -395,7 +394,7 @@ public class BetterMapConfig {
      * @param minScale The new minimum scale.
      */
     public void setMinScale(float minScale) {
-        this.minScale = minScale;
+        this.minScale = Math.max(minScale, 2);
         save();
     }
 

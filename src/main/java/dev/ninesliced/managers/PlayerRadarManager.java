@@ -1,11 +1,13 @@
 package dev.ninesliced.managers;
 
-import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.providers.PlayerRadarProvider;
 
@@ -71,14 +73,32 @@ public class PlayerRadarManager {
 
         try {
             for (PlayerRef playerRef : world.getPlayerRefs()) {
-                Transform transform = playerRef.getTransform();
-                Vector3d pos = transform.getPosition();
+                Vector3d pos = null;
+                Vector3f rot = null;
+
+                Ref<EntityStore> ref = playerRef.getReference();
+                if (ref != null && ref.isValid()) {
+                    TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                    if (tc != null) {
+                        pos = tc.getPosition();
+                        rot = tc.getRotation();
+                    }
+                }
+
+                if (pos == null) {
+                    com.hypixel.hytale.math.vector.Transform transform = playerRef.getTransform();
+                    if (transform == null) continue;
+                    pos = transform.getPosition();
+                    rot = transform.getRotation();
+                }
+
+                if (pos == null) continue;
 
                 RadarData data = new RadarData(
                         playerRef.getUuid().toString(),
                         playerRef.getUsername(),
-                        new Vector3d(pos.x, pos.y, pos.z), // Clone to be safe
-                        transform.getRotation()
+                        new Vector3d(pos.x, pos.y, pos.z),
+                        rot != null ? new Vector3f(rot.x, rot.y, rot.z) : Vector3f.ZERO
                 );
 
                 radarDataList.add(data);

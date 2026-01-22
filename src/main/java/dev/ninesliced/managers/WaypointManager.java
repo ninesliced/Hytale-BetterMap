@@ -4,9 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +42,7 @@ public class WaypointManager {
     private static final String GLOBAL_ID_PREFIX = "global_waypoint_";
 
     private static WaypointPersistence persistence;
-    private static final Set<UUID> loadedPlayers = ConcurrentHashMap.newKeySet();
+    private static final Set<String> loadedPlayers = ConcurrentHashMap.newKeySet();
 
     private WaypointManager() {
     }
@@ -74,9 +77,8 @@ public class WaypointManager {
         } else {
             savePersonalMarker(player, world, marker);
         }
-        
-        UUID playerUuid = ((CommandSender) player).getUuid();
-        loadedPlayers.remove(playerUuid);
+
+        invalidatePlayerCache(player, world);
     }
 
     public static boolean removeWaypoint(@Nonnull Player player, @Nonnull String idOrName) {
@@ -93,10 +95,7 @@ public class WaypointManager {
         if (isGlobalId(target.id)) {
             boolean result = removeGlobalMarker(target.id, world.getName(), player);
             if (result) {
-                UUID playerUuid = ((CommandSender) player).getUuid();
-                loadedPlayers.remove(playerUuid);
-
-                refreshAllPlayersMarkers(world);
+                invalidatePlayerCache(player, world);
                 ensureLoaded(player, world);
             }
             return result;
@@ -124,8 +123,7 @@ public class WaypointManager {
 
         if (found) {
             persistPersonal(player, world.getName(), newMarkerList);
-            UUID playerUuid = ((CommandSender) player).getUuid();
-            loadedPlayers.remove(playerUuid);
+            invalidatePlayerCache(player, world);
             ensureLoaded(player, world);
         }
         return found;
@@ -140,8 +138,7 @@ public class WaypointManager {
         if (isGlobalId(id)) {
             boolean result = updateGlobalMarker(id, newName, newIcon, newTransform, world.getName(), player);
             if (result) {
-                UUID playerUuid = ((CommandSender) player).getUuid();
-                loadedPlayers.remove(playerUuid);
+                invalidatePlayerCache(player, world);
             }
             return result;
         }
@@ -171,8 +168,7 @@ public class WaypointManager {
         }
 
         persistPersonal(player, world.getName(), rebuilt);
-        UUID playerUuid = ((CommandSender) player).getUuid();
-        loadedPlayers.remove(playerUuid);
+        invalidatePlayerCache(player, world);
         ensureLoaded(player, world);
         return true;
     }
@@ -234,6 +230,15 @@ public class WaypointManager {
         PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
         MapMarker[] currentMarkers = perWorldData.getWorldMapMarkers();
 
+        List<String> oldMarkerIds = new ArrayList<>();
+        if (currentMarkers != null) {
+            for (MapMarker m : currentMarkers) {
+                if (m != null && m.id != null) {
+                    oldMarkerIds.add(m.id);
+                }
+            }
+        }
+
         List<MapMarker> personal = new ArrayList<>();
         if (currentMarkers != null) {
             for (MapMarker m : currentMarkers) {
@@ -247,7 +252,10 @@ public class WaypointManager {
         List<MapMarker> combined = new ArrayList<>(personal);
         combined.addAll(globals);
 
-        perWorldData.setWorldMapMarkers(combined.toArray(new MapMarker[0]));
+        MapMarker[] newMarkers = combined.toArray(new MapMarker[0]);
+        perWorldData.setWorldMapMarkers(newMarkers);
+
+        sendMarkersToClient(player, newMarkers, oldMarkerIds);
     }
 
     private static void ensureLoaded(@Nonnull Player player, @Nonnull World world) {
@@ -260,11 +268,13 @@ public class WaypointManager {
         }
 
         UUID uuid = ((CommandSender) player).getUuid();
-        if (!loadedPlayers.add(uuid)) {
+        String worldName = world.getName();
+        String worldCacheKey = cacheKey(uuid, worldName);
+        if (!loadedPlayers.add(worldCacheKey)) {
             return;
         }
 
-        List<StoredWaypoint> stored = persistence.loadPlayer(uuid, player.getDisplayName(), world.getName());
+        List<StoredWaypoint> stored = persistence.loadPlayer(uuid, player.getDisplayName(), worldName);
         List<MapMarker> markers = new ArrayList<>();
         if (!stored.isEmpty()) {
             for (StoredWaypoint waypoint : stored) {
@@ -274,9 +284,9 @@ public class WaypointManager {
                 }
             }
         }
-        markers.addAll(getGlobalMarkers(world.getName(), player));
+        markers.addAll(getGlobalMarkers(worldName, player));
 
-        PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
+        PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(worldName);
         perWorldData.setWorldMapMarkers(markers.toArray(new MapMarker[0]));
     }
 
@@ -351,11 +361,13 @@ public class WaypointManager {
         }
 
         for (PlayerRef playerRef : world.getPlayerRefs()) {
-            Holder<EntityStore> holder = playerRef.getHolder();
-            if (holder == null) continue;
-            Player p = holder.getComponent(Player.getComponentType());
+            Ref<EntityStore> ref = playerRef.getReference();
+            if (ref == null || !ref.isValid()) continue;
+            
+            Player p = ref.getStore().getComponent(ref, Player.getComponentType());
             if (p == null) continue;
 
+            invalidatePlayerCache(p, world);
             refreshPlayerMarkers(p);
         }
     }
@@ -481,6 +493,66 @@ public class WaypointManager {
 
     public static boolean isTrackedWorld(@Nullable World world) {
         return ExplorationEventListener.isTrackedWorld(world);
+    }
+
+    private static String cacheKey(@Nonnull UUID uuid, @Nonnull String worldName) {
+        return uuid + "|" + worldName.toLowerCase(Locale.ROOT);
+    }
+
+    private static void invalidatePlayerCache(@Nonnull Player player, @Nonnull World world) {
+        UUID uuid = ((CommandSender) player).getUuid();
+        loadedPlayers.remove(cacheKey(uuid, world.getName()));
+    }
+
+    /**
+     * Sends a full marker update to the client using the UpdateWorldMap packet.
+     * Removes markers that no longer exist and adds/updates the current markers.
+     */
+    private static void sendMarkersToClient(@Nonnull Player player, @Nonnull MapMarker[] markers, @Nonnull List<String> oldMarkerIds) {
+        World world = player.getWorld();
+        if (world == null) return;
+        
+        Runnable sendTask = () -> {
+            try {
+                Ref<EntityStore> ref = player.getReference();
+                if (ref == null || !ref.isValid()) {
+                    return;
+                }
+                PlayerRef playerRef = ref.getStore().getComponent(ref, PlayerRef.getComponentType());
+                if (playerRef == null) {
+                    return;
+                }
+
+                Set<String> newMarkerIds = new java.util.HashSet<>();
+                for (MapMarker m : markers) {
+                    if (m != null && m.id != null) {
+                        newMarkerIds.add(m.id);
+                    }
+                }
+
+                List<String> idsToRemove = new ArrayList<>();
+                for (String oldId : oldMarkerIds) {
+                    if (!newMarkerIds.contains(oldId)) {
+                        idsToRemove.add(oldId);
+                    }
+                }
+
+                UpdateWorldMap packet = new UpdateWorldMap(
+                    null,
+                    markers,
+                    idsToRemove.isEmpty() ? null : idsToRemove.toArray(new String[0])
+                );
+                playerRef.getPacketHandler().write(packet);
+            } catch (Exception e) {
+                LOGGER.warning("Failed to send markers to client for " + player.getDisplayName() + ": " + e.getMessage());
+            }
+        };
+        
+        if (world.isInThread()) {
+            sendTask.run();
+        } else {
+            world.execute(sendTask);
+        }
     }
 
     private static final class WaypointPersistence {

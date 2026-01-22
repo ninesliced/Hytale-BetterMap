@@ -12,9 +12,10 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.ui.WaypointMenuPage;
 import javax.annotation.Nonnull;
 
-public class BetterMapMenuCommand extends AbstractPlayerCommand {
-    public BetterMapMenuCommand() {
-        super("menu", "Open waypoint menu");
+public class WaypointCommand extends AbstractPlayerCommand {
+    public WaypointCommand() {
+        super("waypoint", "Open waypoint menu");
+        this.addAliases("wp");
     }
 
     @Override

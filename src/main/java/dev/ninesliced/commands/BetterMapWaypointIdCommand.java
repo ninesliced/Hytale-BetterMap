@@ -21,8 +21,16 @@ public class BetterMapWaypointIdCommand extends AbstractPlayerCommand {
 
     public BetterMapWaypointIdCommand() {
         super("id", "Get the marker id for a waypoint by name");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+
+    @Override
+    protected String generatePermissionNode() {
+        return "";
     }
 
     @Override
