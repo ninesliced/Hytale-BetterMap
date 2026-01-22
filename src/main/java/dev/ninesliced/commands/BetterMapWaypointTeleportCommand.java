@@ -25,18 +25,14 @@ public class BetterMapWaypointTeleportCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Waypoint name or marker id", ArgTypes.STRING);
 
     @Override
-    protected String generatePermissionNode() {
-        return "waypoint.teleport";
-    }
-
-    @Override
     protected boolean canGeneratePermission() {
-        return true;
+        return false;
     }
 
     public BetterMapWaypointTeleportCommand() {
         super("teleport", "Teleport to a map waypoint");
         this.addAliases("tp");
+        this.requirePermission("dev.ninesliced.bettermap.command.teleport");
     }
 
     @Override
