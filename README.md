@@ -195,4 +195,4 @@ This project was created to improve the exploration quality of life in Hytale.
 
 ***
 
-_Found a bug? Have a suggestion? Please report it in the comments or on our discord server!_
+_Found a bug? Have a suggestion? Please report it in the comments or on our discord server!_ [Our discord link](https://discord.gg/8q7NCUm4xw)

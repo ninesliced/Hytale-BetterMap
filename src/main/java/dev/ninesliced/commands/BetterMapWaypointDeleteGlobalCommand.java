@@ -21,18 +21,14 @@ public class BetterMapWaypointDeleteGlobalCommand extends AbstractPlayerCommand 
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Global waypoint id", ArgTypes.STRING);
 
     @Override
-    protected String generatePermissionNode() {
-        return "waypoint.global";
-    }
-
-    @Override
     protected boolean canGeneratePermission() {
-        return true;
+        return false;
     }
 
     public BetterMapWaypointDeleteGlobalCommand() {
         super("removeglobal", "Remove a global map waypoint");
         this.addAliases("deleteglobal", "delglobal");
+        this.requirePermission("dev.ninesliced.bettermap.command.waypoint.global");
     }
 
     @Override
