@@ -601,7 +601,7 @@ public class WorldMapHook {
                         rankedChunks = cachedRankedChunks;
                     }
 
-                    int maxChunks = BetterMapConfig.getInstance().getActiveMapQuality().maxChunks;
+                    int maxChunks = BetterMapConfig.getInstance().getActiveMaxChunksToLoad();
                     int searchLimit = maxChunks - reusableBoundaryChunks.size();
                     if (searchLimit < 0) searchLimit = 0;
 

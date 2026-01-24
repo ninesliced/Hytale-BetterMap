@@ -479,15 +479,6 @@ public class BetterMapConfig {
         save();
     }
 
-    /**
-     * Gets the active map quality setting.
-     *
-     * @return The active map quality.
-     */
-    public MapQuality getActiveMapQualitySetting() {
-        return activeMapQuality;
-    }
-
     public void setLocationEnabled(boolean locationEnabled) {
         this.locationEnabled = locationEnabled;
     }
