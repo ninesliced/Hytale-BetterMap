@@ -19,6 +19,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
+import dev.ninesliced.managers.ChunkStreamingManager;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.MapExpansionManager;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -29,9 +30,15 @@ import java.util.logging.Logger;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
+ * 
+ * Optimizations:
+ * - Delta updates: Only sends chunks that have changed
+ * - Priority queue loading: Sends nearest chunks first with bandwidth throttling
+ * - Increased chunk limits: Higher quality settings support more chunks
  */
 public class WorldMapHook {
     private static final Logger LOGGER = Logger.getLogger(WorldMapHook.class.getName());
+
 
     /**
      * Injects a custom RestrictedSpiralIterator into the player's world map tracker.
@@ -99,6 +106,9 @@ public class WorldMapHook {
             try {
                 ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 999.0f);
             } catch (Exception ignored) {}
+            
+            // Clean up streaming manager state for this player
+            ChunkStreamingManager.getInstance().removeState(player.getDisplayName());
 
             LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName());
         } catch (Exception e) {
@@ -218,10 +228,30 @@ public class WorldMapHook {
 
             List<Long> targetChunks = ((RestrictedSpiralIterator) spiralIterator).getTargetMapChunks();
             Set<Long> targetSet = new HashSet<>(targetChunks);
-
-            List<Long> toUnload = new ArrayList<>();
+            
+            String playerName = player.getDisplayName();
+            ChunkStreamingManager streamingManager = ChunkStreamingManager.getInstance();
+            
+            // Use delta updates: compute what needs to change
+            ChunkStreamingManager.ChunkDelta delta = streamingManager.computeDelta(
+                playerName, targetSet, cx, cz
+            );
+            
+            // Queue chunks for loading/unloading with priority
+            if (!delta.toLoad.isEmpty()) {
+                streamingManager.queueChunksForLoading(playerName, delta.toLoad, cx, cz);
+            }
+            
+            if (!delta.toUnload.isEmpty()) {
+                streamingManager.queueChunksForUnloading(playerName, delta.toUnload);
+            }
+            
+            // Process the queues with bandwidth throttling
+            streamingManager.processLoadQueue(player);
+            
+            // Also handle the tracker's loaded set for compatibility
             List<Long> loadedSnapshot = new ArrayList<>(loaded);
-
+            List<Long> toUnload = new ArrayList<>();
             List<MapChunk> unloadPackets = new ArrayList<>();
 
             for (Long idx : loadedSnapshot) {
@@ -236,6 +266,9 @@ public class WorldMapHook {
             if (toUnload.isEmpty()) return;
 
             toUnload.forEach(loaded::remove);
+            
+            // Mark as unloaded in streaming manager
+            streamingManager.markChunksUnloaded(playerName, toUnload);
 
             UpdateWorldMap packet = new UpdateWorldMap(
                     unloadPackets.toArray(new MapChunk[0]),
@@ -390,6 +423,9 @@ public class WorldMapHook {
     /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
      * Thread-safe implementation to prevent race conditions with the WorldMap thread.
+     * 
+     * Optimization 2.2: Caches sorted chunk lists and only re-sorts when player moves significantly.
+     * Uses squared distances to avoid expensive Math.sqrt() calls.
      */
     public static class RestrictedSpiralIterator extends CircleSpiralIterator {
         private final ExplorationTracker.PlayerExplorationData data;
@@ -404,6 +440,19 @@ public class WorldMapHook {
         private volatile int currentRadius;
         private int cleanupTimer = 0;
         private final Object lock = new Object();
+        
+        // Optimization 2.2: Cache for sorted chunk lists
+        private volatile List<Long> cachedRankedChunks = null;
+        private volatile int cachedCenterX = Integer.MIN_VALUE;
+        private volatile int cachedCenterZ = Integer.MIN_VALUE;
+        private volatile int cachedExploredChunksHash = 0;
+        private volatile int cachedExploredChunksSize = 0;
+        
+        // Threshold for re-sorting: only re-sort if player moved more than this many map chunks
+        private static final int RESORT_DISTANCE_THRESHOLD = 4;
+        // Pre-allocated reusable collections to reduce GC pressure
+        private final Set<Long> reusableMapChunks = new HashSet<>(1024);
+        private final Set<Long> reusableBoundaryChunks = new HashSet<>(8);
 
         public RestrictedSpiralIterator(ExplorationTracker.PlayerExplorationData data, WorldMapTracker tracker) {
             super();
@@ -418,6 +467,14 @@ public class WorldMapHook {
             synchronized (lock) {
                 this.stopped = true;
                 this.currentIterator = Collections.emptyIterator();
+                // Clear caches on stop
+                this.cachedRankedChunks = null;
+                this.cachedCenterX = Integer.MIN_VALUE;
+                this.cachedCenterZ = Integer.MIN_VALUE;
+                this.cachedExploredChunksHash = 0;
+                this.cachedExploredChunksSize = 0;
+                this.reusableMapChunks.clear();
+                this.reusableBoundaryChunks.clear();
                 try {
                     super.init(0, 0, 0, 1);
                 } catch (Exception ignored) {}
@@ -452,9 +509,6 @@ public class WorldMapHook {
                 this.currentGoalRadius = endRadius;
 
                 try {
-                    Set<Long> mapChunks = new HashSet<>();
-                    Set<Long> exploredWorldChunks;
-
                     Player player = tracker.getPlayer();
                     if (player == null || data == null) {
                         this.currentIterator = Collections.emptyIterator();
@@ -462,6 +516,7 @@ public class WorldMapHook {
                         return;
                     }
 
+                    Set<Long> exploredWorldChunks;
                     if (BetterMapConfig.getInstance().isShareAllExploration()) {
                         World world = player.getWorld();
                         String worldName = world != null ? world.getName() : "world";
@@ -477,6 +532,20 @@ public class WorldMapHook {
                         return;
                     }
 
+                    // Optimization 2.2: Check if we need to re-sort or can use cached data
+                    int currentExploredSize = exploredWorldChunks.size();
+                    int currentExploredHash = exploredWorldChunks.hashCode();
+                    int distanceFromCachedCenter = (cachedCenterX == Integer.MIN_VALUE) ? Integer.MAX_VALUE :
+                            Math.abs(cx - cachedCenterX) + Math.abs(cz - cachedCenterZ);
+                    
+                    boolean needsResort = cachedRankedChunks == null ||
+                            distanceFromCachedCenter > RESORT_DISTANCE_THRESHOLD ||
+                            currentExploredSize != cachedExploredChunksSize ||
+                            currentExploredHash != cachedExploredChunksHash;
+
+                    // Reuse collections instead of creating new ones
+                    reusableMapChunks.clear();
+                    
                     for (Long chunkIdx : exploredWorldChunks) {
                         int wx = ChunkUtil.indexToChunkX(chunkIdx);
                         int wz = ChunkUtil.indexToChunkZ(chunkIdx);
@@ -485,49 +554,79 @@ public class WorldMapHook {
                         int mz = wz >> 1;
 
                         long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(mx, mz);
-                        mapChunks.add(mapChunkIdx);
+                        reusableMapChunks.add(mapChunkIdx);
                     }
 
-                    List<Long> rankedChunks = new ArrayList<>();
                     MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
-                    Set<Long> boundaryChunks = new HashSet<>();
+                    reusableBoundaryChunks.clear();
 
                     if (bounds != null && bounds.minX != Integer.MAX_VALUE) {
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
                     }
 
-                    for (Long chunk : mapChunks) {
-                        if (!boundaryChunks.contains(chunk)) {
-                            rankedChunks.add(chunk);
+                    List<Long> rankedChunks;
+                    
+                    if (needsResort) {
+                        // Full re-sort needed - pre-allocate with expected capacity
+                        rankedChunks = new ArrayList<>(reusableMapChunks.size());
+                        
+                        for (Long chunk : reusableMapChunks) {
+                            if (!reusableBoundaryChunks.contains(chunk)) {
+                                rankedChunks.add(chunk);
+                            }
                         }
-                    }
 
-                    rankedChunks.sort(Comparator.comparingDouble(idx -> {
-                        int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                        int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                        return Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(mz - cz, 2));
-                    }));
+                        // Optimization 2.2: Use squared distance to avoid expensive Math.sqrt()
+                        final int sortCenterX = cx;
+                        final int sortCenterZ = cz;
+                        rankedChunks.sort(Comparator.comparingLong(idx -> {
+                            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
+                            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
+                            long dx = mx - sortCenterX;
+                            long dz = mz - sortCenterZ;
+                            return dx * dx + dz * dz; // Squared distance - no sqrt needed for ordering
+                        }));
+
+                        // Update cache
+                        this.cachedRankedChunks = rankedChunks;
+                        this.cachedCenterX = cx;
+                        this.cachedCenterZ = cz;
+                        this.cachedExploredChunksSize = currentExploredSize;
+                        this.cachedExploredChunksHash = currentExploredHash;
+                    } else {
+                        // Use cached sorted list
+                        rankedChunks = cachedRankedChunks;
+                    }
 
                     int maxChunks = BetterMapConfig.getInstance().getActiveMapQuality().maxChunks;
-                    int searchLimit = maxChunks - boundaryChunks.size();
+                    int searchLimit = maxChunks - reusableBoundaryChunks.size();
                     if (searchLimit < 0) searchLimit = 0;
 
+                    List<Long> limitedRankedChunks;
                     if (rankedChunks.size() > searchLimit) {
-                        rankedChunks = new ArrayList<>(rankedChunks.subList(0, searchLimit));
+                        // Pre-allocate with known size
+                        limitedRankedChunks = new ArrayList<>(searchLimit);
+                        for (int i = 0; i < searchLimit; i++) {
+                            limitedRankedChunks.add(rankedChunks.get(i));
+                        }
+                    } else {
+                        limitedRankedChunks = rankedChunks;
                     }
 
-                    this.targetMapChunks = new ArrayList<>(boundaryChunks);
-                    this.targetMapChunks.addAll(rankedChunks);
+                    // Pre-allocate targetMapChunks with known size
+                    this.targetMapChunks = new ArrayList<>(reusableBoundaryChunks.size() + limitedRankedChunks.size());
+                    this.targetMapChunks.addAll(reusableBoundaryChunks);
+                    this.targetMapChunks.addAll(limitedRankedChunks);
 
-                    this.currentIterator = rankedChunks.iterator();
+                    this.currentIterator = limitedRankedChunks.iterator();
                     this.initialized = true;
 
                     if (++cleanupTimer > 100) {
                         cleanupTimer = 0;
-                        cleanupFarChunks(rankedChunks);
+                        cleanupFarChunks(limitedRankedChunks);
                     }
                 } catch (Exception e) {
                     LOGGER.warning("Error in RestrictedSpiralIterator.init(): " + e.getMessage());
@@ -586,11 +685,32 @@ public class WorldMapHook {
                 long next = iter.next();
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(next);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(next);
-                this.currentRadius = (int) Math.sqrt(Math.pow(mx - centerX, 2) + Math.pow(mz - centerZ, 2));
+                // Optimization 2.2: Use integer approximation for radius instead of sqrt
+                int dx = mx - centerX;
+                int dz = mz - centerZ;
+                // Fast integer square root approximation using bit manipulation
+                int distSquared = dx * dx + dz * dz;
+                this.currentRadius = (int) fastSqrt(distSquared);
                 return next;
             } catch (java.util.NoSuchElementException e) {
                 return 0;
             }
+        }
+        
+        /**
+         * Fast integer square root using Newton's method.
+         * Optimization 2.2: Avoids expensive Math.sqrt() calls.
+         */
+        private static int fastSqrt(int n) {
+            if (n <= 0) return 0;
+            if (n == 1) return 1;
+            int x = n;
+            int y = (x + 1) >> 1;
+            while (y < x) {
+                x = y;
+                y = (x + n / x) >> 1;
+            }
+            return x;
         }
 
         @Override
