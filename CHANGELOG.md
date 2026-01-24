@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.6
+
+* Fix the issue with the new release changes in the marker API (map not becoming black)
+
 ## v1.2.5 - Waypoint Fixes
 
 *  **Waypoint creation & management:** Fixed several issues with waypoint creation, updating, and deletion where local waypoints were not being deleted or updated correctly.
