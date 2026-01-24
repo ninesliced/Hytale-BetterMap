@@ -2,13 +2,29 @@ package dev.ninesliced.utils;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Utility class for chunk coordinate calculations.
+ * 
+ * Optimization 2.3: Pre-computed circular offsets to avoid creating excessive objects.
  */
 public class ChunkUtil {
     private static final int CHUNK_SIZE = 16;
+    
+    /**
+     * Optimization 2.3: Cache of pre-computed circular offsets for each radius.
+     * Key: radius, Value: array of [dx, dz] pairs
+     */
+    private static final Map<Integer, int[][]> CIRCULAR_OFFSETS_CACHE = new ConcurrentHashMap<>();
+    
+    /**
+     * Optimization 2.3: Thread-local reusable set to avoid creating new HashSets.
+     * Each thread gets its own set to avoid synchronization overhead.
+     */
+    private static final ThreadLocal<Set<Long>> REUSABLE_CHUNK_SET = ThreadLocal.withInitial(() -> new HashSet<>(1024));
 
     /**
      * Packs chunk coordinates into a long index.
@@ -53,6 +69,8 @@ public class ChunkUtil {
 
     /**
      * Gets a set of chunk indices within a circular radius.
+     * 
+     * Optimization 2.3: Uses pre-computed circular offsets and reusable sets.
      *
      * @param centerChunkX Center chunk X.
      * @param centerChunkZ Center chunk Z.
@@ -61,19 +79,94 @@ public class ChunkUtil {
      */
     @Nonnull
     public static Set<Long> getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks) {
-        Set<Long> chunks = new HashSet<>();
-
-        int radiusSquared = radiusChunks * radiusChunks;
-
-        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
-            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (dx * dx + dz * dz <= radiusSquared) {
-                    chunks.add(chunkCoordsToIndex(centerChunkX + dx, centerChunkZ + dz));
-                }
-            }
+        int[][] offsets = getCircularOffsets(radiusChunks);
+        
+        // Pre-allocate with expected capacity based on offsets count
+        Set<Long> chunks = new HashSet<>(offsets.length + offsets.length / 3);
+        
+        for (int[] offset : offsets) {
+            chunks.add(chunkCoordsToIndex(centerChunkX + offset[0], centerChunkZ + offset[1]));
         }
 
         return chunks;
+    }
+    
+    /**
+     * Gets a set of chunk indices within a circular radius, reusing the provided set.
+     * 
+     * Optimization 2.3: Avoids allocating new HashSet by reusing the provided one.
+     *
+     * @param centerChunkX Center chunk X.
+     * @param centerChunkZ Center chunk Z.
+     * @param radiusChunks Radius in chunks.
+     * @param targetSet    Set to populate (will be cleared first).
+     */
+    public static void getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks, @Nonnull Set<Long> targetSet) {
+        targetSet.clear();
+        int[][] offsets = getCircularOffsets(radiusChunks);
+        
+        for (int[] offset : offsets) {
+            targetSet.add(chunkCoordsToIndex(centerChunkX + offset[0], centerChunkZ + offset[1]));
+        }
+    }
+    
+    /**
+     * Gets or computes the circular offsets for a given radius.
+     * 
+     * Optimization 2.3: Caches the offset arrays to avoid recomputation.
+     *
+     * @param radiusChunks Radius in chunks.
+     * @return Array of [dx, dz] offset pairs.
+     */
+    @Nonnull
+    private static int[][] getCircularOffsets(int radiusChunks) {
+        int[][] cached = CIRCULAR_OFFSETS_CACHE.get(radiusChunks);
+        if (cached != null) {
+            return cached;
+        }
+        
+        int radiusSquared = radiusChunks * radiusChunks;
+        
+        // First pass: count how many offsets we need
+        int count = 0;
+        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
+            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
+                if (dx * dx + dz * dz <= radiusSquared) {
+                    count++;
+                }
+            }
+        }
+        
+        // Second pass: populate the array
+        int[][] offsets = new int[count][2];
+        int index = 0;
+        for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
+            for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
+                if (dx * dx + dz * dz <= radiusSquared) {
+                    offsets[index][0] = dx;
+                    offsets[index][1] = dz;
+                    index++;
+                }
+            }
+        }
+        
+        CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
+        return offsets;
+    }
+    
+    /**
+     * Gets a thread-local reusable set for temporary chunk operations.
+     * 
+     * Optimization 2.3: Provides a reusable set to avoid allocation.
+     * Note: The returned set should only be used temporarily and not stored.
+     *
+     * @return A cleared, reusable HashSet.
+     */
+    @Nonnull
+    public static Set<Long> getReusableChunkSet() {
+        Set<Long> set = REUSABLE_CHUNK_SET.get();
+        set.clear();
+        return set;
     }
 
     /**

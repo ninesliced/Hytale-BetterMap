@@ -765,11 +765,14 @@ public class BetterMapConfig {
 
     /**
      * Enum representing different map quality settings.
+     * 
+     * Optimization: Increased chunk limits based on performance testing.
+     * Delta updates and priority streaming allow higher limits without lag.
      */
     public enum MapQuality {
-        LOW(0.25f, 30000),
-        MEDIUM(0.5f, 10000),
-        HIGH(1.0f, 3000);
+        LOW(0.25f, 80000),      // Increased from 30000 to 80000
+        MEDIUM(0.5f, 25000),    // Increased from 10000 to 25000
+        HIGH(1.0f, 8000);       // Increased from 3000 to 8000
 
         public final float scale;
         public final int maxChunks;
