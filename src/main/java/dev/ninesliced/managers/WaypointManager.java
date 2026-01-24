@@ -51,6 +51,24 @@ public class WaypointManager {
         persistence = new WaypointPersistence(configDir);
     }
 
+    /**
+     * Cleans up all cached data. Called on plugin shutdown.
+     */
+    public static void cleanup() {
+        loadedPlayers.clear();
+    }
+
+    /**
+     * Cleans up cached data for a specific player.
+     * Should be called when a player disconnects.
+     *
+     * @param playerUuid The UUID of the player who disconnected.
+     */
+    public static void onPlayerDisconnect(@Nonnull UUID playerUuid) {
+        String uuidPrefix = playerUuid.toString() + "|";
+        loadedPlayers.removeIf(key -> key.startsWith(uuidPrefix));
+    }
+
     @Nullable
     public static MapMarker[] getWaypoints(@Nonnull Player player) {
         World world = player.getWorld();

@@ -67,7 +67,19 @@ public class ChunkStreamingManager {
         PlayerStreamingState state = playerStates.remove(playerName);
         if (state != null) {
             state.clear();
+            LOGGER.fine("Removed streaming state for player: " + playerName);
         }
+    }
+
+    /**
+     * Clears all player states. Called on plugin shutdown.
+     */
+    public void cleanup() {
+        for (PlayerStreamingState state : playerStates.values()) {
+            state.clear();
+        }
+        playerStates.clear();
+        LOGGER.info("ChunkStreamingManager cleaned up");
     }
     
     /**
