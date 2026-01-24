@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.utils.PermissionsUtil;
@@ -165,8 +166,9 @@ public class MapPrivacyManager {
                                 tracker.setPlayerMapFilter(null);
                             }
 
-                            boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
-                            tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+                            // TODO: setAllowTeleportToMarkers method no longer exists in the new API
+                            // boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
+                            // tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
                         }
                     } catch (Exception _) {}
                 });
@@ -260,8 +262,9 @@ public class MapPrivacyManager {
                 tracker.setPlayerMapFilter(null);
             }
 
-            boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
-            tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+            // TODO: setAllowTeleportToMarkers method no longer exists in the new API
+            // boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
+            // tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
         } catch (Exception e) {
             LOGGER.severe("Error applying privacy filter: " + e.getMessage());
         }

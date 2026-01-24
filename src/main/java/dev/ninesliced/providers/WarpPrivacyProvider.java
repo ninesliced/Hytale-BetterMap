@@ -13,6 +13,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.util.PositionUtil;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -35,11 +36,10 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
     private static final String MARKER_LABEL_PREFIX = "Warp: ";
     private static final String MARKER_ICON = "Warp.png";
 
-    @Override
-    public void update(World world, GameplayConfig gameplayConfig, WorldMapTracker tracker,
+    public void update(World world, MapMarkerTracker tracker,
                        int viewRadius, int chunkX, int chunkZ) {
         try {
-            if (world == null || gameplayConfig == null || tracker == null) {
+            if (world == null || tracker == null) {
                 return;
             }
 
@@ -53,9 +53,9 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            if (!gameplayConfig.getWorldMapConfig().isDisplayWarps()) {
-                return;
-            }
+//            if (!gameplayConfig.getWorldMapConfig().isDisplayWarps()) {
+//                return;
+//            }
 
             Player viewer = tracker.getPlayer();
             String viewerName = viewer.getDisplayName();
