@@ -4,7 +4,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.exploration.ExplorationTracker;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
@@ -193,7 +193,7 @@ public class ExplorationManager {
      */
     public synchronized void startAutoSave() {
         stopAutoSave();
-        int interval = BetterMapConfig.getInstance().getAutoSaveInterval();
+        int interval = ModConfig.getInstance().getAutoSaveInterval();
         if (interval > 0) {
             autoSaveTask = autoSaveScheduler.scheduleAtFixedRate(this::autoSave, interval, interval, TimeUnit.MINUTES);
             LOGGER.info("Auto-save scheduled every " + interval + " minutes.");

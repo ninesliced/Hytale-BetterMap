@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.ninesliced.commands.bettermap.config.ConfigCommand;
 import dev.ninesliced.commands.bettermap.waypoint.WaypointCommand;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.ui.ConfigMenuPage;
 
 import javax.annotation.Nonnull;
@@ -72,7 +72,7 @@ public class BetterMapCommand extends AbstractCommand {
             }
         }
 
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
 
         context.sendMessage(Message.raw("=== BetterMap Settings ===").color(Color.ORANGE));
         context.sendMessage(Message.raw("Exploration Radius: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(config.getExplorationRadius())).color(Color.WHITE)));

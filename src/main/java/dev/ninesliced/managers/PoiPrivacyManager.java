@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.BetterMap;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.providers.PoiPrivacyProvider;
 import java.util.Collections;
 import java.util.Map;
@@ -117,7 +117,7 @@ public class PoiPrivacyManager {
             backedUpProviders.putIfAbsent(world, existing);
             providers.put(PoiPrivacyProvider.PROVIDER_ID, poiPrivacyProvider);
 
-            if (BetterMapConfig.getInstance().isDebug()) {
+            if (ModConfig.getInstance().isDebug()) {
                 LOGGER.info("Replaced POI provider in world " + world.getName());
             }
         } catch (Exception e) {
@@ -140,7 +140,7 @@ public class PoiPrivacyManager {
 
             providers.put(PoiPrivacyProvider.PROVIDER_ID, original);
 
-            if (BetterMapConfig.getInstance().isDebug()) {
+            if (ModConfig.getInstance().isDebug()) {
                 LOGGER.info("Restored POI provider in world " + world.getName());
             }
         } catch (Exception e) {
@@ -149,7 +149,7 @@ public class PoiPrivacyManager {
     }
 
     private boolean shouldFilterPois() {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         return config.isHideAllPoiOnMap()
             || config.isHideUnexploredPoiOnMap()
             || (config.getHiddenPoiNames() != null && !config.getHiddenPoiNames().isEmpty());

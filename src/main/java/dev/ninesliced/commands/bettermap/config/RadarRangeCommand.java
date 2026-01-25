@@ -10,7 +10,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -68,7 +68,7 @@ public class RadarRangeCommand extends AbstractCommand {
                 return;
             }
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
 
             setNewRange(playerRef, config, rangeValue);
         }, world);
@@ -81,7 +81,7 @@ public class RadarRangeCommand extends AbstractCommand {
      * @param config     The player's configuration.
      * @param rangeValue The range value provided by the player.
      */
-    private void setNewRange(PlayerRef playerRef, BetterMapConfig config, int rangeValue) {
+    private void setNewRange(PlayerRef playerRef, ModConfig config, int rangeValue) {
         if (rangeValue < 0) {
             config.setRadarRange(-1);
             playerRef.sendMessage(Message.raw("Radar range set to Infinite").color(Color.GREEN));

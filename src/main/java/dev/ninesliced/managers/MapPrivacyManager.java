@@ -10,10 +10,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
-import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import dev.ninesliced.BetterMap;
-import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.configs.ModConfig;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -88,7 +86,7 @@ public class MapPrivacyManager {
      * This can be called to refresh the privacy settings without restarting the server.
      */
     public void updatePrivacyState() {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         boolean hide = config.isHidePlayersOnMap();
         boolean radarEnabled = config.isRadarEnabled();
         int radarRange = config.getRadarRange();
@@ -180,7 +178,7 @@ public class MapPrivacyManager {
     }
 
     private void applyPlayerSettings(Player player, World world) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         boolean hide = config.isHidePlayersOnMap();
         boolean radarEnabled = config.isRadarEnabled();
         int radarRange = config.getRadarRange();
@@ -271,7 +269,7 @@ public class MapPrivacyManager {
     }
 
     private void removeProvider(World world) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         boolean shouldRemove = config.isRadarEnabled() || config.isHidePlayersOnMap();
 
         try {

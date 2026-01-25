@@ -17,8 +17,8 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
-import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.configs.BetterMapConfig.MapQuality;
+import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.configs.ModConfig.MapQuality;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -62,7 +62,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         if (isAdmin) {
              ui.set("#NavBar.Visible", true);
 
-             BetterMapConfig gConfig = BetterMapConfig.getInstance();
+             ModConfig gConfig = ModConfig.getInstance();
 
              ui.set("#AdminExplorationRadius.Value", gConfig.getExplorationRadius());
              ui.set("#AdminMapQualityInfo.Text", gConfig.getMapQuality().name());
@@ -188,7 +188,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     }
 
     private void handleAdminUpdate(ConfigEventData data, UICommandBuilder ui, Player player) {
-        BetterMapConfig gConfig = BetterMapConfig.getInstance();
+        ModConfig gConfig = ModConfig.getInstance();
         String val = data.getEffectiveValue();
         try {
             switch (data.action) {

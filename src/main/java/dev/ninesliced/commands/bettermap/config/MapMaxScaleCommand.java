@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,7 +52,7 @@ public class MapMaxScaleCommand extends AbstractCommand {
                 return;
             }
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
             if (newMax <= config.getMinScale()) {
                 context.sendMessage(Message.raw("Max scale must be greater than min scale (" + config.getMinScale() + ")").color(Color.RED));
                 return;

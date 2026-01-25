@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -40,7 +40,7 @@ public class MaxChunksToLoadCommand extends AbstractCommand {
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         Integer requestedChunks = context.get(this.chunksArg);
 
         if (requestedChunks == null) {
@@ -48,7 +48,7 @@ public class MaxChunksToLoadCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        BetterMapConfig.MapQuality currentQuality = config.getMapQuality();
+        ModConfig.MapQuality currentQuality = config.getMapQuality();
         int limit = currentQuality.maxChunks;
 
         if (requestedChunks > limit) {

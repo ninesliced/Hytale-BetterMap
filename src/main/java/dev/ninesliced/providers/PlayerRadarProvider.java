@@ -3,15 +3,13 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.util.PositionUtil;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.PlayerRadarManager.RadarData;
 
@@ -39,7 +37,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             Player viewingPlayer = tracker.getPlayer();
             UUID viewerUuid = ((CommandSender) viewingPlayer).getUuid();
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
 
             if (!config.isRadarEnabled() || config.isHidePlayersOnMap()) {
                 return;

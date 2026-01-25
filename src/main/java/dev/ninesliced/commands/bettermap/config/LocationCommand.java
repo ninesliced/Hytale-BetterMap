@@ -3,7 +3,7 @@ package dev.ninesliced.commands.bettermap.config;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -39,7 +39,7 @@ public class LocationCommand extends AbstractCommand {
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         config.setLocationEnabled(!config.isLocationEnabled());
 
         commandContext.sendMessage(Message.raw("Location HUD is now " + (config.isLocationEnabled() ? "enabled" : "disabled") + " by default in the config!").color(config.isLocationEnabled() ? Color.GREEN : Color.RED));

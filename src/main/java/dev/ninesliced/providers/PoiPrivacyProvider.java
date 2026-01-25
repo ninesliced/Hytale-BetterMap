@@ -1,20 +1,15 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
-import dev.ninesliced.listeners.ExplorationEventListener;
+import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.utils.ChunkUtil;
 import java.util.List;
@@ -46,14 +41,14 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
 
             Player viewer = tracker.getPlayer();
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
             if (config.isHideAllPoiOnMap()) {
                 return;
             }
             boolean hideUnexplored = config.isHideUnexploredPoiOnMap();
             List<String> hiddenPoiNames = config.getHiddenPoiNames();
 
-            if (hideUnexplored && !ExplorationEventListener.isTrackedWorld(world)) {
+            if (hideUnexplored && !ExplorationListener.isTrackedWorld(world)) {
                 hideUnexplored = false;
             }
 

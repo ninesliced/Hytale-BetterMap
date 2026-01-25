@@ -4,7 +4,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.Universe;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -29,8 +29,8 @@ public class ShareAllExplorationCommand extends AbstractCommand {
 
     @Override
     public CompletableFuture<Void> execute(@Nonnull CommandContext context) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
-        BetterMapConfig.getInstance().setShareAllExploration(!config.isShareAllExploration());
+        ModConfig config = ModConfig.getInstance();
+        ModConfig.getInstance().setShareAllExploration(!config.isShareAllExploration());
         context.sendMessage(Message.raw("ShareAllExploration set to: " + config.isShareAllExploration()).color(Color.GREEN));
 
         Universe universe = Universe.get();

@@ -16,7 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.managers.ExplorationManager;
@@ -146,7 +146,7 @@ public class WorldMapHook {
             LOGGER.info("Modifying WorldMapSettings for world: " + world.getName());
             WorldMapSettings settings = manager.getWorldMapSettings();
 
-            BetterMapConfig.MapQuality quality = BetterMapConfig.getInstance().getActiveMapQuality();
+            ModConfig.MapQuality quality = ModConfig.getInstance().getActiveMapQuality();
             ReflectionHelper.setFieldValueRecursive(settings, "imageScale", quality.scale);
 
             manager.clearImages();
@@ -186,7 +186,7 @@ public class WorldMapHook {
             boolean hasMoved = explorationData.hasMovedToNewChunk(playerChunkX, playerChunkZ);
 
             if (hasMoved) {
-                int explorationRadius = BetterMapConfig.getInstance().getExplorationRadius();
+                int explorationRadius = ModConfig.getInstance().getExplorationRadius();
 
                 explorationData.getMapExpansion().updateBoundaries(playerChunkX, playerChunkZ, explorationRadius);
                 explorationData.setLastChunkPosition(playerChunkX, playerChunkZ);
@@ -284,7 +284,7 @@ public class WorldMapHook {
         try {
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
             UpdateWorldMapSettings packet = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
 
             if (packet != null) {
                 packet.minScale = config.getMinScale();
@@ -456,13 +456,13 @@ public class WorldMapHook {
                     Set<Long> exploredWorldChunks;
 
                     Player player = tracker.getPlayer();
-                    if (player == null || data == null) {
+                    if (data == null) {
                         this.currentIterator = Collections.emptyIterator();
                         this.initialized = true;
                         return;
                     }
 
-                    if (BetterMapConfig.getInstance().isShareAllExploration()) {
+                    if (ModConfig.getInstance().isShareAllExploration()) {
                         World world = player.getWorld();
                         String worldName = world != null ? world.getName() : "world";
                         exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
@@ -492,7 +492,7 @@ public class WorldMapHook {
                     MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
                     Set<Long> boundaryChunks = new HashSet<>();
 
-                    if (bounds != null && bounds.minX != Integer.MAX_VALUE) {
+                    if (bounds.minX != Integer.MAX_VALUE) {
                         boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
                         boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
                         boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
@@ -511,7 +511,7 @@ public class WorldMapHook {
                         return Math.sqrt(Math.pow(mx - cx, 2) + Math.pow(mz - cz, 2));
                     }));
 
-                    int maxChunks = BetterMapConfig.getInstance().getActiveMapQuality().maxChunks;
+                    int maxChunks = ModConfig.getInstance().getActiveMapQuality().maxChunks;
                     int searchLimit = maxChunks - boundaryChunks.size();
                     if (searchLimit < 0) searchLimit = 0;
 

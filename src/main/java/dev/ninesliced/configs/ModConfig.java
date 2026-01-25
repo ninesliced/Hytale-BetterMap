@@ -17,10 +17,10 @@ import java.util.logging.Logger;
  * Configuration manager for the BetterMap mod.
  * Handles loading, saving, and accessing configuration settings.
  */
-public class BetterMapConfig {
-    private static final Logger LOGGER = Logger.getLogger(BetterMapConfig.class.getName());
+public class ModConfig {
+    private static final Logger LOGGER = Logger.getLogger(ModConfig.class.getName());
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static BetterMapConfig INSTANCE;
+    private static ModConfig INSTANCE;
 
     private int explorationRadius = 16;
     private int updateRateMs = 500;
@@ -52,7 +52,7 @@ public class BetterMapConfig {
     /**
      * Private constructor to enforce singleton pattern.
      */
-    public BetterMapConfig() {
+    public ModConfig() {
     }
 
     /**
@@ -60,9 +60,9 @@ public class BetterMapConfig {
      *
      * @return The instance.
      */
-    public static synchronized BetterMapConfig getInstance() {
+    public static synchronized ModConfig getInstance() {
         if (INSTANCE == null) {
-            INSTANCE = new BetterMapConfig();
+            INSTANCE = new ModConfig();
         }
         return INSTANCE;
     }
@@ -112,7 +112,7 @@ public class BetterMapConfig {
 
             if (element.isJsonObject()) {
                 JsonObject jsonObject = element.getAsJsonObject();
-                BetterMapConfig loaded = GSON.fromJson(element, BetterMapConfig.class);
+                ModConfig loaded = GSON.fromJson(element, ModConfig.class);
 
                 boolean needsSave = false;
 

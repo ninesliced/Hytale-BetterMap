@@ -2,22 +2,17 @@ package dev.ninesliced.providers;
 
 import com.hypixel.hytale.builtin.teleport.TeleportPlugin;
 import com.hypixel.hytale.builtin.teleport.Warp;
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.util.PositionUtil;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
-import dev.ninesliced.listeners.ExplorationEventListener;
+import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.utils.ChunkUtil;
 import java.util.Map;
@@ -60,10 +55,10 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             Player viewer = tracker.getPlayer();
             String viewerName = viewer.getDisplayName();
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
             boolean hideOtherWarps = config.isHideOtherWarpsOnMap();
             boolean hideUnexploredWarps = config.isHideUnexploredWarpsOnMap();
-            if (hideUnexploredWarps && !ExplorationEventListener.isTrackedWorld(world)) {
+            if (hideUnexploredWarps && !ExplorationListener.isTrackedWorld(world)) {
                 hideUnexploredWarps = false;
             }
 

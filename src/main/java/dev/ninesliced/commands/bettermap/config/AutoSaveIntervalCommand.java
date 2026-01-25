@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.ExplorationManager;
 
 import javax.annotation.Nonnull;
@@ -38,7 +38,7 @@ public class AutoSaveIntervalCommand extends AbstractCommand {
         Integer interval = context.get(this.intervalArg);
 
         if (interval == null) {
-            int current = BetterMapConfig.getInstance().getAutoSaveInterval();
+            int current = ModConfig.getInstance().getAutoSaveInterval();
             context.sendMessage(Message.raw("Current auto-save interval: " + current + " minutes.").color(Color.YELLOW));
         } else {
             if (interval < 0) {
@@ -46,7 +46,7 @@ public class AutoSaveIntervalCommand extends AbstractCommand {
                 return CompletableFuture.completedFuture(null);
             }
 
-            BetterMapConfig.getInstance().setAutoSaveInterval(interval);
+            ModConfig.getInstance().setAutoSaveInterval(interval);
             ExplorationManager.getInstance().startAutoSave();
 
             context.sendMessage(Message.raw("Auto-save interval set to " + interval + " minutes.").color(Color.GREEN));

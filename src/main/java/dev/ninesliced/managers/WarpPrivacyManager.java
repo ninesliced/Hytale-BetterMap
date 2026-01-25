@@ -6,7 +6,7 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.BetterMap;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.providers.WarpPrivacyProvider;
 import java.util.Collections;
 import java.util.Map;
@@ -117,7 +117,7 @@ public class WarpPrivacyManager {
             backedUpProviders.putIfAbsent(world, existing);
             providers.put(WarpPrivacyProvider.PROVIDER_ID, warpPrivacyProvider);
 
-            if (BetterMapConfig.getInstance().isDebug()) {
+            if (ModConfig.getInstance().isDebug()) {
                 LOGGER.info("Replaced warp provider in world " + world.getName());
             }
         } catch (Exception e) {
@@ -140,7 +140,7 @@ public class WarpPrivacyManager {
 
             providers.put(WarpPrivacyProvider.PROVIDER_ID, original);
 
-            if (BetterMapConfig.getInstance().isDebug()) {
+            if (ModConfig.getInstance().isDebug()) {
                 LOGGER.info("Restored warp provider in world " + world.getName());
             }
         } catch (Exception e) {
@@ -149,7 +149,7 @@ public class WarpPrivacyManager {
     }
 
     private boolean shouldFilterWarps() {
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         return config.isHideOtherWarpsOnMap()
             || config.isHideUnexploredWarpsOnMap();
     }

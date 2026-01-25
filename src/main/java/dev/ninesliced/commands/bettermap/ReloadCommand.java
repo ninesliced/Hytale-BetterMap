@@ -4,7 +4,7 @@ import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.universe.Universe;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
@@ -46,7 +46,7 @@ public class ReloadCommand extends AbstractCommand {
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext context) {
-        BetterMapConfig.getInstance().reload();
+        ModConfig.getInstance().reload();
         MapPrivacyManager.getInstance().updatePrivacyState();
         WarpPrivacyManager.getInstance().updatePrivacyState();
         PoiPrivacyManager.getInstance().updatePrivacyState();
@@ -61,11 +61,11 @@ public class ReloadCommand extends AbstractCommand {
         }
 
         context.sendMessage(Message.raw("BetterMap configuration reloaded!").color(Color.GREEN));
-        context.sendMessage(Message.raw("Exploration Radius: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(BetterMapConfig.getInstance().getExplorationRadius())).color(Color.WHITE)));
-        context.sendMessage(Message.raw("Min Scale: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(BetterMapConfig.getInstance().getMinScale())).color(Color.WHITE)));
-        context.sendMessage(Message.raw("Max Scale: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(BetterMapConfig.getInstance().getMaxScale())).color(Color.WHITE)));
+        context.sendMessage(Message.raw("Exploration Radius: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(ModConfig.getInstance().getExplorationRadius())).color(Color.WHITE)));
+        context.sendMessage(Message.raw("Min Scale: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(ModConfig.getInstance().getMinScale())).color(Color.WHITE)));
+        context.sendMessage(Message.raw("Max Scale: ").color(Color.YELLOW).insert(Message.raw(String.valueOf(ModConfig.getInstance().getMaxScale())).color(Color.WHITE)));
 
-        BetterMapConfig config = BetterMapConfig.getInstance();
+        ModConfig config = ModConfig.getInstance();
         context.sendMessage(Message.raw("Map Quality: ").color(Color.YELLOW).insert(Message.raw(config.getMapQuality().name()).color(Color.WHITE)));
 
         if (config.getMapQuality() != config.getActiveMapQuality()) {

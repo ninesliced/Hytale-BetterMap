@@ -15,7 +15,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.*;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -32,8 +32,8 @@ import java.util.logging.Logger;
  * Listener class for handling player connection and world transitions events.
  * Responsible for initializing and saving exploration data.
  */
-public class ExplorationEventListener {
-    private static final Logger LOGGER = Logger.getLogger(ExplorationEventListener.class.getName());
+public class ExplorationListener {
+    private static final Logger LOGGER = Logger.getLogger(ExplorationListener.class.getName());
     private static final java.util.Map<String, String> playerWorlds = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
@@ -304,6 +304,6 @@ public class ExplorationEventListener {
         if (world == null) {
             return false;
         }
-        return BetterMapConfig.getInstance().isTrackedWorld(world.getName());
+        return ModConfig.getInstance().isTrackedWorld(world.getName());
     }
 }

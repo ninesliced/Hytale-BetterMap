@@ -19,14 +19,12 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.util.PositionUtil;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import java.util.Locale;
-import java.util.UUID;
 import javax.annotation.Nonnull;
 
 public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.WaypointGuiData> {
@@ -76,7 +74,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
         }
 
         boolean canTeleport = PermissionsUtil.canTeleport(player)
-            && BetterMapConfig.getInstance().isAllowWaypointTeleports();
+            && ModConfig.getInstance().isAllowWaypointTeleports();
 
         int index = 0;
         for (MapMarker marker : markers) {
@@ -216,7 +214,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             }
             case TELEPORT -> {
                 if (!PermissionsUtil.canTeleport(player)
-                    || !BetterMapConfig.getInstance().isAllowWaypointTeleports()) {
+                    || !ModConfig.getInstance().isAllowWaypointTeleports()) {
                     return;
                 }
                 if (data.targetId != null && !data.targetId.isEmpty()) {

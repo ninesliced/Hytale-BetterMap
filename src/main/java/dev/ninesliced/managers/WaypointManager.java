@@ -3,7 +3,6 @@ package dev.ninesliced.managers;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.SerializedName;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
@@ -17,8 +16,8 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.PositionUtil;
-import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.listeners.ExplorationEventListener;
+import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.utils.PermissionsUtil;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -54,7 +53,7 @@ public class WaypointManager {
     @Nullable
     public static MapMarker[] getWaypoints(@Nonnull Player player) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return new MapMarker[0];
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return new MapMarker[0];
 
         ensureLoaded(player, world);
 
@@ -65,7 +64,7 @@ public class WaypointManager {
 
     public static void addWaypoint(@Nonnull Player player, @Nonnull String name, @Nonnull String icon, @Nonnull Transform transform, boolean global) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return;
 
         ensureLoaded(player, world);
 
@@ -93,7 +92,7 @@ public class WaypointManager {
 
     public static boolean removeWaypoint(@Nonnull Player player, @Nonnull String idOrName) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return false;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return false;
 
         ensureLoaded(player, world);
 
@@ -149,7 +148,7 @@ public class WaypointManager {
 
     public static boolean updateWaypoint(@Nonnull Player player, @Nonnull String id, @Nullable String newName, @Nullable String newIcon, @Nullable Transform newTransform) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return false;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return false;
 
         ensureLoaded(player, world);
 
@@ -206,7 +205,7 @@ public class WaypointManager {
         boolean isGlobal = isGlobalId(markerId);
         menuItems.add(new ContextMenuItem(isGlobal ? "Global Waypoint" : "Personal Waypoint", ""));
         if (PermissionsUtil.canTeleport(player)
-            && BetterMapConfig.getInstance().isAllowWaypointTeleports()) {
+            && ModConfig.getInstance().isAllowWaypointTeleports()) {
             menuItems.add(new ContextMenuItem("Teleport To", "bm waypoint teleport " + markerId));
         }
         if (isGlobal) {
@@ -219,7 +218,7 @@ public class WaypointManager {
 
     public static MapMarker getWaypoint(@Nonnull Player player, @Nonnull String id) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return null;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return null;
 
         ensureLoaded(player, world);
 
@@ -234,7 +233,7 @@ public class WaypointManager {
 
     public static MapMarker findWaypoint(@Nonnull Player player, @Nonnull String nameOrId) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return null;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return null;
 
         ensureLoaded(player, world);
 
@@ -252,7 +251,7 @@ public class WaypointManager {
 
     private static void refreshPlayerMarkers(@Nonnull Player player) {
         World world = player.getWorld();
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) return;
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) return;
 
         PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
         MapMarker[] currentMarkers = perWorldData.getWorldMapMarkers();
@@ -402,7 +401,7 @@ public class WaypointManager {
     }
 
     private static void persistPersonal(@Nonnull Player player, @Nonnull String worldName, @Nonnull List<MapMarker> markers) {
-        if (persistence == null || !ExplorationEventListener.isTrackedWorld(player.getWorld())) {
+        if (persistence == null || !ExplorationListener.isTrackedWorld(player.getWorld())) {
             return;
         }
         List<StoredWaypoint> stored = new ArrayList<>();
@@ -420,7 +419,7 @@ public class WaypointManager {
     }
 
     private static void saveGlobalMarker(@Nonnull MapMarker marker, @Nonnull World world, @Nonnull Player player) {
-        if (persistence == null || !ExplorationEventListener.isTrackedWorld(world)) {
+        if (persistence == null || !ExplorationListener.isTrackedWorld(world)) {
             return;
         }
         List<StoredWaypoint> existing = persistence.loadGlobal();
@@ -435,7 +434,7 @@ public class WaypointManager {
     }
 
     public static void refreshAllPlayersMarkers(@Nonnull World world) {
-        if (world == null || !ExplorationEventListener.isTrackedWorld(world)) {
+        if (world == null || !ExplorationListener.isTrackedWorld(world)) {
             return;
         }
 
@@ -571,7 +570,7 @@ public class WaypointManager {
     }
 
     public static boolean isTrackedWorld(@Nullable World world) {
-        return ExplorationEventListener.isTrackedWorld(world);
+        return ExplorationListener.isTrackedWorld(world);
     }
 
     private static String cacheKey(@Nonnull UUID uuid, @Nonnull String worldName) {

@@ -7,7 +7,7 @@ import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -60,7 +60,7 @@ public class TrackWorldCommand extends AbstractCommand {
             }
         }
 
-        boolean added = BetterMapConfig.getInstance().addAllowedWorld(worldName);
+        boolean added = ModConfig.getInstance().addAllowedWorld(worldName);
 
         if (added) {
             context.sendMessage(Message.raw("World '" + worldName + "' added to tracked worlds.").color(Color.GREEN));

@@ -5,7 +5,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
-import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -47,7 +47,7 @@ public class MapExplorationRadiusCommand extends AbstractCommand {
                 return CompletableFuture.completedFuture(null);
             }
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
+            ModConfig config = ModConfig.getInstance();
             config.setExplorationRadius(newRadius);
 
             context.sendMessage(Message.raw("Exploration radius set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newRadius)).color(Color.YELLOW)));
