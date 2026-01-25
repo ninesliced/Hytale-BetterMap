@@ -58,6 +58,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         bindChange(events, "#PlayerMaxScale", "player_max_scale", BindingType.NUMBER);
         bindClick(events, "#PlayerViewBtn", "view_player");
         bindClick(events, "#AdminViewBtn", "view_admin");
+        bindClick(events, "#OpenWaypointsBtn", "open_waypoints");
 
         if (isAdmin) {
              ui.set("#NavBar.Visible", true);
@@ -140,18 +141,25 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         UICommandBuilder ui = new UICommandBuilder();
         UIEventBuilder events = new UIEventBuilder();
 
-        if (data.action.equals("view_player")) {
-            ui.set("#PlayerView.Visible", true);
-            ui.set("#AdminView.Visible", false);
-            sendUpdate(ui, events, false);
-            return;
-        } else if (data.action.equals("view_admin")) {
-            if (PermissionsUtil.isAdmin(player)) {
-                ui.set("#PlayerView.Visible", false);
-                ui.set("#AdminView.Visible", true);
+        switch (data.action) {
+            case "view_player" -> {
+                ui.set("#PlayerView.Visible", true);
+                ui.set("#AdminView.Visible", false);
                 sendUpdate(ui, events, false);
+                return;
             }
-            return;
+            case "view_admin" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    ui.set("#PlayerView.Visible", false);
+                    ui.set("#AdminView.Visible", true);
+                    sendUpdate(ui, events, false);
+                }
+                return;
+            }
+            case "open_waypoints" -> {
+                player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(playerRef));
+                return;
+            }
         }
 
         if (data.action.startsWith("player_")) {

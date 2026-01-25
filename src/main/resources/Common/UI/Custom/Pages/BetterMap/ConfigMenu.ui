@@ -120,6 +120,12 @@ $C.@PageOverlay {
               $C.@NumberField #PlayerMaxScale { Anchor: (Width: 120, Height: 28); }
             }
           }
+
+          TextButton #OpenWaypointsBtn {
+            Anchor: (Height: 32, Top: 8);
+            Text: "OPEN WAYPOINT MENU";
+            Style: @NavButtonStyle;
+          }
         }
       }
 
