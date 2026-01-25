@@ -25,6 +25,7 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -106,6 +107,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
              bindChange(events, "#HiddenPoisList", "admin_hidden_pois", BindingType.STRING);
              bindChange(events, "#AllowedWorldList", "admin_allowed_worlds", BindingType.STRING);
+             bindClick(events, "#AddCurrentWorldBtn", "admin_add_current_world");
              bindChange(events, "#AutoSaveInterval", "admin_autosave", BindingType.NUMBER);
         }
     }
@@ -156,7 +158,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             handlePlayerUpdate(data, player);
         } else if (data.action.startsWith("admin_")) {
              if (PermissionsUtil.isAdmin(player)) {
-                handleAdminUpdate(data, ui);
+                handleAdminUpdate(data, ui, player);
              }
         }
     }
@@ -185,7 +187,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         } catch (NumberFormatException _) {}
     }
 
-    private void handleAdminUpdate(ConfigEventData data, UICommandBuilder ui) {
+    private void handleAdminUpdate(ConfigEventData data, UICommandBuilder ui, Player player) {
         BetterMapConfig gConfig = BetterMapConfig.getInstance();
         String val = data.getEffectiveValue();
         try {
@@ -281,6 +283,19 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                             .filter(s -> !s.isEmpty())
                             .collect(Collectors.toList());
                         gConfig.setAllowedWorlds(worlds);
+                    }
+                    break;
+                case "admin_add_current_world":
+                    World world = player.getWorld();
+                    if (world == null) break;
+                    String worldName = world.getName();
+
+                    List<String> allowed = new ArrayList<>(gConfig.getAllowedWorlds());
+                    if (!allowed.contains(worldName)) {
+                        allowed.add(worldName);
+                        gConfig.setAllowedWorlds(allowed);
+                        ui.set("#AllowedWorldList.Value", String.join(", ", allowed));
+                        sendUpdate(ui, new UIEventBuilder(), false);
                     }
                     break;
                 case "admin_autosave":
