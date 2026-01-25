@@ -3,13 +3,12 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.util.PositionUtil;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
@@ -26,8 +25,7 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
     private static final Logger LOGGER = Logger.getLogger(SpawnPrivacyProvider.class.getName());
 
     @Override
-    public void update(World world, GameplayConfig gameplayConfig, WorldMapTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
             BetterMapConfig globalConfig = BetterMapConfig.getInstance();
 
@@ -73,6 +71,11 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
             }
 
             // Otherwise, show spawn marker (same logic as original SpawnMarkerProvider)
+            var gameplayConfig = world.getGameplayConfig();
+            if (gameplayConfig == null) {
+                return;
+            }
+
             WorldMapConfig worldMapConfig = gameplayConfig.getWorldMapConfig();
             if (worldMapConfig == null || !worldMapConfig.isDisplaySpawn()) {
                 return;

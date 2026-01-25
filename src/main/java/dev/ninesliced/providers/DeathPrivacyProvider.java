@@ -1,10 +1,9 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -31,8 +30,7 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
     }
 
     @Override
-    public void update(World world, GameplayConfig gameplayConfig, WorldMapTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
             BetterMapConfig globalConfig = BetterMapConfig.getInstance();
 
@@ -77,7 +75,7 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
 
             // Delegate to original provider
             if (delegate != null) {
-                delegate.update(world, gameplayConfig, tracker, viewRadius, chunkX, chunkZ);
+                delegate.update(world, tracker, viewRadius, chunkX, chunkZ);
             }
         } catch (Exception e) {
             LOGGER.warning("Error in DeathPrivacyProvider.update: " + e.getMessage());

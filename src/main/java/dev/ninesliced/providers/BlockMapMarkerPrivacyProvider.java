@@ -4,11 +4,10 @@ import com.hypixel.hytale.protocol.Direction;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
@@ -34,8 +33,7 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
     private static final Logger LOGGER = Logger.getLogger(BlockMapMarkerPrivacyProvider.class.getName());
 
     @Override
-    public void update(World world, GameplayConfig gameplayConfig, WorldMapTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
             BlockMapMarkersResource resource = world.getChunkStore().getStore()
                 .getResource(BlockMapMarkersResource.getResourceType());

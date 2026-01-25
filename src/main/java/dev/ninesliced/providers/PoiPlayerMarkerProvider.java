@@ -1,13 +1,12 @@
 package dev.ninesliced.providers;
 
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -33,8 +32,7 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
     private static final Logger LOGGER = Logger.getLogger(PoiPlayerMarkerProvider.class.getName());
 
     @Override
-    public void update(World world, GameplayConfig gameplayConfig, WorldMapTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
             if (world == null || tracker == null) {
                 return;
