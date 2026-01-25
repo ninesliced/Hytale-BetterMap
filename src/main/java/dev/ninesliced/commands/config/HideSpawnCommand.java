@@ -72,6 +72,7 @@ public class HideSpawnCommand extends AbstractCommand {
             }
 
             PoiPrivacyManager.getInstance().updatePrivacyState(world);
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
             boolean visible = !newState;

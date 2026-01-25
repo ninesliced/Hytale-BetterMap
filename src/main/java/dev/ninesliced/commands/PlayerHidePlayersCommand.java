@@ -5,11 +5,9 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -19,8 +17,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to toggle the player's personal "hide players" setting.
- * If players are globally hidden, toggles the override for permitted players.
+ * Command to toggle the player's personal "hide players" preference.
+ * Saves the player's desired state (visible/hidden) which is applied
+ * based on permissions and global settings by the privacy provider.
  */
 public class PlayerHidePlayersCommand extends AbstractCommand {
 
@@ -42,7 +41,6 @@ public class PlayerHidePlayersCommand extends AbstractCommand {
                 return;
             }
 
-            BetterMapConfig globalConfig = BetterMapConfig.getInstance();
             Player player = (Player) context.sender();
             UUID uuid = player.getUuid();
             World world = player.getWorld();
@@ -53,47 +51,34 @@ public class PlayerHidePlayersCommand extends AbstractCommand {
                 return;
             }
 
-            if (globalConfig.isHidePlayersOnMap()) {
-                if (!PermissionsUtil.canOverridePlayers(player)) {
-                    context.sendMessage(Message.raw("Players are globally hidden by the server.").color(Color.YELLOW));
-                    return;
-                }
-
-                boolean newState = !config.isOverrideGlobalPlayersHide();
-                config.setOverrideGlobalPlayersHide(newState);
-                if (newState) {
-                    config.setHidePlayersOnMap(false);
-                }
-                PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                MapPrivacyManager.getInstance().updatePrivacyState();
-                WorldMapHook.refreshTrackers(world);
-
-                boolean visible = newState;
-                Color color = visible ? Color.GREEN : Color.RED;
-                String status = visible ? "VISIBLE" : "HIDDEN";
-
-                context.sendMessage(Message.raw("Players are now " + status + " for you.").color(color));
-                if (visible) {
-                    context.sendMessage(Message.raw("Override enabled; global hide is ignored.").color(Color.GRAY));
-                } else {
-                    context.sendMessage(Message.raw("Override disabled; global hide is applied.").color(Color.GRAY));
-                }
-                return;
+            // Determine current desired state and toggle it
+            boolean currentlyWantsVisible = config.isOverrideGlobalPlayersHide() && !config.isHidePlayersOnMap();
+            boolean currentlyWantsHidden = config.isHidePlayersOnMap();
+            
+            boolean newWantsVisible;
+            if (currentlyWantsVisible) {
+                // Currently wants visible -> switch to hidden
+                newWantsVisible = false;
+            } else if (currentlyWantsHidden) {
+                // Currently wants hidden -> switch to visible
+                newWantsVisible = true;
+            } else {
+                // Default state -> switch to hidden
+                newWantsVisible = false;
             }
 
-            boolean newState = !config.isHidePlayersOnMap();
-            config.setOverrideGlobalPlayersHide(false);
-            config.setHidePlayersOnMap(newState);
+            // Save the new desired state
+            config.setOverrideGlobalPlayersHide(newWantsVisible);
+            config.setHidePlayersOnMap(!newWantsVisible);
             PlayerConfigManager.getInstance().savePlayerConfig(uuid);
+
             MapPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
-            boolean visible = !newState;
-            Color color = visible ? Color.GREEN : Color.RED;
-            String status = visible ? "VISIBLE" : "HIDDEN";
-
+            Color color = newWantsVisible ? Color.GREEN : Color.RED;
+            String status = newWantsVisible ? "VISIBLE" : "HIDDEN";
             context.sendMessage(Message.raw("Players are now " + status + " for you.").color(color));
-            context.sendMessage(Message.raw("Note: You may need to reopen the map to see changes.").color(Color.GRAY));
         });
     }
 }

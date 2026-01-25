@@ -5,11 +5,9 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
-import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -19,8 +17,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to toggle the player's personal death marker visibility.
- * Requires override permission when death marker is globally hidden.
+ * Command to toggle the player's personal death marker visibility preference.
+ * Saves the player's desired state (visible/hidden) which is applied
+ * based on permissions and global settings by the privacy provider.
  * 
  * Note: Uses the game's native death storage. If the game's displayDeathMarker 
  * config is disabled, deaths won't be recorded and this toggle has no effect.
@@ -44,28 +43,7 @@ public class PlayerHideDeathCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        BetterMapConfig globalConfig = BetterMapConfig.getInstance();
         Player player = (Player) context.sender();
-        
-        boolean globalDeathFilters = globalConfig.isHideDeathMarkerOnMap();
-        if (!globalDeathFilters) {
-            var hiddenNames = globalConfig.getHiddenPoiNames();
-            if (hiddenNames != null) {
-                for (String hidden : hiddenNames) {
-                    if ("death".equalsIgnoreCase(hidden.trim())) {
-                        globalDeathFilters = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Check if globally disabled
-        if (globalDeathFilters && !PermissionsUtil.canOverrideDeath(player)) {
-            context.sendMessage(Message.raw("Death marker is globally hidden by the server.").color(Color.YELLOW));
-            return CompletableFuture.completedFuture(null);
-        }
-
         UUID uuid = player.getUuid();
         World world = player.getWorld();
         PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
@@ -75,48 +53,35 @@ public class PlayerHideDeathCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        final boolean finalGlobalDeathFilters = globalDeathFilters;
-
         // Run on world executor to ensure proper ordering
         return CompletableFuture.runAsync(() -> {
-            if (finalGlobalDeathFilters) {
-                // Toggle override mode
-                boolean newState = !config.isOverrideGlobalDeathHide();
-                config.setOverrideGlobalDeathHide(newState);
-                if (newState) {
-                    config.setHideDeathMarkerOnMap(false);
-                }
-                PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                PoiPrivacyManager.getInstance().updatePrivacyStateSync(world);
-                WorldMapHook.clearMarkerCaches(world);
-                WorldMapHook.refreshTrackers(world);
-
-                boolean visible = newState;
-                Color color = visible ? Color.GREEN : Color.RED;
-                String status = visible ? "VISIBLE" : "HIDDEN";
-
-                context.sendMessage(Message.raw("Death markers are now " + status + " for you.").color(color));
-                if (visible) {
-                    context.sendMessage(Message.raw("Override enabled; global hide is ignored.").color(Color.GRAY));
-                } else {
-                    context.sendMessage(Message.raw("Override disabled; global hide is applied.").color(Color.GRAY));
-                }
-                return;
+            // Determine current desired state and toggle it
+            boolean currentlyWantsVisible = config.isOverrideGlobalDeathHide() && !config.isHideDeathMarkerOnMap();
+            boolean currentlyWantsHidden = config.isHideDeathMarkerOnMap();
+            
+            boolean newWantsVisible;
+            if (currentlyWantsVisible) {
+                // Currently wants visible -> switch to hidden
+                newWantsVisible = false;
+            } else if (currentlyWantsHidden) {
+                // Currently wants hidden -> switch to visible
+                newWantsVisible = true;
+            } else {
+                // Default state -> switch to hidden
+                newWantsVisible = false;
             }
 
-            // Toggle personal hide setting
-            boolean newState = !config.isHideDeathMarkerOnMap();
-            config.setOverrideGlobalDeathHide(false);
-            config.setHideDeathMarkerOnMap(newState);
+            // Save the new desired state
+            config.setOverrideGlobalDeathHide(newWantsVisible);
+            config.setHideDeathMarkerOnMap(!newWantsVisible);
             PlayerConfigManager.getInstance().savePlayerConfig(uuid);
+
             PoiPrivacyManager.getInstance().updatePrivacyStateSync(world);
             WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
-            boolean visible = !newState;
-            Color color = visible ? Color.GREEN : Color.RED;
-            String status = visible ? "VISIBLE" : "HIDDEN";
-
+            Color color = newWantsVisible ? Color.GREEN : Color.RED;
+            String status = newWantsVisible ? "VISIBLE" : "HIDDEN";
             context.sendMessage(Message.raw("Death markers are now " + status + " for you.").color(color));
         }, world);
     }

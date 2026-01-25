@@ -141,6 +141,7 @@ public class HiddenPoiCommand extends AbstractCommand {
         hiddenNames.add(name);
         config.setHiddenPoiNames(hiddenNames);
         PoiPrivacyManager.getInstance().updatePrivacyState(world);
+        WorldMapHook.clearMarkerCaches(world);
         WorldMapHook.refreshTrackers(world);
         resetOverride(playerRef);
 
@@ -161,6 +162,7 @@ public class HiddenPoiCommand extends AbstractCommand {
 
         config.setHiddenPoiNames(hiddenNames);
         PoiPrivacyManager.getInstance().updatePrivacyState(world);
+        WorldMapHook.clearMarkerCaches(world);
         WorldMapHook.refreshTrackers(world);
         resetOverride(playerRef);
 
@@ -178,6 +180,7 @@ public class HiddenPoiCommand extends AbstractCommand {
         int count = hiddenNames.size();
         config.setHiddenPoiNames(new ArrayList<>());
         PoiPrivacyManager.getInstance().updatePrivacyState(world);
+        WorldMapHook.clearMarkerCaches(world);
         WorldMapHook.refreshTrackers(world);
         resetOverride(playerRef);
 

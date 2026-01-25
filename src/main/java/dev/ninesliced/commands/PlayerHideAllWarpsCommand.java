@@ -5,11 +5,9 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
-import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -19,8 +17,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to toggle the player's personal "hide all warps" setting.
- * Requires override permission when warps are globally hidden.
+ * Command to toggle the player's personal warp visibility preference.
+ * Saves the player's desired state (visible/hidden) which is applied
+ * based on permissions and global settings by the privacy provider.
  */
 public class PlayerHideAllWarpsCommand extends AbstractCommand {
 
@@ -42,21 +41,7 @@ public class PlayerHideAllWarpsCommand extends AbstractCommand {
                 return;
             }
 
-            BetterMapConfig globalConfig = BetterMapConfig.getInstance();
             Player player = (Player) context.sender();
-            
-            boolean globalAllWarpsHidden = globalConfig.isHideAllWarpsOnMap();
-            boolean globalUnexploredHidden = globalConfig.isHideUnexploredWarpsOnMap();
-            boolean globalAllWarpsFilters = globalAllWarpsHidden || globalUnexploredHidden;
-            boolean canOverrideGlobalWarps = PermissionsUtil.canOverrideWarps(player)
-                || (!globalAllWarpsHidden && globalUnexploredHidden && PermissionsUtil.canOverrideUnexploredWarps(player));
-
-            // Check if globally disabled
-            if (globalAllWarpsFilters && !canOverrideGlobalWarps) {
-                context.sendMessage(Message.raw("Warps are globally hidden by the server.").color(Color.YELLOW));
-                return;
-            }
-
             UUID uuid = player.getUuid();
             World world = player.getWorld();
             PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
@@ -66,41 +51,33 @@ public class PlayerHideAllWarpsCommand extends AbstractCommand {
                 return;
             }
 
-            if (globalAllWarpsFilters) {
-                boolean newState = !config.isOverrideGlobalAllWarpsHide();
-                config.setOverrideGlobalAllWarpsHide(newState);
-                if (newState) {
-                    config.setHideAllWarpsOnMap(false);
-                }
-                PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                WarpPrivacyManager.getInstance().updatePrivacyState();
-                WorldMapHook.clearMarkerCaches(world);
-                WorldMapHook.refreshTrackers(world);
-
-                boolean visible = newState;
-                Color color = visible ? Color.GREEN : Color.RED;
-                String status = visible ? "VISIBLE" : "HIDDEN";
-
-                context.sendMessage(Message.raw("Warps are now " + status + " for you.").color(color));
-                if (visible) {
-                    context.sendMessage(Message.raw("Override enabled; global hide is ignored.").color(Color.GRAY));
-                } else {
-                    context.sendMessage(Message.raw("Override disabled; global hide is applied.").color(Color.GRAY));
-                }
-                return;
+            // Determine current desired state and toggle it
+            boolean currentlyWantsVisible = config.isOverrideGlobalAllWarpsHide() && !config.isHideAllWarpsOnMap();
+            boolean currentlyWantsHidden = config.isHideAllWarpsOnMap();
+            
+            boolean newWantsVisible;
+            if (currentlyWantsVisible) {
+                // Currently wants visible -> switch to hidden
+                newWantsVisible = false;
+            } else if (currentlyWantsHidden) {
+                // Currently wants hidden -> switch to visible
+                newWantsVisible = true;
+            } else {
+                // Default state -> switch to hidden
+                newWantsVisible = false;
             }
 
-            boolean newState = !config.isHideAllWarpsOnMap();
-            config.setOverrideGlobalAllWarpsHide(false);
-            config.setHideAllWarpsOnMap(newState);
+            // Save the new desired state
+            config.setOverrideGlobalAllWarpsHide(newWantsVisible);
+            config.setHideAllWarpsOnMap(!newWantsVisible);
             PlayerConfigManager.getInstance().savePlayerConfig(uuid);
+
             WarpPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
-            boolean visible = !newState;
-            Color color = visible ? Color.GREEN : Color.RED;
-            String status = visible ? "VISIBLE" : "HIDDEN";
-
+            Color color = newWantsVisible ? Color.GREEN : Color.RED;
+            String status = newWantsVisible ? "VISIBLE" : "HIDDEN";
             context.sendMessage(Message.raw("Warps are now " + status + " for you.").color(color));
         });
     }

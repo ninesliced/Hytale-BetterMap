@@ -81,6 +81,7 @@ public class HidePlayersCommand extends AbstractCommand {
             }
 
             MapPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
             boolean visible = !newState;

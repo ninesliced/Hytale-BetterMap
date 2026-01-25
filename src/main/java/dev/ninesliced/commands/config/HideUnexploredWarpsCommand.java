@@ -73,6 +73,7 @@ public class HideUnexploredWarpsCommand extends AbstractCommand {
             }
 
             WarpPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
             boolean visible = !newState;

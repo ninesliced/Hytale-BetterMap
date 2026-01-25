@@ -5,11 +5,9 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
-import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -19,8 +17,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to toggle the player's personal spawn marker visibility.
- * Requires override permission when spawn is globally hidden.
+ * Command to toggle the player's personal spawn marker visibility preference.
+ * Saves the player's desired state (visible/hidden) which is applied
+ * based on permissions and global settings by the privacy provider.
  */
 public class PlayerHideSpawnCommand extends AbstractCommand {
 
@@ -42,28 +41,7 @@ public class PlayerHideSpawnCommand extends AbstractCommand {
                 return;
             }
 
-            BetterMapConfig globalConfig = BetterMapConfig.getInstance();
             Player player = (Player) context.sender();
-            
-            boolean globalSpawnFilters = globalConfig.isHideSpawnOnMap();
-            if (!globalSpawnFilters) {
-                var hiddenNames = globalConfig.getHiddenPoiNames();
-                if (hiddenNames != null) {
-                    for (String hidden : hiddenNames) {
-                        if ("spawn".equalsIgnoreCase(hidden.trim())) {
-                            globalSpawnFilters = true;
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // Check if globally disabled
-            if (globalSpawnFilters && !PermissionsUtil.canOverrideSpawn(player)) {
-                context.sendMessage(Message.raw("Spawn marker is globally hidden by the server.").color(Color.YELLOW));
-                return;
-            }
-
             UUID uuid = player.getUuid();
             World world = player.getWorld();
             PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
@@ -73,40 +51,33 @@ public class PlayerHideSpawnCommand extends AbstractCommand {
                 return;
             }
 
-            if (globalSpawnFilters) {
-                boolean newState = !config.isOverrideGlobalSpawnHide();
-                config.setOverrideGlobalSpawnHide(newState);
-                if (newState) {
-                    config.setHideSpawnOnMap(false);
-                }
-                PlayerConfigManager.getInstance().savePlayerConfig(uuid);
-                PoiPrivacyManager.getInstance().updatePrivacyState(world);
-                WorldMapHook.refreshTrackers(world);
-
-                boolean visible = newState;
-                Color color = visible ? Color.GREEN : Color.RED;
-                String status = visible ? "VISIBLE" : "HIDDEN";
-
-                context.sendMessage(Message.raw("Spawn markers are now " + status + " for you.").color(color));
-                if (visible) {
-                    context.sendMessage(Message.raw("Override enabled; global hide is ignored.").color(Color.GRAY));
-                } else {
-                    context.sendMessage(Message.raw("Override disabled; global hide is applied.").color(Color.GRAY));
-                }
-                return;
+            // Determine current desired state and toggle it
+            boolean currentlyWantsVisible = config.isOverrideGlobalSpawnHide() && !config.isHideSpawnOnMap();
+            boolean currentlyWantsHidden = config.isHideSpawnOnMap();
+            
+            boolean newWantsVisible;
+            if (currentlyWantsVisible) {
+                // Currently wants visible -> switch to hidden
+                newWantsVisible = false;
+            } else if (currentlyWantsHidden) {
+                // Currently wants hidden -> switch to visible
+                newWantsVisible = true;
+            } else {
+                // Default state -> switch to hidden
+                newWantsVisible = false;
             }
 
-            boolean newState = !config.isHideSpawnOnMap();
-            config.setOverrideGlobalSpawnHide(false);
-            config.setHideSpawnOnMap(newState);
+            // Save the new desired state
+            config.setOverrideGlobalSpawnHide(newWantsVisible);
+            config.setHideSpawnOnMap(!newWantsVisible);
             PlayerConfigManager.getInstance().savePlayerConfig(uuid);
+
             PoiPrivacyManager.getInstance().updatePrivacyState(world);
+            WorldMapHook.clearMarkerCaches(world);
             WorldMapHook.refreshTrackers(world);
 
-            boolean visible = !newState;
-            Color color = visible ? Color.GREEN : Color.RED;
-            String status = visible ? "VISIBLE" : "HIDDEN";
-
+            Color color = newWantsVisible ? Color.GREEN : Color.RED;
+            String status = newWantsVisible ? "VISIBLE" : "HIDDEN";
             context.sendMessage(Message.raw("Spawn markers are now " + status + " for you.").color(color));
         });
     }
