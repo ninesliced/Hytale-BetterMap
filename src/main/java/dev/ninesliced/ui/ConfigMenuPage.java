@@ -67,6 +67,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
              ui.set("#AdminExplorationRadius.Value", gConfig.getExplorationRadius());
              ui.set("#AdminMapQualityInfo.Text", gConfig.getMapQuality().name());
+             ui.set("#AdminMaxChunksToLoad.Value", gConfig.getMaxChunksToLoad());
 
              ui.set("#AdminMinScale.Value", (int) gConfig.getMinScale());
              ui.set("#AdminMaxScale.Value", (int) gConfig.getMaxScale());
@@ -90,6 +91,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
              bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
              bindClick(events, "#AdminMapQualityInfo", "admin_map_quality");
+             bindChange(events, "#AdminMaxChunksToLoad", "admin_max_chunks", BindingType.NUMBER);
              bindChange(events, "#AdminMinScale", "admin_min_scale", BindingType.NUMBER);
              bindChange(events, "#AdminMaxScale", "admin_max_scale", BindingType.NUMBER);
 
@@ -208,7 +210,11 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     MapQuality next = MapQuality.values()[(current.ordinal() + 1) % MapQuality.values().length];
                     gConfig.setQuality(next);
                     ui.set("#AdminMapQualityInfo.Text", next.name());
+                    ui.set("#AdminMaxChunksToLoad.Value", gConfig.getMaxChunksToLoad());
                     sendUpdate(ui, new UIEventBuilder(), false);
+                    break;
+                case "admin_max_chunks":
+                     if (val != null) gConfig.setMaxChunksToLoad(Integer.parseInt(val));
                     break;
                 case "admin_min_scale":
                      if (val != null) {

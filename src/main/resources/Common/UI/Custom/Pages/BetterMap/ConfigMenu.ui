@@ -167,6 +167,12 @@ $C.@PageOverlay {
 
             @FieldRow {
               Anchor: (Top: 4);
+              Label { Text: "Max Chunks To Load"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #AdminMaxChunksToLoad { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
               Label { Text: "Global Min Scale (Zoom In)"; Style: @FieldLabelStyle; FlexWeight: 1; }
               $C.@NumberField #AdminMinScale { Anchor: (Width: 120, Height: 28); }
             }
