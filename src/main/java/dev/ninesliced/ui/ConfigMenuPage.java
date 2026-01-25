@@ -175,7 +175,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
                     var primaryMessage = Message.raw("Restart Required").color("#FF0000");
                     var secondaryMessage = Message.raw("Map settings changed. Restart server to apply.").color("#FFAA00");
-                    var icon = new ItemStack("Tools_Compass", 1).toPacket();
+                    var icon = new ItemStack("Weapon_Spellbook_Demon", 1).toPacket();
 
                     NotificationUtil.sendNotification(
                         packetHandler,
@@ -229,7 +229,6 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             switch (data.action) {
                 case "admin_exp_radius":
                      if (val != null) gConfig.setExplorationRadius(Integer.parseInt(val));
-                    break;
                 case "admin_map_quality":
                     MapQuality current = gConfig.getMapQuality();
                     MapQuality next = MapQuality.values()[(current.ordinal() + 1) % MapQuality.values().length];
@@ -240,10 +239,34 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     restartRequired = true;
                     break;
                 case "admin_max_chunks":
-                     if (val != null) {
-                         gConfig.setMaxChunksToLoad(Integer.parseInt(val));
-                         restartRequired = true;
-                     }
+                    if (val != null) {
+                        try {
+                            int inputValue = Integer.parseInt(val);
+                            int maxAllowed = gConfig.getMapQuality().maxChunks;
+
+                            if (inputValue > maxAllowed) {
+                                gConfig.setMaxChunksToLoad(maxAllowed);
+                                ui.set("#AdminMaxChunksToLoad.Value", maxAllowed);
+                                sendUpdate(ui, new UIEventBuilder(), false);
+
+                                var packetHandler = playerRef.getPacketHandler();
+
+                                var primaryMessage = Message.raw("Limit Exceeded").color("#FF0000");
+                                var secondaryMessage = Message.raw("Max for " + gConfig.getMapQuality().name() + " quality is " + maxAllowed).color("#FFAA00");
+                                var icon = new ItemStack("Recipe_Book_Magic_Void", 1).toPacket();
+
+                                NotificationUtil.sendNotification(
+                                        packetHandler,
+                                        primaryMessage,
+                                        secondaryMessage,
+                                        icon
+                                );
+                            } else {
+                                gConfig.setMaxChunksToLoad(inputValue);
+                            }
+                            restartRequired = true;
+                        } catch (NumberFormatException ignored) {}
+                    }
                     break;
                 case "admin_min_scale":
                      if (val != null) {
