@@ -51,10 +51,19 @@ $C.@PageOverlay {
     Anchor: (Width: 650, Height: 700);
 
     #Title {
-      Group {
-        $C.@Title {
-          @Text = "BetterMap Configuration";
-        }
+      $C.@Title {
+        @Text = "BetterMap Configuration";
+      }
+
+      TextButton #CloseBtn {
+          Anchor: (Left: 12, Top: 4, Width: 64, Height: 24);
+          Padding: (Left: 8, Top: 2);
+          Text: "Close";
+          Style: TextButtonStyle(
+            Default: (LabelStyle: (FontSize: 14, TextColor: #93844c, RenderBold: true)),
+            Sounds: $C.@ButtonSounds,
+          );
+          Background: #000000(0.13);
       }
     }
 

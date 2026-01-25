@@ -7,6 +7,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.protocol.packets.interface_.Page;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -59,6 +60,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         bindClick(events, "#PlayerViewBtn", "view_player");
         bindClick(events, "#AdminViewBtn", "view_admin");
         bindClick(events, "#OpenWaypointsBtn", "open_waypoints");
+        bindClick(events, "#CloseBtn", "close_menu");
 
         if (isAdmin) {
              ui.set("#NavBar.Visible", true);
@@ -160,6 +162,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             }
             case "open_waypoints" -> {
                 player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(playerRef));
+                return;
+            }
+            case "close_menu" -> {
+                player.getPageManager().setPage(ref, store, Page.None);
                 return;
             }
         }
