@@ -1,0 +1,65 @@
+package dev.ninesliced.commands.bettermap.config;
+
+import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.command.system.AbstractCommand;
+import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
+import dev.ninesliced.configs.BetterMapConfig;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Command to set the minimum map scale (zoom out level).
+ */
+public class MapMinScaleCommand extends AbstractCommand {
+    private final RequiredArg<Float> zoomValueArg = this.withRequiredArg("value", "Min zoom value", ArgTypes.FLOAT);
+
+    /**
+     * Constructs the MapMinScale command.
+     */
+    public MapMinScaleCommand() {
+        super("minscale", "Set min map zoom scale (lower = zoom out further)");
+        this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
+    }
+
+    @Override
+    protected boolean canGeneratePermission() {
+        return false;
+    }
+    /**
+     * Executes the min scale command, validating and updating the configuration.
+     *
+     * @param context The command execution context.
+     * @return A future that completes when execution is finished.
+     */
+    @Nullable
+    @Override
+    protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
+        return CompletableFuture.runAsync(() -> {
+            if (!context.isPlayer()) {
+                context.sendMessage(Message.raw("This command must be run by a player").color(Color.RED));
+                return;
+            }
+
+            Float newMin = context.get(this.zoomValueArg);
+            if (newMin < 2.0f) {
+                context.sendMessage(Message.raw("Min scale must be greater or equals to 2").color(Color.RED));
+                return;
+            }
+
+            BetterMapConfig config = BetterMapConfig.getInstance();
+            if (newMin >= config.getMaxScale()) {
+                context.sendMessage(Message.raw("Min scale must be less than max scale (" + config.getMaxScale() + ")").color(Color.RED));
+                return;
+            }
+
+            config.setMinScale(newMin);
+
+            context.sendMessage(Message.raw("Map min scale set to: ").color(Color.GREEN).insert(Message.raw(String.valueOf(newMin)).color(Color.YELLOW)));
+        });
+    }
+}

@@ -8,8 +8,8 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import dev.ninesliced.commands.BetterMapCommand;
-import dev.ninesliced.commands.WaypointCommand;
+import dev.ninesliced.commands.bettermap.BetterMapCommand;
+import dev.ninesliced.commands.waypoint.WaypointCommand;
 import dev.ninesliced.components.ExplorationComponent;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.exploration.*;
@@ -22,7 +22,6 @@ import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.providers.LocationHudProvider;
-import dev.ninesliced.systems.LocationSystem;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
