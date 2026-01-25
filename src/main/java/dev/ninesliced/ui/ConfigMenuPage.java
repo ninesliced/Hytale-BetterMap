@@ -8,8 +8,10 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -18,6 +20,7 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
+import com.hypixel.hytale.server.core.util.NotificationUtil;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.ModConfig.MapQuality;
 import dev.ninesliced.configs.PlayerConfig;
@@ -37,6 +40,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     private enum BindingType { STRING, NUMBER, BOOLEAN }
 
     private static final String LAYOUT_PATH = "Pages/BetterMap/ConfigMenu.ui";
+
+    private boolean restartRequired = false;
 
     public ConfigMenuPage(PlayerRef player) {
         super(player, CustomPageLifetime.CanDismiss, ConfigEventData.CODEC);
@@ -165,6 +170,20 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 return;
             }
             case "close_menu" -> {
+                if (restartRequired) {
+                    var packetHandler = playerRef.getPacketHandler();
+
+                    var primaryMessage = Message.raw("Restart Required").color("#FF0000");
+                    var secondaryMessage = Message.raw("Map settings changed. Restart server to apply.").color("#FFAA00");
+                    var icon = new ItemStack("Tools_Compass", 1).toPacket();
+
+                    NotificationUtil.sendNotification(
+                        packetHandler,
+                        primaryMessage,
+                        secondaryMessage,
+                        icon
+                    );
+                }
                 player.getPageManager().setPage(ref, store, Page.None);
                 return;
             }
@@ -218,9 +237,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     ui.set("#AdminMapQualityInfo.Text", next.name());
                     ui.set("#AdminMaxChunksToLoad.Value", gConfig.getMaxChunksToLoad());
                     sendUpdate(ui, new UIEventBuilder(), false);
+                    restartRequired = true;
                     break;
                 case "admin_max_chunks":
-                     if (val != null) gConfig.setMaxChunksToLoad(Integer.parseInt(val));
+                     if (val != null) {
+                         gConfig.setMaxChunksToLoad(Integer.parseInt(val));
+                         restartRequired = true;
+                     }
                     break;
                 case "admin_min_scale":
                      if (val != null) {
