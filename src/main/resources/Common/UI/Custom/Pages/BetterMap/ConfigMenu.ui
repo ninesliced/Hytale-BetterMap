@@ -1,0 +1,319 @@
+$C = "../Common.ui";
+
+@SectionTitleStyle = LabelStyle(
+  FontSize: 18,
+  TextColor: #93844c,
+  RenderBold: true
+);
+
+@FieldLabelStyle = LabelStyle(
+  FontSize: 14,
+  TextColor: #96a9be,
+  VerticalAlignment: Center
+);
+
+@CheckboxLabelStyle = LabelStyle(
+  FontSize: 14,
+  TextColor: #bfcdd5,
+  VerticalAlignment: Center
+);
+
+@NavButtonStyle = TextButtonStyle(
+  Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: (FontSize: 13, TextColor: #bfcdd5, RenderBold: true, RenderUppercase: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Hovered: (Background: $C.@DefaultSquareButtonHoveredBackground, LabelStyle: (FontSize: 13, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Pressed: (Background: $C.@DefaultSquareButtonPressedBackground, LabelStyle: (FontSize: 13, TextColor: #ffffff, RenderBold: true, RenderUppercase: true, HorizontalAlignment: Center, VerticalAlignment: Center)),
+  Sounds: $C.@ButtonSounds
+);
+
+@SectionCard = Group {
+  LayoutMode: Top;
+  Padding: (Full: 12);
+  Background: #1a2533(0.6);
+  OutlineColor: #3a4a5a(0.5);
+  OutlineSize: 1;
+};
+
+@FieldRow = Group {
+  LayoutMode: Left;
+  Anchor: (Height: 36);
+  Padding: (Vertical: 4);
+};
+
+@CheckboxRow = Group {
+  LayoutMode: Left;
+  Anchor: (Height: 30);
+  Padding: (Vertical: 2);
+};
+
+$C.@PageOverlay {
+
+  $C.@DecoratedContainer {
+    Anchor: (Width: 650, Height: 700);
+
+    #Title {
+      Group {
+        $C.@Title {
+          @Text = "BetterMap Configuration";
+        }
+      }
+    }
+
+    #Content {
+      LayoutMode: Top;
+
+      Group #NavBar {
+        LayoutMode: Left;
+        Anchor: (Height: 40);
+        Padding: (Bottom: 10);
+        Visible: false;
+
+        TextButton #PlayerViewBtn {
+          FlexWeight: 1;
+          Anchor: (Height: 32);
+          Text: "PLAYER SETTINGS";
+          Style: @NavButtonStyle;
+        }
+
+        Group { Anchor: (Width: 10); }
+
+        TextButton #AdminViewBtn {
+          FlexWeight: 1;
+          Anchor: (Height: 32);
+          Text: "ADMIN SETTINGS";
+          Style: @NavButtonStyle;
+        }
+      }
+
+      Group #PlayerView {
+        Visible: true;
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+
+        Group {
+          LayoutMode: Top;
+          Padding: (Right: 8);
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32);
+            Background: #93844c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Personal Map Settings";
+              Style: @SectionTitleStyle;
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+
+            @FieldRow {
+              Label { Text: "Max Zoom In (Min Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #PlayerMinScale { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Max Zoom Out (Max Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #PlayerMaxScale { Anchor: (Width: 120, Height: 28); }
+            }
+          }
+        }
+      }
+
+      Group #AdminView {
+        Visible: false;
+        FlexWeight: 1;
+        LayoutMode: TopScrolling;
+        ScrollbarStyle: $C.@DefaultScrollbarStyle;
+
+        Group {
+          LayoutMode: Top;
+          Padding: (Right: 8);
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32);
+            Background: #93844c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Global Map Settings";
+              Style: @SectionTitleStyle;
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+
+            @FieldRow {
+              Label { Text: "Exploration Radius"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #AdminExplorationRadius { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Map Quality"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@TextButton #AdminMapQualityInfo { @Text = "MEDIUM"; Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Global Min Scale (Zoom In)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #AdminMinScale { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Global Max Scale (Zoom Out)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #AdminMaxScale { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Auto Save Interval (min)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #AutoSaveInterval { Anchor: (Width: 120, Height: 28); }
+            }
+          }
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #4a9c4c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Feature Toggles";
+              Style: (FontSize: 18, TextColor: #4a9c4c, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+            Background: #1a2a23(0.6);
+            OutlineColor: #3a5a4a(0.5);
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowWaypointTeleport { }
+              Label { Text: "Allow Waypoint Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #ShareAllExploration { }
+              Label { Text: "Share All Exploration"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #DebugMode { }
+              Label { Text: "Debug Mode"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+          }
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #4c7a9c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Radar Settings";
+              Style: (FontSize: 18, TextColor: #4c7a9c, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+            Background: #1a2333(0.6);
+            OutlineColor: #3a4a6a(0.5);
+
+            @CheckboxRow {
+              $C.@CheckBox #RadarEnabled { }
+              Label { Text: "Enable Radar"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Radar Range (-1 = infinite)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #RadarRange { Anchor: (Width: 120, Height: 28); }
+            }
+          }
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #9c4c4c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Hide Markers";
+              Style: (FontSize: 18, TextColor: #9c4c4c, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+            Background: #2a1a1a(0.6);
+            OutlineColor: #5a3a3a(0.5);
+
+            @CheckboxRow {
+              $C.@CheckBox #HidePlayers { }
+              Label { Text: "Hide Players"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #HideOtherWarps { }
+              Label { Text: "Hide Other Warps"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #HideUnexploredWarps { }
+              Label { Text: "Hide Unexplored Warps"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #HideAllPois { }
+              Label { Text: "Hide All POIs"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #HideUnexploredPois { }
+              Label { Text: "Hide Unexplored POIs"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 8);
+              Label { Text: "Hidden POI Names (comma sep)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+            }
+            $C.@TextField #HiddenPoisList { Anchor: (Height: 28, Top: 4); }
+          }
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #7c4c9c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "World Settings";
+              Style: (FontSize: 18, TextColor: #7c4c9c, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8, Bottom: 16);
+            Background: #231a2a(0.6);
+            OutlineColor: #4a3a5a(0.5);
+
+            Label { Text: "Allowed Worlds (comma separated)"; Style: @FieldLabelStyle; }
+            $C.@TextField #AllowedWorldList { Anchor: (Height: 28, Top: 4); }
+            TextButton #AddCurrentWorldBtn { Anchor: (Height: 28, Top: 4); Text: "ADD CURRENT WORLD"; Style: @NavButtonStyle; }
+          }
+        }
+      }
+    }
+  }
+}
+
+$C.@BackButton {}

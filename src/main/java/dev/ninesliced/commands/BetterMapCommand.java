@@ -1,11 +1,13 @@
 package dev.ninesliced.commands;
 
-import com.hypixel.hytale.protocol.GameMode;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import dev.ninesliced.commands.config.ConfigCommand;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.ui.ConfigMenuPage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -54,6 +56,21 @@ public class BetterMapCommand extends AbstractCommand {
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {
+        if (context.isPlayer()) {
+            com.hypixel.hytale.component.Ref<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> ref = context.senderAsPlayerRef();
+            if (ref != null && ref.isValid()) {
+                com.hypixel.hytale.component.Store<com.hypixel.hytale.server.core.universe.world.storage.EntityStore> store = ref.getStore();
+                return CompletableFuture.runAsync(() -> {
+                    Player player = store.getComponent(ref, Player.getComponentType());
+                    PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
+
+                    if (player != null && playerRef != null) {
+                        player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(playerRef));
+                    }
+                }, store.getExternalData().getWorld());
+            }
+        }
+
         BetterMapConfig config = BetterMapConfig.getInstance();
 
         context.sendMessage(Message.raw("=== BetterMap Settings ===").color(Color.ORANGE));
