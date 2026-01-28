@@ -6,7 +6,7 @@
 
     <groupId>dev.ninesliced</groupId>
     <artifactId>BetterMap</artifactId>
-    <version>1.2.7</version>
+    <version>1.2.6</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -30,10 +30,10 @@
     <dependencies>
         <dependency>
             <groupId>com.hypixel.hytale</groupId>
-            <artifactId>HytaleServer</artifactId>
-            <version>1.0</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/HytaleServer.jar</systemPath>
+            <artifactId>Server</artifactId>
+            <!-- Replace with latest version, we provide jars for the last five releases -->
+            <version>2026.01.24-6e2d4fc36</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

@@ -8,30 +8,22 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Utility class for chunk coordinate calculations.
- * 
- * Optimization 2.3: Pre-computed circular offsets to avoid creating excessive objects.
  */
 public class ChunkUtil {
     private static final int CHUNK_SIZE = 16;
     
     /**
-     * Optimization 2.3: Cache of pre-computed circular offsets for each radius.
-     * Key: radius, Value: array of [dx, dz] pairs
+     * Cache of pre-computed circular offsets for each radius.
      */
     private static final Map<Integer, int[][]> CIRCULAR_OFFSETS_CACHE = new ConcurrentHashMap<>();
     
     /**
-     * Optimization 2.3: Thread-local reusable set to avoid creating new HashSets.
-     * Each thread gets its own set to avoid synchronization overhead.
+     * Thread-local reusable set to avoid creating new HashSets.
      */
     private static final ThreadLocal<Set<Long>> REUSABLE_CHUNK_SET = ThreadLocal.withInitial(() -> new HashSet<>(1024));
 
     /**
      * Packs chunk coordinates into a long index.
-     *
-     * @param chunkX Chunk X.
-     * @param chunkZ Chunk Z.
-     * @return Packed index.
      */
     public static long chunkCoordsToIndex(int chunkX, int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
@@ -39,9 +31,6 @@ public class ChunkUtil {
 
     /**
      * Extracts X coordinate from packed index.
-     *
-     * @param index Packed index.
-     * @return Chunk X.
      */
     public static int indexToChunkX(long index) {
         return (int) (index >> 32);
@@ -49,9 +38,6 @@ public class ChunkUtil {
 
     /**
      * Extracts Z coordinate from packed index.
-     *
-     * @param index Packed index.
-     * @return Chunk Z.
      */
     public static int indexToChunkZ(long index) {
         return (int) index;
@@ -59,9 +45,6 @@ public class ChunkUtil {
 
     /**
      * Converts a block coordinate to a chunk coordinate.
-     *
-     * @param blockCoord Block coordinate.
-     * @return Chunk coordinate.
      */
     public static int blockToChunkCoord(double blockCoord) {
         return (int) Math.floor(blockCoord) >> 4;
@@ -69,8 +52,6 @@ public class ChunkUtil {
 
     /**
      * Gets a set of chunk indices within a circular radius.
-     * 
-     * Optimization 2.3: Uses pre-computed circular offsets and reusable sets.
      *
      * @param centerChunkX Center chunk X.
      * @param centerChunkZ Center chunk Z.
@@ -93,13 +74,6 @@ public class ChunkUtil {
     
     /**
      * Gets a set of chunk indices within a circular radius, reusing the provided set.
-     * 
-     * Optimization 2.3: Avoids allocating new HashSet by reusing the provided one.
-     *
-     * @param centerChunkX Center chunk X.
-     * @param centerChunkZ Center chunk Z.
-     * @param radiusChunks Radius in chunks.
-     * @param targetSet    Set to populate (will be cleared first).
      */
     public static void getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks, @Nonnull Set<Long> targetSet) {
         targetSet.clear();
@@ -112,11 +86,6 @@ public class ChunkUtil {
     
     /**
      * Gets or computes the circular offsets for a given radius.
-     * 
-     * Optimization 2.3: Caches the offset arrays to avoid recomputation.
-     *
-     * @param radiusChunks Radius in chunks.
-     * @return Array of [dx, dz] offset pairs.
      */
     @Nonnull
     private static int[][] getCircularOffsets(int radiusChunks) {
@@ -156,11 +125,6 @@ public class ChunkUtil {
     
     /**
      * Gets a thread-local reusable set for temporary chunk operations.
-     * 
-     * Optimization 2.3: Provides a reusable set to avoid allocation.
-     * Note: The returned set should only be used temporarily and not stored.
-     *
-     * @return A cleared, reusable HashSet.
      */
     @Nonnull
     public static Set<Long> getReusableChunkSet() {

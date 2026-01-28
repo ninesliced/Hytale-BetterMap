@@ -1,38 +1,5 @@
 # Changelog
 
-## v1.2.7 - Performance Optimizations
-
-**Major Performance Improvements**
-
-This release focuses on significant performance optimizations for chunk loading and map rendering, allowing for higher quality maps with more chunks.
-
-### Chunk Loading Optimizations
-
-* **Delta Updates:** Implemented intelligent tracking of sent chunks - only sends changes instead of recomputing everything. Reduces network traffic by up to 90% in steady state.
-* **Priority Queue Loading:** Chunks are now loaded based on distance from player (nearest first) with bandwidth throttling to prevent lag spikes.
-* **Batch Packet Processing:** Chunks are sent in optimized batches of 25, reducing packet overhead.
-
-### Increased Chunk Limits
-
-| Quality | Old Limit | New Limit | Improvement |
-|---------|-----------|-----------|-------------|
-| HIGH | 3,000 | 8,000 | 2.7x |
-| MEDIUM | 10,000 | 25,000 | 2.5x |
-| LOW | 30,000 | 80,000 | 2.7x |
-
-### Internal Optimizations
-
-* **Reflection Caching (2.4):** Field lookups are now cached and use MethodHandles for near-native performance. 10-20x faster field access.
-* **Circular Offset Pre-computation (2.3):** Pre-computed circular chunk offsets eliminate ~804 object allocations per exploration update.
-* **Chunk Iteration Caching (2.2):** Sorted chunk lists are cached and only re-sorted when player moves significantly (>4 chunks). Uses squared distances to avoid expensive sqrt() calls.
-* **Collection Pre-allocation:** All collections now pre-allocate with expected capacity to reduce GC pressure.
-
-### New Components
-
-* Added `ChunkStreamingManager` - Central manager for chunk streaming with delta updates and priority-based loading.
-
----
-
 ## v1.2.6
 
 * Fix the issue with the new release changes in the marker API (map not becoming black)

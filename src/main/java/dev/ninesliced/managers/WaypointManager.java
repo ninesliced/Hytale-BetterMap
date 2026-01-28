@@ -52,7 +52,7 @@ public class WaypointManager {
     }
 
     /**
-     * Cleans up all cached data. Called on plugin shutdown.
+     * Cleans up all cached data.
      */
     public static void cleanup() {
         loadedPlayers.clear();
@@ -60,9 +60,6 @@ public class WaypointManager {
 
     /**
      * Cleans up cached data for a specific player.
-     * Should be called when a player disconnects.
-     *
-     * @param playerUuid The UUID of the player who disconnected.
      */
     public static void onPlayerDisconnect(@Nonnull UUID playerUuid) {
         String uuidPrefix = playerUuid.toString() + "|";

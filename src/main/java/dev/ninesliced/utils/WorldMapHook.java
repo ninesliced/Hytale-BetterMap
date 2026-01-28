@@ -30,15 +30,9 @@ import java.util.logging.Logger;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
- * 
- * Optimizations:
- * - Delta updates: Only sends chunks that have changed
- * - Priority queue loading: Sends nearest chunks first with bandwidth throttling
- * - Increased chunk limits: Higher quality settings support more chunks
  */
 public class WorldMapHook {
     private static final Logger LOGGER = Logger.getLogger(WorldMapHook.class.getName());
-
 
     /**
      * Injects a custom RestrictedSpiralIterator into the player's world map tracker.
@@ -423,9 +417,6 @@ public class WorldMapHook {
     /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
      * Thread-safe implementation to prevent race conditions with the WorldMap thread.
-     * 
-     * Optimization 2.2: Caches sorted chunk lists and only re-sorts when player moves significantly.
-     * Uses squared distances to avoid expensive Math.sqrt() calls.
      */
     public static class RestrictedSpiralIterator extends CircleSpiralIterator {
         private final ExplorationTracker.PlayerExplorationData data;
@@ -441,7 +432,7 @@ public class WorldMapHook {
         private int cleanupTimer = 0;
         private final Object lock = new Object();
         
-        // Optimization 2.2: Cache for sorted chunk lists
+        // Cache for sorted chunk lists
         private volatile List<Long> cachedRankedChunks = null;
         private volatile int cachedCenterX = Integer.MIN_VALUE;
         private volatile int cachedCenterZ = Integer.MIN_VALUE;
@@ -532,7 +523,7 @@ public class WorldMapHook {
                         return;
                     }
 
-                    // Optimization 2.2: Check if we need to re-sort or can use cached data
+                    // Check if we need to re-sort or can use cached data
                     int currentExploredSize = exploredWorldChunks.size();
                     int currentExploredHash = exploredWorldChunks.hashCode();
                     int distanceFromCachedCenter = (cachedCenterX == Integer.MIN_VALUE) ? Integer.MAX_VALUE :
@@ -579,7 +570,7 @@ public class WorldMapHook {
                             }
                         }
 
-                        // Optimization 2.2: Use squared distance to avoid expensive Math.sqrt()
+                        // Use squared distance to avoid expensive Math.sqrt()
                         final int sortCenterX = cx;
                         final int sortCenterZ = cz;
                         rankedChunks.sort(Comparator.comparingLong(idx -> {
@@ -685,10 +676,8 @@ public class WorldMapHook {
                 long next = iter.next();
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(next);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(next);
-                // Optimization 2.2: Use integer approximation for radius instead of sqrt
                 int dx = mx - centerX;
                 int dz = mz - centerZ;
-                // Fast integer square root approximation using bit manipulation
                 int distSquared = dx * dx + dz * dz;
                 this.currentRadius = (int) fastSqrt(distSquared);
                 return next;
@@ -699,7 +688,6 @@ public class WorldMapHook {
         
         /**
          * Fast integer square root using Newton's method.
-         * Optimization 2.2: Avoids expensive Math.sqrt() calls.
          */
         private static int fastSqrt(int n) {
             if (n <= 0) return 0;

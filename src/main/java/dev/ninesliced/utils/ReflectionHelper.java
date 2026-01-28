@@ -12,43 +12,34 @@ import java.util.logging.Logger;
 
 /**
  * Utility for performing reflection operations safely.
- * 
- * Optimization 2.4: Caches Field objects and uses MethodHandles for better performance.
+ * Caches Field objects and uses MethodHandles for better performance.
  */
 public class ReflectionHelper {
 
     private static final Logger LOGGER = Logger.getLogger(ReflectionHelper.class.getName());
     
     /**
-     * Optimization 2.4: Cache for Field objects to avoid repeated lookups.
-     * Key format: "className#fieldName"
+     * Cache for Field objects to avoid repeated lookups.
      */
     private static final Map<String, Field> FIELD_CACHE = new ConcurrentHashMap<>();
     
     /**
-     * Optimization 2.4: Cache for recursive Field lookups.
-     * Key format: "className#fieldName"
+     * Cache for recursive Field lookups.
      */
     private static final Map<String, Field> RECURSIVE_FIELD_CACHE = new ConcurrentHashMap<>();
     
     /**
-     * Optimization 2.4: Cache for MethodHandles (faster than Field.get/set).
-     * Key format: "className#fieldName#getter" or "className#fieldName#setter"
+     * Cache for MethodHandles (faster than Field.get/set).
      */
     private static final Map<String, MethodHandle> METHOD_HANDLE_CACHE = new ConcurrentHashMap<>();
     
     /**
-     * Optimization 2.4: Lookup for creating MethodHandles.
+     * Lookup for creating MethodHandles.
      */
     private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
 
     /**
      * Gets a field from a class, setting it accessible.
-     * Optimization 2.4: Results are cached for subsequent calls.
-     *
-     * @param clazz     The class.
-     * @param fieldName The field name.
-     * @return The field, or null if not found.
      */
     @Nullable
     public static Field getField(@Nonnull Class<?> clazz, @Nonnull String fieldName) {
@@ -67,12 +58,7 @@ public class ReflectionHelper {
     }
 
     /**
-     * Gets the value of a field from an instance.
-     * Optimization 2.4: Uses cached MethodHandles for better JIT optimization.
-     *
-     * @param instance  The object instance.
-     * @param fieldName The field name.
-     * @return The value, or null on failure.
+     * Uses cached MethodHandles for better JIT optimization.
      */
     @Nullable
     public static Object getFieldValue(@Nonnull Object instance, @Nonnull String fieldName) {
@@ -97,13 +83,7 @@ public class ReflectionHelper {
     }
 
     /**
-     * Sets the value of a field on an instance.
-     * Optimization 2.4: Uses cached MethodHandles for better JIT optimization.
-     *
-     * @param instance  The object instance.
-     * @param fieldName The field name.
-     * @param value     The new value.
-     * @return True if successful.
+     * Uses cached MethodHandles for better JIT optimization.
      */
     public static boolean setFieldValue(@Nonnull Object instance, @Nonnull String fieldName, @Nullable Object value) {
         try {
@@ -171,7 +151,6 @@ public class ReflectionHelper {
 
     /**
      * Recursively searches for a field in the class hierarchy.
-     * Optimization 2.4: Results are cached for subsequent calls.
      *
      * @param clazz     The starting class.
      * @param fieldName The field name.
@@ -204,7 +183,6 @@ public class ReflectionHelper {
 
     /**
      * Gets value of a field found recursively in hierarchy.
-     * Optimization 2.4: Uses cached MethodHandles for better JIT optimization.
      *
      * @param instance  The instance.
      * @param fieldName The field name.
@@ -234,7 +212,6 @@ public class ReflectionHelper {
 
     /**
      * Sets value of a field found recursively in hierarchy.
-     * Optimization 2.4: Uses cached MethodHandles for better JIT optimization.
      *
      * @param instance  The instance.
      * @param fieldName The field name.
