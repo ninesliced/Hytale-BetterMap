@@ -1,12 +1,10 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.protocol.Position;
-import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import dev.ninesliced.configs.BetterMapConfig;
@@ -18,8 +16,8 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
-
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,37 +28,45 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Provides POI markers on the world map while allowing custom filtering.
+ * Filters player world map markers that overlap with POIs.
  */
-public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
-
-    public static final String PROVIDER_ID = "poi";
-    private static final Logger LOGGER = Logger.getLogger(PoiPrivacyProvider.class.getName());
+public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
+    public static final String PROVIDER_ID = "playerMarkers";
+    private static final Logger LOGGER = Logger.getLogger(PoiPlayerMarkerProvider.class.getName());
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]*>");
 
-    public void update(World world, MapMarkerTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    @Override
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
             if (world == null || tracker == null) {
                 return;
             }
 
-            WorldMapManager mapManager = world.getWorldMapManager();
-            if (mapManager == null) {
-                return;
-            }
-
-            Map<String, MapMarker> pointsOfInterest = mapManager.getPointsOfInterest();
-            if (pointsOfInterest == null || pointsOfInterest.isEmpty()) {
-                return;
-            }
-
             Player viewer = tracker.getPlayer();
+            if (viewer == null) {
+                return;
+            }
+
+            PlayerConfigData configData = viewer.getPlayerConfigData();
+            if (configData == null) {
+                return;
+            }
+
+            PlayerWorldData worldData = configData.getPerWorldData(world.getName());
+            if (worldData == null) {
+                return;
+            }
+
+            MapMarker[] markers = worldData.getWorldMapMarkers();
+            if (markers == null || markers.length == 0) {
+                return;
+            }
+
             BetterMapConfig globalConfig = BetterMapConfig.getInstance();
-            boolean canOverridePoi = viewer != null && PermissionsUtil.canOverridePoi(viewer);
-            boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredPoi(viewer);
+            boolean canOverridePoi = PermissionsUtil.canOverridePoi(viewer);
+            boolean canOverrideUnexplored = PermissionsUtil.canOverrideUnexploredPoi(viewer);
             PlayerConfig playerConfig = null;
-            UUID playerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
+            UUID playerUuid = ((CommandSender) viewer).getUuid();
             if (playerUuid != null) {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }
@@ -73,12 +79,8 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
             boolean hideAll = globalConfig.isHideAllPoiOnMap() && !overrideEnabled;
             boolean hideUnexplored = globalConfig.isHideUnexploredPoiOnMap() && !overrideUnexploredEnabled;
 
-            if (hideAll) {
-                return;
-            }
-
-            if (viewer != null && playerUuid != null && playerConfig != null && playerConfig.isHideAllPoiOnMap()) {
-                return;
+            if (playerConfig != null && playerConfig.isHideAllPoiOnMap()) {
+                hideAll = true;
             }
 
             List<String> hiddenPoiNames = new ArrayList<>();
@@ -100,6 +102,34 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 hideUnexplored = false;
             }
 
+            boolean filter = hideAll || hideUnexplored || !hiddenPoiNames.isEmpty();
+            if (!filter) {
+                for (MapMarker marker : markers) {
+                    if (marker == null) continue;
+                    tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
+                }
+                return;
+            }
+
+            Map<String, MapMarker> pointsOfInterest = world.getWorldMapManager().getPointsOfInterest();
+            if (pointsOfInterest == null || pointsOfInterest.isEmpty()) {
+                for (MapMarker marker : markers) {
+                    if (marker == null) continue;
+                    tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
+                }
+                return;
+            }
+
+            Set<String> poiIds = new HashSet<>(pointsOfInterest.keySet());
+            Set<String> poiIdentities = new HashSet<>();
+            for (MapMarker poi : pointsOfInterest.values()) {
+                if (poi == null) continue;
+                String identity = markerIdentity(poi);
+                if (identity != null) {
+                    poiIdentities.add(identity);
+                }
+            }
+
             ExplorationTracker.PlayerExplorationData explorationData = null;
             Set<Long> sharedExploredChunks = null;
             if (hideUnexplored) {
@@ -110,23 +140,36 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 }
             }
 
-            for (MapMarker marker : pointsOfInterest.values()) {
-                if (marker == null) {
+            for (MapMarker marker : markers) {
+                if (marker == null) continue;
+
+                boolean isPoi = false;
+                String id = marker.id;
+                if (id != null && poiIds.contains(id)) {
+                    isPoi = true;
+                } else {
+                    String identity = markerIdentity(marker);
+                    if (identity != null && poiIdentities.contains(identity)) {
+                        isPoi = true;
+                    }
+                }
+
+                if (!isPoi) {
+                    tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
                     continue;
                 }
 
-                if (shouldHideByName(marker, hiddenPoiNames)) {
-                    continue;
+                boolean hide = hideAll || shouldHideByName(marker, hiddenPoiNames);
+                if (!hide && hideUnexplored) {
+                    hide = !isMarkerExplored(marker, explorationData, sharedExploredChunks);
                 }
 
-                if (hideUnexplored && !isMarkerExplored(marker, explorationData, sharedExploredChunks)) {
-                    continue;
+                if (!hide) {
+                    tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
                 }
-
-                tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
             }
         } catch (Exception e) {
-            LOGGER.warning("Error in PoiPrivacyProvider.update: " + e.getMessage());
+            LOGGER.warning("Error in PoiPlayerMarkerProvider.update: " + e.getMessage());
         }
     }
 
@@ -157,14 +200,12 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
     private static boolean isMarkerExplored(MapMarker marker,
                                             @Nullable ExplorationTracker.PlayerExplorationData explorationData,
                                             @Nullable Set<Long> sharedExploredChunks) {
-        Transform transform = marker.transform;
-        if (transform == null || transform.position == null) {
+        if (marker.transform == null || marker.transform.position == null) {
             return true;
         }
 
-        Position pos = transform.position;
-        int chunkX = ChunkUtil.blockToChunkCoord(pos.x);
-        int chunkZ = ChunkUtil.blockToChunkCoord(pos.z);
+        int chunkX = ChunkUtil.blockToChunkCoord(marker.transform.position.x);
+        int chunkZ = ChunkUtil.blockToChunkCoord(marker.transform.position.z);
         long chunkIndex = ChunkUtil.chunkCoordsToIndex(chunkX, chunkZ);
 
         if (sharedExploredChunks != null) {
@@ -184,5 +225,20 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
         }
         String stripped = HTML_TAG_PATTERN.matcher(input).replaceAll("");
         return stripped.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String markerIdentity(MapMarker marker) {
+        if (marker == null) {
+            return null;
+        }
+        String name = normalize(marker.name);
+        String image = normalize(marker.markerImage);
+        long chunkIndex = Long.MIN_VALUE;
+        if (marker.transform != null && marker.transform.position != null) {
+            int chunkX = ChunkUtil.blockToChunkCoord(marker.transform.position.x);
+            int chunkZ = ChunkUtil.blockToChunkCoord(marker.transform.position.z);
+            chunkIndex = ChunkUtil.chunkCoordsToIndex(chunkX, chunkZ);
+        }
+        return name + "|" + image + "|" + chunkIndex;
     }
 }

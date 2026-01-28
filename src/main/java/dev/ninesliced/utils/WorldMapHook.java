@@ -26,6 +26,7 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.logging.Logger;
+import java.lang.reflect.Field;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
@@ -73,8 +74,22 @@ public class WorldMapHook {
                 ((RestrictedSpiralIterator) spiralIterator).stop();
             }
 
+            // Get player's current position to initialize iterator at correct location
+            int mapChunkX = 0;
+            int mapChunkZ = 0;
+            Ref<EntityStore> ref = player.getReference();
+            if (ref != null && ref.isValid()) {
+                TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                if (tc != null) {
+                    var pos = tc.getPosition();
+                    // Convert world coords to map chunk coords (map chunks are 32x32 blocks)
+                    mapChunkX = (int) Math.floor(pos.x) >> 5;
+                    mapChunkZ = (int) Math.floor(pos.z) >> 5;
+                }
+            }
+
             CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
-            vanillaIterator.init(0, 0, 0, 1);
+            vanillaIterator.init(mapChunkX, mapChunkZ, 0, 999);
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
@@ -100,7 +115,7 @@ public class WorldMapHook {
                 ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 999.0f);
             } catch (Exception ignored) {}
 
-            LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName());
+            LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
             LOGGER.warning("Error unhooking tracker for " + player.getDisplayName() + ": " + e.getMessage());
         }
@@ -121,13 +136,27 @@ public class WorldMapHook {
 
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
+            // Get player's current position to initialize iterator at correct location
+            int mapChunkX = 0;
+            int mapChunkZ = 0;
+            Ref<EntityStore> ref = player.getReference();
+            if (ref != null && ref.isValid()) {
+                TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                if (tc != null) {
+                    var pos = tc.getPosition();
+                    // Convert world coords to map chunk coords (map chunks are 32x32 blocks)
+                    mapChunkX = (int) Math.floor(pos.x) >> 5;
+                    mapChunkZ = (int) Math.floor(pos.z) >> 5;
+                }
+            }
+
             CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
-            vanillaIterator.init(0, 0, 0, 1);
+            vanillaIterator.init(mapChunkX, mapChunkZ, 0, 999);
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
 
             ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
 
-            LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName());
+            LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
             LOGGER.warning("Failed to restore vanilla tracker for " + player.getDisplayName() + ": " + e.getMessage());
         }
@@ -388,6 +417,82 @@ public class WorldMapHook {
     }
 
     /**
+     * Clears cached map markers for all players in the given world.
+     * This is used to force marker providers to re-send markers after visibility toggles.
+     *
+     * @param world The world.
+     */
+    public static void clearMarkerCaches(@Nonnull World world) {
+        for (PlayerRef playerRef : world.getPlayerRefs()) {
+            Holder<EntityStore> holder = playerRef.getHolder();
+            if (holder == null) continue;
+            Player player = holder.getComponent(Player.getComponentType());
+            if (player == null) continue;
+
+            try {
+                clearMarkerCaches(player.getWorldMapTracker());
+            } catch (Exception e) {
+                LOGGER.fine("Failed to clear marker cache for " + player.getDisplayName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private static void clearMarkerCaches(@Nonnull WorldMapTracker tracker) {
+        Object markerTracker = findMarkerTracker(tracker);
+        if (markerTracker == null) {
+            return;
+        }
+
+        clearCollections(markerTracker);
+        ReflectionHelper.invokeMethod(markerTracker, "clear", new Class<?>[0], new Object[0]);
+        ReflectionHelper.invokeMethod(markerTracker, "reset", new Class<?>[0], new Object[0]);
+    }
+
+    private static Object findMarkerTracker(@Nonnull WorldMapTracker tracker) {
+        Class<?> current = tracker.getClass();
+        while (current != null) {
+            for (Field field : current.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Class<?> type = field.getType();
+                    String typeName = type.getName();
+                    if ("MapMarkerTracker".equals(type.getSimpleName())
+                        || typeName.endsWith(".MapMarkerTracker")) {
+                        Object value = field.get(tracker);
+                        if (value != null) {
+                            return value;
+                        }
+                    }
+                } catch (IllegalAccessException ignored) {
+                    // Ignore and continue searching
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    private static void clearCollections(@Nonnull Object target) {
+        Class<?> current = target.getClass();
+        while (current != null) {
+            for (Field field : current.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof Map<?, ?> map) {
+                        map.clear();
+                    } else if (value instanceof Collection<?> collection) {
+                        collection.clear();
+                    }
+                } catch (IllegalAccessException ignored) {
+                    // Ignore and continue
+                }
+            }
+            current = current.getSuperclass();
+        }
+    }
+
+    /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
      * Thread-safe implementation to prevent race conditions with the WorldMap thread.
      */
@@ -470,11 +575,20 @@ public class WorldMapHook {
                         exploredWorldChunks = data.getExploredChunks().getExploredChunks();
                     }
 
+                    // Bootstrap initial exploration if empty - fixes white map on first join
                     if (exploredWorldChunks == null || exploredWorldChunks.isEmpty()) {
-                        this.currentIterator = Collections.emptyIterator();
-                        this.targetMapChunks = new ArrayList<>();
-                        this.initialized = true;
-                        return;
+                        // Convert map chunk coords (cx, cz) to world chunk coords
+                        int worldChunkX = cx * 2;
+                        int worldChunkZ = cz * 2;
+                        int bootstrapRadius = BetterMapConfig.getInstance().getExplorationRadius();
+                        
+                        // Mark chunks as explored around current position
+                        Set<Long> bootstrapChunks = ChunkUtil.getChunksInCircularArea(worldChunkX, worldChunkZ, bootstrapRadius);
+                        data.getExploredChunks().markChunksExplored(bootstrapChunks);
+                        data.getMapExpansion().updateBoundaries(worldChunkX, worldChunkZ, bootstrapRadius);
+                        
+                        exploredWorldChunks = data.getExploredChunks().getExploredChunks();
+                        LOGGER.info("Bootstrapped " + bootstrapChunks.size() + " exploration chunks around (" + worldChunkX + ", " + worldChunkZ + ")");
                     }
 
                     for (Long chunkIdx : exploredWorldChunks) {

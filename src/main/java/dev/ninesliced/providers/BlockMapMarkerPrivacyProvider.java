@@ -1,14 +1,14 @@
 package dev.ninesliced.providers;
 
+import com.hypixel.hytale.protocol.Direction;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
+import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -17,12 +17,11 @@ import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.PermissionsUtil;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -30,33 +29,29 @@ import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
- * Provides POI markers on the world map while allowing custom filtering.
+ * Provider that filters block-based map markers (like dungeon markers) based on privacy settings.
  */
-public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
-
-    public static final String PROVIDER_ID = "poi";
-    private static final Logger LOGGER = Logger.getLogger(PoiPrivacyProvider.class.getName());
+public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProvider {
+    public static final String PROVIDER_ID = "blockMapMarkers";
+    private static final Logger LOGGER = Logger.getLogger(BlockMapMarkerPrivacyProvider.class.getName());
     private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]*>");
 
-    public void update(World world, MapMarkerTracker tracker,
-                       int viewRadius, int chunkX, int chunkZ) {
+    @Override
+    public void update(World world, MapMarkerTracker tracker, int viewRadius, int chunkX, int chunkZ) {
         try {
-            if (world == null || tracker == null) {
+            BlockMapMarkersResource resource = world.getChunkStore().getStore()
+                .getResource(BlockMapMarkersResource.getResourceType());
+            if (resource == null) {
                 return;
             }
 
-            WorldMapManager mapManager = world.getWorldMapManager();
-            if (mapManager == null) {
+            Long2ObjectMap<BlockMapMarkersResource.BlockMapMarkerData> markers = resource.getMarkers();
+            if (markers == null || markers.isEmpty()) {
                 return;
             }
 
-            Map<String, MapMarker> pointsOfInterest = mapManager.getPointsOfInterest();
-            if (pointsOfInterest == null || pointsOfInterest.isEmpty()) {
-                return;
-            }
-
-            Player viewer = tracker.getPlayer();
             BetterMapConfig globalConfig = BetterMapConfig.getInstance();
+            Player viewer = tracker.getPlayer();
             boolean canOverridePoi = viewer != null && PermissionsUtil.canOverridePoi(viewer);
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredPoi(viewer);
             PlayerConfig playerConfig = null;
@@ -77,22 +72,22 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            if (viewer != null && playerUuid != null && playerConfig != null && playerConfig.isHideAllPoiOnMap()) {
+            if (playerConfig != null && playerConfig.isHideAllPoiOnMap()) {
                 return;
             }
 
-            List<String> hiddenPoiNames = new ArrayList<>();
+            List<String> hiddenNames = new ArrayList<>();
             if (!overrideEnabled) {
                 List<String> globalHidden = globalConfig.getHiddenPoiNames();
                 if (globalHidden != null) {
-                    hiddenPoiNames.addAll(globalHidden);
+                    hiddenNames.addAll(globalHidden);
                 }
             }
 
             if (playerConfig != null) {
                 List<String> playerHidden = playerConfig.getHiddenPoiNames();
                 if (playerHidden != null) {
-                    hiddenPoiNames.addAll(playerHidden);
+                    hiddenNames.addAll(playerHidden);
                 }
             }
 
@@ -106,65 +101,73 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 if (globalConfig.isShareAllExploration()) {
                     sharedExploredChunks = ExplorationManager.getInstance().getAllExploredChunks(world.getName());
                 } else {
-                    explorationData = ExplorationTracker.getInstance().getPlayerData(viewer);
+                    explorationData = ExplorationTracker.getInstance().getPlayerData(tracker.getPlayer());
                 }
             }
 
-            for (MapMarker marker : pointsOfInterest.values()) {
-                if (marker == null) {
+            for (BlockMapMarkersResource.BlockMapMarkerData markerData : markers.values()) {
+                String name = markerData.getName();
+                String icon = markerData.getIcon();
+
+                if (shouldHideByName(name, icon, hiddenNames)) {
                     continue;
                 }
 
-                if (shouldHideByName(marker, hiddenPoiNames)) {
-                    continue;
+                if (hideUnexplored) {
+                    var pos = markerData.getPosition();
+                    if (!isExplored(pos.getX(), pos.getZ(), explorationData, sharedExploredChunks)) {
+                        continue;
+                    }
                 }
 
-                if (hideUnexplored && !isMarkerExplored(marker, explorationData, sharedExploredChunks)) {
-                    continue;
-                }
+                var pos = markerData.getPosition();
+                Transform transform = new Transform();
+                transform.position = new Position(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
+                transform.orientation = new Direction(0, 0, 0);
 
+                MapMarker marker = new MapMarker(
+                    markerData.getMarkerId(),
+                    name,
+                    icon,
+                    transform,
+                    null
+                );
                 tracker.trySendMarker(viewRadius, chunkX, chunkZ, marker);
             }
         } catch (Exception e) {
-            LOGGER.warning("Error in PoiPrivacyProvider.update: " + e.getMessage());
+            LOGGER.warning("Error in BlockMapMarkerPrivacyProvider.update: " + e.getMessage());
         }
     }
 
-    private static boolean shouldHideByName(MapMarker marker, @Nullable List<String> hiddenPoiNames) {
-        if (hiddenPoiNames == null || hiddenPoiNames.isEmpty()) {
+    private static boolean shouldHideByName(String name, String icon, @Nullable List<String> hiddenNames) {
+        if (hiddenNames == null || hiddenNames.isEmpty()) {
             return false;
         }
 
-        String normalizedName = normalize(marker.name);
-        String normalizedId = normalize(marker.id);
-        String normalizedImage = normalize(marker.markerImage);
+        String normalizedName = normalize(name);
+        String normalizedIcon = normalize(icon);
 
-        for (String hiddenName : hiddenPoiNames) {
+        for (String hiddenName : hiddenNames) {
             String normalizedHidden = normalize(hiddenName);
             if (normalizedHidden.isEmpty()) {
                 continue;
             }
-            if (normalizedHidden.equals(normalizedName)
-                || normalizedHidden.equals(normalizedId)
-                || normalizedHidden.equals(normalizedImage)) {
+            if (normalizedHidden.equals(normalizedName) || normalizedHidden.equals(normalizedIcon)) {
+                return true;
+            }
+            // Also check partial match for flexibility
+            if (normalizedName.contains(normalizedHidden) || normalizedIcon.contains(normalizedHidden)) {
                 return true;
             }
         }
-
         return false;
     }
 
-    private static boolean isMarkerExplored(MapMarker marker,
-                                            @Nullable ExplorationTracker.PlayerExplorationData explorationData,
-                                            @Nullable Set<Long> sharedExploredChunks) {
-        Transform transform = marker.transform;
-        if (transform == null || transform.position == null) {
-            return true;
-        }
-
-        Position pos = transform.position;
-        int chunkX = ChunkUtil.blockToChunkCoord(pos.x);
-        int chunkZ = ChunkUtil.blockToChunkCoord(pos.z);
+    private static boolean isExplored(int blockX, int blockZ,
+                                      @Nullable ExplorationTracker.PlayerExplorationData explorationData,
+                                      @Nullable Set<Long> sharedExploredChunks) {
+        int chunkX = ChunkUtil.blockToChunkCoord(blockX);
+        int chunkZ = ChunkUtil.blockToChunkCoord(blockZ);
         long chunkIndex = ChunkUtil.chunkCoordsToIndex(chunkX, chunkZ);
 
         if (sharedExploredChunks != null) {

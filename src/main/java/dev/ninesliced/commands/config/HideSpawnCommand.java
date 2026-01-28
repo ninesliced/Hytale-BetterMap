@@ -22,14 +22,13 @@ import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
 
 /**
- * Command to toggle hiding POI markers in unexplored regions on the world map.
+ * Command to toggle hiding the spawn marker on the world map.
  */
-public class HideUnexploredPoiCommand extends AbstractCommand {
+public class HideSpawnCommand extends AbstractCommand {
 
-    public HideUnexploredPoiCommand() {
-        super("hideunexploredpoi", "Toggle hiding POIs in unexplored regions");
+    public HideSpawnCommand() {
+        super("hidespawn", "Toggle hiding the spawn marker");
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
-        this.addAliases("hideunexploredpois");
     }
 
     @Override
@@ -62,15 +61,15 @@ public class HideUnexploredPoiCommand extends AbstractCommand {
             }
 
             BetterMapConfig config = BetterMapConfig.getInstance();
-            boolean newState = !config.isHideUnexploredPoiOnMap();
-            config.setHideUnexploredPoiOnMap(newState);
+            boolean newState = !config.isHideSpawnOnMap();
+            config.setHideSpawnOnMap(newState);
 
             // Reset player overrides BEFORE updating privacy state so the state is consistent
             PlayerConfig playerConfig = playerRef.getUuid() != null
                 ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
                 : null;
             if (playerConfig != null) {
-                playerConfig.setOverrideGlobalPoiHide(false);
+                playerConfig.setOverrideGlobalSpawnHide(false);
                 PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());
             }
 
@@ -82,7 +81,7 @@ public class HideUnexploredPoiCommand extends AbstractCommand {
             Color color = visible ? Color.GREEN : Color.RED;
             String status = visible ? "VISIBLE" : "HIDDEN";
 
-            playerRef.sendMessage(Message.raw("Unexplored POIs are now " + status + " on the map.").color(color));
+            playerRef.sendMessage(Message.raw("Spawn markers are now " + status + " on the map.").color(color));
         }, world);
     }
 }

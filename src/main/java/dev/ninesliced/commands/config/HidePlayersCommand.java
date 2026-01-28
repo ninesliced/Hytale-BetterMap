@@ -9,7 +9,10 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
+import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -68,17 +71,24 @@ public class HidePlayersCommand extends AbstractCommand {
             boolean newState = !config.isHidePlayersOnMap();
             config.setHidePlayersOnMap(newState);
 
-            MapPrivacyManager.getInstance().updatePrivacyState();
-
-            String status = newState ? "ENABLED" : "DISABLED";
-            Color color = newState ? Color.GREEN : Color.RED;
-
-            playerRef.sendMessage(Message.raw("Global Map Privacy " + status).color(color));
-            if (newState) {
-                playerRef.sendMessage(Message.raw("Players are now hidden from the world map.").color(Color.GRAY));
-            } else {
-                playerRef.sendMessage(Message.raw("Players are now visible on the world map.").color(Color.GRAY));
+            // Reset player overrides BEFORE updating privacy state so the state is consistent
+            PlayerConfig playerConfig = playerRef.getUuid() != null
+                ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
+                : null;
+            if (playerConfig != null) {
+                playerConfig.setOverrideGlobalPlayersHide(false);
+                PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());
             }
+
+            MapPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
+            WorldMapHook.refreshTrackers(world);
+
+            boolean visible = !newState;
+            Color color = visible ? Color.GREEN : Color.RED;
+            String status = visible ? "VISIBLE" : "HIDDEN";
+
+            playerRef.sendMessage(Message.raw("Players are now " + status + " on the map.").color(color));
         }, world);
     }
 }

@@ -34,12 +34,15 @@ public class BetterMapConfig {
     private boolean radarEnabled = true;
     private int radarRange = -1;
     private boolean hidePlayersOnMap = false;
+    private boolean hideAllWarpsOnMap = false;
     private boolean hideOtherWarpsOnMap = false;
     private boolean hideUnexploredWarpsOnMap = true;
     private boolean allowWaypointTeleports = true;
     private boolean allowMapMarkerTeleports = true;
     private boolean hideAllPoiOnMap = false;
     private boolean hideUnexploredPoiOnMap = true;
+    private boolean hideSpawnOnMap = false;
+    private boolean hideDeathMarkerOnMap = false;
     private List<String> hiddenPoiNames = new ArrayList<>();
     private int autoSaveInterval = 5;
     private List<String> allowedWorlds = new ArrayList<>(Arrays.asList("default", "world"));
@@ -187,6 +190,12 @@ public class BetterMapConfig {
                         needsSave = true;
                     }
 
+                    if (jsonObject.has("hideAllWarpsOnMap")) {
+                        this.hideAllWarpsOnMap = loaded.hideAllWarpsOnMap;
+                    } else {
+                        needsSave = true;
+                    }
+
                     if (jsonObject.has("hideOtherWarpsOnMap")) {
                         this.hideOtherWarpsOnMap = loaded.hideOtherWarpsOnMap;
                     } else {
@@ -218,6 +227,18 @@ public class BetterMapConfig {
 
                     if (jsonObject.has("hideUnexploredPoiOnMap")) {
                         this.hideUnexploredPoiOnMap = loaded.hideUnexploredPoiOnMap;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("hideSpawnOnMap")) {
+                        this.hideSpawnOnMap = loaded.hideSpawnOnMap;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("hideDeathMarkerOnMap")) {
+                        this.hideDeathMarkerOnMap = loaded.hideDeathMarkerOnMap;
                     } else {
                         needsSave = true;
                     }
@@ -539,6 +560,15 @@ public class BetterMapConfig {
     }
 
     /**
+     * Checks if all warps should be hidden on the map.
+     *
+     * @return True if all warps are hidden.
+     */
+    public boolean isHideAllWarpsOnMap() {
+        return hideAllWarpsOnMap;
+    }
+
+    /**
      * Checks if other players' warps should be hidden on the map.
      *
      * @return True if other players' warps are hidden.
@@ -593,6 +623,24 @@ public class BetterMapConfig {
     }
 
     /**
+     * Checks if the spawn marker should be hidden on the map.
+     *
+     * @return True if the spawn marker is hidden.
+     */
+    public boolean isHideSpawnOnMap() {
+        return hideSpawnOnMap;
+    }
+
+    /**
+     * Checks if the death marker should be hidden on the map.
+     *
+     * @return True if the death marker is hidden.
+     */
+    public boolean isHideDeathMarkerOnMap() {
+        return hideDeathMarkerOnMap;
+    }
+
+    /**
      * Gets the list of POI names to hide on the map.
      *
      * @return The list of hidden POI names.
@@ -608,6 +656,16 @@ public class BetterMapConfig {
      */
     public void setHidePlayersOnMap(boolean hidePlayersOnMap) {
         this.hidePlayersOnMap = hidePlayersOnMap;
+        save();
+    }
+
+    /**
+     * Sets whether all warps should be hidden on the map.
+     *
+     * @param hideAllWarpsOnMap True to hide all warps.
+     */
+    public void setHideAllWarpsOnMap(boolean hideAllWarpsOnMap) {
+        this.hideAllWarpsOnMap = hideAllWarpsOnMap;
         save();
     }
 
@@ -668,6 +726,26 @@ public class BetterMapConfig {
      */
     public void setHideUnexploredPoiOnMap(boolean hideUnexploredPoiOnMap) {
         this.hideUnexploredPoiOnMap = hideUnexploredPoiOnMap;
+        save();
+    }
+
+    /**
+     * Sets whether the spawn marker should be hidden on the map.
+     *
+     * @param hideSpawnOnMap True to hide the spawn marker.
+     */
+    public void setHideSpawnOnMap(boolean hideSpawnOnMap) {
+        this.hideSpawnOnMap = hideSpawnOnMap;
+        save();
+    }
+
+    /**
+     * Sets whether the death marker should be hidden on the map.
+     *
+     * @param hideDeathMarkerOnMap True to hide the death marker.
+     */
+    public void setHideDeathMarkerOnMap(boolean hideDeathMarkerOnMap) {
+        this.hideDeathMarkerOnMap = hideDeathMarkerOnMap;
         save();
     }
 

@@ -34,11 +34,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class WaypointManager {
     private static final Logger LOGGER = Logger.getLogger(WaypointManager.class.getName());
+    private static final Pattern HTML_TAG_PATTERN = Pattern.compile("<[^>]*>");
     private static final String GLOBAL_ID_PREFIX = "global_waypoint_";
 
     private static WaypointPersistence persistence;
@@ -567,7 +569,7 @@ public class WaypointManager {
 
     private static String stripColorTags(String input) {
         if (input == null) return "";
-        return input.replaceAll("<[^>]*>", "");
+        return HTML_TAG_PATTERN.matcher(input).replaceAll("");
     }
 
     public static boolean isTrackedWorld(@Nullable World world) {

@@ -77,6 +77,18 @@ You can either do `/op add <player>` to give full access or assign specific perm
 
 *   **Waypoint Teleport:** Allows the user to teleport to locations via the Waypoint UI buttons.
 
+### Map Privacy Overrides
+
+**Permissions:**
+
+*   `bettermap.override.players` - Bypass global hide players
+*   `bettermap.override.warps` - Bypass global hide all/other warps
+*   `bettermap.override.unexploredwarps` - Bypass global hide unexplored warps
+*   `bettermap.override.poi` - Bypass global hide all POIs and hidden POI names
+*   `bettermap.override.unexploredpoi` - Bypass global hide unexplored POIs
+*   `bettermap.override.spawn` - Bypass global hide spawn
+*   `bettermap.override.death` - Bypass global hide death markers
+
 ### Admin & Configuration Commands
 
 **Permission:** `dev.ninesliced.bettermap.command.config`

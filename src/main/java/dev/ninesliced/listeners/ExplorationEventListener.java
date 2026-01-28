@@ -110,7 +110,7 @@ public class ExplorationEventListener {
 
             PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
 
-            Player player = playerRef.getComponent(Player.getComponentType());
+            Player player = playerRef.getHolder().getComponent(Player.getComponentType());
 
             if (player != null) {
                 World world = event.getWorld();
@@ -151,7 +151,7 @@ public class ExplorationEventListener {
         try {
             Holder<EntityStore> holder = event.getHolder();
             PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
-            Player player = playerRef.getComponent(Player.getComponentType());
+            Player player = playerRef.getHolder().getComponent(Player.getComponentType());
 
             if (player == null) return;
 

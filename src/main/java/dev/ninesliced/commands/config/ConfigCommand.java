@@ -35,10 +35,14 @@ public class ConfigCommand extends AbstractCommandCollection {
         this.addSubCommand(new RadarToggleCommand());
         this.addSubCommand(new RadarRangeCommand());
         this.addSubCommand(new HidePlayersCommand());
+        this.addSubCommand(new HideAllWarpsCommand());
         this.addSubCommand(new HideOtherWarpsCommand());
         this.addSubCommand(new HideUnexploredWarpsCommand());
         this.addSubCommand(new HideAllPoiCommand());
         this.addSubCommand(new HideUnexploredPoiCommand());
+        this.addSubCommand(new HideSpawnCommand());
+        this.addSubCommand(new HideDeathMarkerCommand());
+        this.addSubCommand(new HiddenPoiCommand());
         this.addSubCommand(new WaypointTeleportCommand());
         this.addSubCommand(new MarkerTeleportCommand());
         this.addSubCommand(new TrackWorldCommand());

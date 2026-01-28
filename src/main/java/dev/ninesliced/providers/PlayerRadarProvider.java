@@ -12,8 +12,11 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.util.PositionUtil;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.PlayerRadarManager.RadarData;
+import dev.ninesliced.utils.PermissionsUtil;
 
 import java.util.List;
 import java.util.UUID;
@@ -39,10 +42,17 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             Player viewingPlayer = tracker.getPlayer();
             UUID viewerUuid = ((CommandSender) viewingPlayer).getUuid();
 
-            BetterMapConfig config = BetterMapConfig.getInstance();
-
-            if (!config.isRadarEnabled() || config.isHidePlayersOnMap()) {
+            BetterMapConfig globalConfig = BetterMapConfig.getInstance();
+            boolean hasGlobalOverride = PermissionsUtil.canOverridePlayers(viewingPlayer);
+            if (!globalConfig.isRadarEnabled() || (globalConfig.isHidePlayersOnMap() && !hasGlobalOverride)) {
                 return;
+            }
+
+            if (viewerUuid != null) {
+                PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid);
+                if (playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+                    return;
+                }
             }
 
             List<RadarData> radarDataList = PlayerRadarManager.getInstance().getRadarData(world.getName());
@@ -60,7 +70,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             }
             Vector3d viewerPos = viewerData.position;
 
-            int radarRange = config.getRadarRange();
+            int radarRange = globalConfig.getRadarRange();
             boolean infiniteRange = radarRange < 0;
             long rangeSquared = infiniteRange ? Long.MAX_VALUE : (long) radarRange * radarRange;
 

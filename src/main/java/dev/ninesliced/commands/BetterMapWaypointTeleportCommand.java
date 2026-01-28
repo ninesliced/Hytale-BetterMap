@@ -62,7 +62,7 @@ public class BetterMapWaypointTeleportCommand extends AbstractPlayerCommand {
             marker.transform.position.y,
             marker.transform.position.z
         );
-        TransformComponent transform = player.getTransformComponent();
+        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
         Teleport teleport = new Teleport(destination, currentRotation);
 
