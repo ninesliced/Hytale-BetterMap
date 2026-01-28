@@ -24,6 +24,10 @@ public class ChunkUtil {
 
     /**
      * Packs chunk coordinates into a long index.
+     *  
+     * @param chunkX Chunk X.
+     * @param chunkZ Chunk Z.
+     * @return Packed index.
      */
     public static long chunkCoordsToIndex(int chunkX, int chunkZ) {
         return ((long) chunkX << 32) | (chunkZ & 0xFFFFFFFFL);
@@ -31,6 +35,9 @@ public class ChunkUtil {
 
     /**
      * Extracts X coordinate from packed index.
+     * 
+     * @param index Packed index.
+     * @return Chunk X.
      */
     public static int indexToChunkX(long index) {
         return (int) (index >> 32);
@@ -38,6 +45,9 @@ public class ChunkUtil {
 
     /**
      * Extracts Z coordinate from packed index.
+     * 
+     * @param index Packed index.
+     * @return Chunk Z.
      */
     public static int indexToChunkZ(long index) {
         return (int) index;
@@ -45,6 +55,8 @@ public class ChunkUtil {
 
     /**
      * Converts a block coordinate to a chunk coordinate.
+     * @param blockCoord Block coordinate.
+     * @return Chunk coordinate.
      */
     public static int blockToChunkCoord(double blockCoord) {
         return (int) Math.floor(blockCoord) >> 4;

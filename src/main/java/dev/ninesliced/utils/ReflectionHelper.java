@@ -40,6 +40,10 @@ public class ReflectionHelper {
 
     /**
      * Gets a field from a class, setting it accessible.
+     * 
+     * @param clazz     The class.
+     * @param fieldName The field name.
+     * @return The field, or null if not found.
      */
     @Nullable
     public static Field getField(@Nonnull Class<?> clazz, @Nonnull String fieldName) {
@@ -58,7 +62,11 @@ public class ReflectionHelper {
     }
 
     /**
-     * Uses cached MethodHandles for better JIT optimization.
+     * Gets the value of a field from an instance.
+     *
+     * @param instance  The object instance.
+     * @param fieldName The field name.
+     * @return The value, or null on failure.
      */
     @Nullable
     public static Object getFieldValue(@Nonnull Object instance, @Nonnull String fieldName) {
@@ -83,7 +91,12 @@ public class ReflectionHelper {
     }
 
     /**
-     * Uses cached MethodHandles for better JIT optimization.
+     * Sets the value of a field on an instance.
+     *
+     * @param instance  The object instance.
+     * @param fieldName The field name.
+     * @param value     The new value.
+     * @return True if successful.
      */
     public static boolean setFieldValue(@Nonnull Object instance, @Nonnull String fieldName, @Nullable Object value) {
         try {
