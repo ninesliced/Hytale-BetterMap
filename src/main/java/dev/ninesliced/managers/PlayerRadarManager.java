@@ -187,7 +187,16 @@ public class PlayerRadarManager {
      */
     public void cleanup() {
         registeredWorlds.clear();
+        worldRadarCache.clear();
         LOGGER.info("PlayerRadarManager cleaned up");
+    }
+
+    /**
+     * Clears cached radar data for a specific world.
+     */
+    public void clearWorldCache(@Nonnull String worldName) {
+        worldRadarCache.remove(worldName);
+        registeredWorlds.remove(worldName);
     }
 
     /**

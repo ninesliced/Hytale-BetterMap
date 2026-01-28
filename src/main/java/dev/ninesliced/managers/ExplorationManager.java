@@ -181,6 +181,15 @@ public class ExplorationManager {
             LOGGER.info("Shutting down Exploration System...");
             stopAutoSave();
             autoSaveScheduler.shutdown();
+            try {
+                if (!autoSaveScheduler.awaitTermination(10, TimeUnit.SECONDS)) {
+                    LOGGER.warning("Auto-save scheduler did not terminate in time, forcing shutdown...");
+                    autoSaveScheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                autoSaveScheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
             ExplorationTracker.getInstance().clear();
             LOGGER.info("Exploration System shutdown complete");
         } catch (Exception e) {

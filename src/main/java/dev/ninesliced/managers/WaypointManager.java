@@ -51,6 +51,21 @@ public class WaypointManager {
         persistence = new WaypointPersistence(configDir);
     }
 
+    /**
+     * Cleans up all cached data.
+     */
+    public static void cleanup() {
+        loadedPlayers.clear();
+    }
+
+    /**
+     * Cleans up cached data for a specific player.
+     */
+    public static void onPlayerDisconnect(@Nonnull UUID playerUuid) {
+        String uuidPrefix = playerUuid.toString() + "|";
+        loadedPlayers.removeIf(key -> key.startsWith(uuidPrefix));
+    }
+
     @Nullable
     public static MapMarker[] getWaypoints(@Nonnull Player player) {
         World world = player.getWorld();
