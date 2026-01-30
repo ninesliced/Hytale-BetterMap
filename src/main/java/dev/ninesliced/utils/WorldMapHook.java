@@ -355,29 +355,26 @@ public class WorldMapHook {
             updateWorldMapConfigs(world);
 
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
-            UpdateWorldMapSettings packet = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
+            UpdateWorldMapSettings basePacket = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
 
-            if (packet == null)
+            if (basePacket == null)
                 return;
 
-            synchronized (packet) {
-                float originalMin = packet.minScale;
-                float originalMax = packet.maxScale;
+            UpdateWorldMapSettings packet = basePacket.clone();
 
-                PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
 
-                if (playerConfig != null) {
-                    packet.minScale = playerConfig.getMinScale();
-                    packet.maxScale = playerConfig.getMaxScale();
-                }
-
-                sendPacket(player, packet);
-
-                if (playerConfig != null) {
-                    packet.minScale = originalMin;
-                    packet.maxScale = originalMax;
-                }
+            if (playerConfig != null) {
+                packet.minScale = playerConfig.getMinScale();
+                packet.maxScale = playerConfig.getMaxScale();
             }
+
+            WorldMapTracker tracker = player.getWorldMapTracker();
+            packet.allowTeleportToCoordinates = tracker.isAllowTeleportToCoordinates();
+            packet.allowTeleportToMarkers = tracker.isAllowTeleportToMarkers();
+
+            sendPacket(player, packet);
+
             LOGGER.fine("Sent custom map settings to " + player.getDisplayName());
         } catch (Exception e) {
             LOGGER.warning("Failed to send map settings to player: " + e.getMessage());

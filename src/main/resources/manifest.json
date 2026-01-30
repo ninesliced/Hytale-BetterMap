@@ -1,7 +1,7 @@
 {
   "Group": "dev.ninesliced",
   "Name": "BetterMap",
-  "Version": "1.2.6",
+  "Version": "1.2.7",
   "Description": "A Hytale server plugin that enhance your world exploration with saved map data, customizable zoom, waypoints, shared mapping, and performance-optimized rendering.",
   "Authors": [
     {

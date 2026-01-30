@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerT
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.utils.WorldMapHook;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -92,7 +93,6 @@ public class MapPrivacyManager {
         boolean hide = config.isHidePlayersOnMap();
         boolean radarEnabled = config.isRadarEnabled();
         int radarRange = config.getRadarRange();
-        boolean allowMarkerTeleports = config.isAllowMapMarkerTeleports();
 
         try {
             for (World world : this.monitoredWorlds) {
@@ -166,9 +166,7 @@ public class MapPrivacyManager {
                                 tracker.setPlayerMapFilter(null);
                             }
 
-                            // TODO: setAllowTeleportToMarkers method no longer exists in the new API
-                            // boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
-                            // tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+                            WorldMapHook.sendMapSettingsToPlayer(player);
                         }
                     } catch (Exception _) {}
                 });
@@ -184,7 +182,6 @@ public class MapPrivacyManager {
         boolean hide = config.isHidePlayersOnMap();
         boolean radarEnabled = config.isRadarEnabled();
         int radarRange = config.getRadarRange();
-        boolean allowMarkerTeleports = config.isAllowMapMarkerTeleports();
 
         if (world != null) {
             this.monitoredWorlds.add(world);
@@ -262,9 +259,7 @@ public class MapPrivacyManager {
                 tracker.setPlayerMapFilter(null);
             }
 
-            // TODO: setAllowTeleportToMarkers method no longer exists in the new API
-            // boolean canTeleportMarkers = allowMarkerTeleports && PermissionsUtil.canTeleport(player);
-            // tracker.setAllowTeleportToMarkers(world, canTeleportMarkers);
+            WorldMapHook.sendMapSettingsToPlayer(player);
         } catch (Exception e) {
             LOGGER.severe("Error applying privacy filter: " + e.getMessage());
         }

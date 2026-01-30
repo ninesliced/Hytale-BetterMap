@@ -48,6 +48,7 @@ public class BetterMapConfig {
     private transient Path configDir;
     private transient MapQuality activeMapQuality;
     private transient int activeMaxChunksToLoad;
+    private transient boolean firstLaunch = false;
 
     /**
      * Private constructor to enforce singleton pattern.
@@ -85,6 +86,7 @@ public class BetterMapConfig {
                 load();
             } else {
                 save();
+                this.firstLaunch = true;
             }
 
             this.activeMapQuality = this.mapQuality;
@@ -752,6 +754,24 @@ public class BetterMapConfig {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Checks if this is the first launch of the plugin (config was created).
+     *
+     * @return True if first launch.
+     */
+    public boolean isFirstLaunch() {
+        return firstLaunch;
+    }
+
+    /**
+     * Sets the first launch status.
+     *
+     * @param firstLaunch The new status.
+     */
+    public void setFirstLaunch(boolean firstLaunch) {
+        this.firstLaunch = firstLaunch;
     }
 
     /**

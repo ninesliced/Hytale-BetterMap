@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.7
+
+* Fix world not tracking on world with different name than "world" or "default"
+* Fix teleport on right click on map
+
 ## v1.2.6
 
 * Fix the issue with the new release changes in the marker API (map not becoming black)

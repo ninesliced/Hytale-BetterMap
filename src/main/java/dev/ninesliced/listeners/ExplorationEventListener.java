@@ -22,8 +22,12 @@ import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.WaypointManager;
+import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WorldMapHook;
+import com.hypixel.hytale.server.core.Message;
+import java.awt.Color;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nonnull;
 import java.util.UUID;
@@ -61,12 +65,38 @@ public class ExplorationEventListener {
 
             world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
 
+            if (isTrackedWorld(world)) {
+                WaypointManager.onPlayerJoin(player);
+            }
+
+            if (BetterMapConfig.getInstance().isFirstLaunch()) {
+                String worldName = world.getName();
+                BetterMapConfig.getInstance().addAllowedWorld(worldName);
+                BetterMapConfig.getInstance().setFirstLaunch(false);
+
+                LOGGER.info("First launch detected. Added " + worldName + " to tracked worlds.");
+
+                ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
+                    try {
+                        if (player.getReference() != null && player.getReference().isValid()) {
+                            player.sendMessage(Message.raw("WARNING: BetterMap - Just added this world as tracked but you need to restart the server to apply the changes.").color(Color.RED));
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warning("Failed to send warning message: " + e.getMessage());
+                    }
+                }, 4, TimeUnit.SECONDS);
+            }
+
             if (playerWorlds.containsKey(playerName)) {
                 String trackedWorld = playerWorlds.get(playerName);
                 String currentWorld = world.getName();
                 if (trackedWorld != null && trackedWorld.equals(currentWorld)) {
-                    LOGGER.info("[DEBUG] Player " + playerName + " already tracked in world " + currentWorld + ", skipping PlayerReadyEvent");
-                    return;
+                    if (isTrackedWorld(world)) {
+                        if (ExplorationTracker.getInstance().getPlayerData(playerName) != null) {
+                            LOGGER.info("[DEBUG] Player " + playerName + " already tracked in world " + currentWorld + ", skipping PlayerReadyEvent");
+                            return;
+                        }
+                    }
                 }
             }
             LOGGER.info("Player ready (initial join): " + playerName);
@@ -84,10 +114,22 @@ public class ExplorationEventListener {
 
                 PlayerRadarManager.getInstance().registerForPlayer(player);
                 
-                WaypointManager.onPlayerJoin(player);
 
                 LOGGER.info("Exploration tracking initialized for player: " + playerName);
             } else {
+                if (PermissionsUtil.isAdmin(player)) {
+                    ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
+                        try {
+                            if (player.getReference() != null && player.getReference().isValid()) {
+                                player.sendMessage(Message.raw("WARNING: BetterMap - usage in this world is not tracked.").color(Color.RED));
+                                player.sendMessage(Message.raw("Use '/bettermap config track' to track this world.").color(Color.RED));
+                            }
+                        } catch (Exception e) {
+                            LOGGER.warning("Failed to send warning message: " + e.getMessage());
+                        }
+                    }, 4, TimeUnit.SECONDS);
+                }
+
                 WorldMapTracker tracker = player.getWorldMapTracker();
                 WorldMapHook.restoreVanillaMapTracker(player, tracker);
                 LOGGER.info("Player " + playerName + " joined non-default world; leaving map vanilla.");

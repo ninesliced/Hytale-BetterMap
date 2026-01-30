@@ -69,6 +69,20 @@ public class ExplorationTicker {
     }
 
     /**
+     * Schedules a task to run after a specified delay.
+     *
+     * @param task  The task to run.
+     * @param delay The delay.
+     * @param unit  The time unit.
+     */
+    public void scheduleDelayedTask(Runnable task, long delay, TimeUnit unit) {
+        if (!isRunning) {
+            return;
+        }
+        scheduler.schedule(task, delay, unit);
+    }
+
+    /**
      * Stops the ticker and shuts down the scheduler.
      */
     public void stop() {
