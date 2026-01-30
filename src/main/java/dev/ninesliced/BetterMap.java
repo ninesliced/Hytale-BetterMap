@@ -173,6 +173,7 @@ public class BetterMap extends JavaPlugin {
         }
         
         PlayerRadarManager.getInstance().cleanup();
+        ChunkStreamingManager.getInstance().cleanup();
         
         // Clear waypoint manager cache
         WaypointManager.cleanup();

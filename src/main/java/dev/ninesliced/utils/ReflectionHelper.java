@@ -203,7 +203,7 @@ public class ReflectionHelper {
     @Nullable
     public static Object getFieldValueRecursive(@Nonnull Object instance, @Nonnull String fieldName) {
         try {
-            String cacheKey = instance.getClass().getName() + "#" + fieldName + "#getter";
+            String cacheKey = instance.getClass().getName() + "#" + fieldName + "#getter#recursive";
             
             MethodHandle getter = METHOD_HANDLE_CACHE.get(cacheKey);
             if (getter == null) {
@@ -231,7 +231,7 @@ public class ReflectionHelper {
      */
     public static void setFieldValueRecursive(@Nonnull Object instance, @Nonnull String fieldName, @Nullable Object value) {
         try {
-            String cacheKey = instance.getClass().getName() + "#" + fieldName + "#setter";
+            String cacheKey = instance.getClass().getName() + "#" + fieldName + "#setter#recursive";
             
             MethodHandle setter = METHOD_HANDLE_CACHE.get(cacheKey);
             if (setter == null) {

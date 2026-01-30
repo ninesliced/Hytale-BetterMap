@@ -435,6 +435,7 @@ public class WorldMapHook {
         private volatile int cachedCenterZ = Integer.MIN_VALUE;
         private volatile int cachedExploredChunksHash = 0;
         private volatile int cachedExploredChunksSize = 0;
+        private volatile Set<Long> cachedBoundaryChunks = null;
         
         // Threshold for re-sorting: only re-sort if player moved more than this many map chunks
         private static final int RESORT_DISTANCE_THRESHOLD = 4;
@@ -461,6 +462,7 @@ public class WorldMapHook {
                 this.cachedCenterZ = Integer.MIN_VALUE;
                 this.cachedExploredChunksHash = 0;
                 this.cachedExploredChunksSize = 0;
+                this.cachedBoundaryChunks = null;
                 this.reusableMapChunks.clear();
                 this.reusableBoundaryChunks.clear();
                 try {
@@ -526,11 +528,6 @@ public class WorldMapHook {
                     int distanceFromCachedCenter = (cachedCenterX == Integer.MIN_VALUE) ? Integer.MAX_VALUE :
                             Math.abs(cx - cachedCenterX) + Math.abs(cz - cachedCenterZ);
                     
-                    boolean needsResort = cachedRankedChunks == null ||
-                            distanceFromCachedCenter > RESORT_DISTANCE_THRESHOLD ||
-                            currentExploredSize != cachedExploredChunksSize ||
-                            currentExploredHash != cachedExploredChunksHash;
-
                     // Reuse collections instead of creating new ones
                     reusableMapChunks.clear();
                     
@@ -555,6 +552,16 @@ public class WorldMapHook {
                         reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
                     }
 
+                    // Check if boundary chunks changed (need to compare before checking needsResort)
+                    boolean boundaryChunksChanged = cachedBoundaryChunks == null ||
+                            !reusableBoundaryChunks.equals(cachedBoundaryChunks);
+
+                    boolean needsResort = cachedRankedChunks == null ||
+                            distanceFromCachedCenter > RESORT_DISTANCE_THRESHOLD ||
+                            currentExploredSize != cachedExploredChunksSize ||
+                            currentExploredHash != cachedExploredChunksHash ||
+                            boundaryChunksChanged;
+
                     List<Long> rankedChunks;
                     
                     if (needsResort) {
@@ -573,8 +580,8 @@ public class WorldMapHook {
                         rankedChunks.sort(Comparator.comparingLong(idx -> {
                             int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
                             int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                            long dx = mx - sortCenterX;
-                            long dz = mz - sortCenterZ;
+                            long dx = (long) mx - sortCenterX;
+                            long dz = (long) mz - sortCenterZ;
                             return dx * dx + dz * dz; // Squared distance - no sqrt needed for ordering
                         }));
 
@@ -584,6 +591,7 @@ public class WorldMapHook {
                         this.cachedCenterZ = cz;
                         this.cachedExploredChunksSize = currentExploredSize;
                         this.cachedExploredChunksHash = currentExploredHash;
+                        this.cachedBoundaryChunks = new HashSet<>(reusableBoundaryChunks);
                     } else {
                         // Use cached sorted list
                         rankedChunks = cachedRankedChunks;
@@ -673,9 +681,9 @@ public class WorldMapHook {
                 long next = iter.next();
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(next);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(next);
-                int dx = mx - centerX;
-                int dz = mz - centerZ;
-                int distSquared = dx * dx + dz * dz;
+                long dx = (long) mx - centerX;
+                long dz = (long) mz - centerZ;
+                long distSquared = dx * dx + dz * dz;
                 this.currentRadius = (int) fastSqrt(distSquared);
                 return next;
             } catch (java.util.NoSuchElementException e) {
@@ -686,16 +694,16 @@ public class WorldMapHook {
         /**
          * Fast integer square root using Newton's method.
          */
-        private static int fastSqrt(int n) {
+        private static int fastSqrt(long n) {
             if (n <= 0) return 0;
             if (n == 1) return 1;
-            int x = n;
-            int y = (x + 1) >> 1;
+            long x = n;
+            long y = (x + 1) >> 1;
             while (y < x) {
                 x = y;
                 y = (x + n / x) >> 1;
             }
-            return x;
+            return (int) x;
         }
 
         @Override

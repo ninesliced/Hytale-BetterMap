@@ -10,20 +10,16 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.logging.Logger;
 
 /**
- * Manages chunk streaming with delta updates and priority-based loading.
+ * Manages chunk streaming with delta updates for unloading.
+ * Note: Load packets are handled by the native WorldMapTracker via RestrictedSpiralIterator.
+ * This manager only handles unload packets and tracks sent chunks for delta computation.
  */
 public class ChunkStreamingManager {
     private static final Logger LOGGER = Logger.getLogger(ChunkStreamingManager.class.getName());
     private static final ChunkStreamingManager INSTANCE = new ChunkStreamingManager();
-    
-    /**
-     * Maximum chunks to send per tick.
-     */
-    private static final int MAX_CHUNKS_PER_TICK = 50;
     
     /**
      * Maximum chunks to unload per tick.
@@ -91,7 +87,8 @@ public class ChunkStreamingManager {
     }
     
     /**
-     * Processes the load queue for a player.
+     * Processes the unload queue for a player.
+     * Note: Load packets are handled by the native WorldMapTracker.
      */
     public int processLoadQueue(@Nonnull Player player) {
         String playerName = player.getDisplayName();
@@ -100,18 +97,18 @@ public class ChunkStreamingManager {
             return 0;
         }
         
-        return state.processQueue(player, MAX_CHUNKS_PER_TICK, MAX_UNLOADS_PER_TICK);
+        return state.processUnloadQueue(player, MAX_UNLOADS_PER_TICK);
     }
     
     /**
-     * Queues chunks for loading with priority based on distance.
+     * No-op: Load packets are handled by the native WorldMapTracker via RestrictedSpiralIterator.
+     * This method is kept for API compatibility but does nothing.
      */
     public void queueChunksForLoading(@Nonnull String playerName,
                                        @Nonnull Collection<Long> chunksToLoad,
                                        int playerChunkX,
                                        int playerChunkZ) {
-        PlayerStreamingState state = getOrCreateState(playerName);
-        state.queueForLoading(chunksToLoad, playerChunkX, playerChunkZ);
+        // No-op: loading is handled by native WorldMapTracker
     }
     
     /**
@@ -124,12 +121,12 @@ public class ChunkStreamingManager {
     }
     
     /**
-     * Marks chunks as sent.
+     * Marks chunks as sent (for tracking purposes).
      */
     public void markChunksSent(@Nonnull String playerName, @Nonnull Collection<Long> chunks) {
         PlayerStreamingState state = playerStates.get(playerName);
         if (state != null) {
-            state.markSent(chunks);
+            state.sentChunks.addAll(chunks);
         }
     }
     
@@ -170,56 +167,25 @@ public class ChunkStreamingManager {
     }
     
     /**
-     * Prioritized chunk load request.
-     */
-    private static class ChunkLoadRequest implements Comparable<ChunkLoadRequest> {
-        final long chunkIndex;
-        final int distanceSquared;
-        
-        ChunkLoadRequest(long chunkIndex, int distanceSquared) {
-            this.chunkIndex = chunkIndex;
-            this.distanceSquared = distanceSquared;
-        }
-        
-        @Override
-        public int compareTo(ChunkLoadRequest other) {
-            return Integer.compare(this.distanceSquared, other.distanceSquared);
-        }
-        
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            ChunkLoadRequest that = (ChunkLoadRequest) o;
-            return chunkIndex == that.chunkIndex;
-        }
-        
-        @Override
-        public int hashCode() {
-            return Long.hashCode(chunkIndex);
-        }
-    }
-    
-    /**
-     * Per-player streaming state tracking sent chunks and pending queues.
+     * Per-player streaming state tracking sent chunks and pending unload queue.
      */
     public static class PlayerStreamingState {
         private final Set<Long> sentChunks = ConcurrentHashMap.newKeySet();
-        private final PriorityBlockingQueue<ChunkLoadRequest> loadQueue = new PriorityBlockingQueue<>();
-        private final Set<Long> loadQueueSet = ConcurrentHashMap.newKeySet();
         private final Queue<Long> unloadQueue = new java.util.concurrent.ConcurrentLinkedQueue<>();
         private final Set<Long> unloadQueueSet = ConcurrentHashMap.newKeySet();
         @Nonnull
         public ChunkDelta computeDelta(@Nonnull Set<Long> targetChunks, 
                                         int playerChunkX, 
                                         int playerChunkZ) {
+            // Compute chunks to load (for informational purposes - actual loading is done by native tracker)
             List<Long> toLoad = new ArrayList<>();
             for (Long chunk : targetChunks) {
-                if (!sentChunks.contains(chunk) && !loadQueueSet.contains(chunk)) {
+                if (!sentChunks.contains(chunk)) {
                     toLoad.add(chunk);
                 }
             }
             
+            // Compute chunks to unload
             List<Long> toUnload = new ArrayList<>();
             for (Long chunk : sentChunks) {
                 if (!targetChunks.contains(chunk) && !unloadQueueSet.contains(chunk)) {
@@ -240,31 +206,17 @@ public class ChunkStreamingManager {
             return new ChunkDelta(toLoad, toUnload);
         }
 
-        public void queueForLoading(@Nonnull Collection<Long> chunks, int playerChunkX, int playerChunkZ) {
-            for (Long chunkIndex : chunks) {
-                if (loadQueueSet.add(chunkIndex)) {
-                    int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunkIndex);
-                    int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunkIndex);
-                    int dx = mx - playerChunkX;
-                    int dz = mz - playerChunkZ;
-                    int distSq = dx * dx + dz * dz;
-                    loadQueue.offer(new ChunkLoadRequest(chunkIndex, distSq));
-                }
-            }
-        }
-        
         public void queueForUnloading(@Nonnull Collection<Long> chunks) {
             for (Long chunkIndex : chunks) {
                 if (unloadQueueSet.add(chunkIndex)) {
-                    unloadQueue.offer(chunkIndex);
+                    unloadQueue.add(chunkIndex);
                 }
             }
         }
         
-        public int processQueue(@Nonnull Player player, int maxLoads, int maxUnloads) {
+        public int processUnloadQueue(@Nonnull Player player, int maxUnloads) {
             int processed = 0;
             
-            // Process unloads first (they free up client memory)
             List<Long> unloaded = new ArrayList<>();
             for (int i = 0; i < maxUnloads && !unloadQueue.isEmpty(); i++) {
                 Long chunk = unloadQueue.poll();
@@ -279,17 +231,6 @@ public class ChunkStreamingManager {
             
             if (!unloaded.isEmpty()) {
                 sendUnloadPackets(player, unloaded);
-            }
-            
-            List<Long> loaded = new ArrayList<>();
-            for (int i = 0; i < maxLoads && !loadQueue.isEmpty(); i++) {
-                ChunkLoadRequest request = loadQueue.poll();
-                if (request != null) {
-                    loadQueueSet.remove(request.chunkIndex);
-                    sentChunks.add(request.chunkIndex);
-                    loaded.add(request.chunkIndex);
-                    processed++;
-                }
             }
             
             return processed;
@@ -333,11 +274,6 @@ public class ChunkStreamingManager {
             }
         }
         
-        public void markSent(@Nonnull Collection<Long> chunks) {
-            sentChunks.addAll(chunks);
-            loadQueueSet.removeAll(chunks);
-        }
-        
         public void markUnloaded(@Nonnull Collection<Long> chunks) {
             sentChunks.removeAll(chunks);
             unloadQueueSet.removeAll(chunks);
@@ -348,18 +284,12 @@ public class ChunkStreamingManager {
             return new HashSet<>(sentChunks);
         }
         
-        public int getPendingLoadCount() {
-            return loadQueue.size();
-        }
-        
         public int getPendingUnloadCount() {
             return unloadQueue.size();
         }
         
         public void clear() {
             sentChunks.clear();
-            loadQueue.clear();
-            loadQueueSet.clear();
             unloadQueue.clear();
             unloadQueueSet.clear();
         }
