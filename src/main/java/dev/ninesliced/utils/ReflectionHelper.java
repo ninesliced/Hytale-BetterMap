@@ -12,7 +12,6 @@ import java.util.logging.Logger;
 
 /**
  * Utility for performing reflection operations safely.
- * Caches Field objects and uses MethodHandles for better performance.
  */
 public class ReflectionHelper {
 

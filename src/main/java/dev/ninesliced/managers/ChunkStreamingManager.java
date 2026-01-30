@@ -286,7 +286,6 @@ public class ChunkStreamingManager {
                 ChunkLoadRequest request = loadQueue.poll();
                 if (request != null) {
                     loadQueueSet.remove(request.chunkIndex);
-                    // Mark as sent - the actual sending happens through the tracker
                     sentChunks.add(request.chunkIndex);
                     loaded.add(request.chunkIndex);
                     processed++;
@@ -336,13 +335,11 @@ public class ChunkStreamingManager {
         
         public void markSent(@Nonnull Collection<Long> chunks) {
             sentChunks.addAll(chunks);
-            // Remove from load queue if present
             loadQueueSet.removeAll(chunks);
         }
         
         public void markUnloaded(@Nonnull Collection<Long> chunks) {
             sentChunks.removeAll(chunks);
-            // Remove from unload queue if present
             unloadQueueSet.removeAll(chunks);
         }
         

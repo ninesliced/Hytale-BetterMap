@@ -243,7 +243,7 @@ public class WorldMapHook {
             // Process the queues with bandwidth throttling
             streamingManager.processLoadQueue(player);
             
-            // Also handle the tracker's loaded set for compatibility
+            // handle the tracker's loaded set for compatibility
             List<Long> loadedSnapshot = new ArrayList<>(loaded);
             List<Long> toUnload = new ArrayList<>();
             List<MapChunk> unloadPackets = new ArrayList<>();

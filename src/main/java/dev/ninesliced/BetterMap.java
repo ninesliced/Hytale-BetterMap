@@ -164,10 +164,8 @@ public class BetterMap extends JavaPlugin {
     protected void shutdown() {
         LOGGER.info("Shutting down BetterMap plugin...");
         
-        // Stop the exploration ticker first to prevent new updates
         ExplorationTicker.getInstance().stop();
         
-        // Shutdown exploration manager (saves data and stops auto-save)
         ExplorationManager.getInstance().shutdown();
         
         if (this.locationHudProvider != null) {
