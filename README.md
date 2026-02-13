@@ -65,21 +65,42 @@ You can either do `/op add <player>` to give full access or assign specific perm
     
     *   Sets your personal maximum zoom scale (default base is 256).
 
+### Admin
+
+**Permission:** `bettermap.admin`
+
+*   Grants full admin access to BetterMap. Allows viewing all settings and overrides under `/bettermap`.
+
 ### Global Waypoints
 
-**Permission:** `dev.ninesliced.bettermap.command.waypoint.global`
+**Permission:** `bettermap.command.waypoint.global`
 
 *   Allows the user to create, view, and manage global (shared) waypoints visible to all players.
 
 ### Teleportation
 
-**Permission:** `dev.ninesliced.bettermap.command.teleport`
+**Permission:** `bettermap.command.teleport`
 
 *   **Waypoint Teleport:** Allows the user to teleport to locations via the Waypoint UI buttons.
 
-### Admin & Configuration Commands
+### Map Privacy Overrides
 
-**Permission:** `dev.ninesliced.bettermap.command.config`
+**Permissions:**
+
+*   `bettermap.command.override.players` - Bypass global hide players
+*   `bettermap.command.override.warps` - Bypass global hide all/other warps
+*   `bettermap.command.override.unexploredwarps` - Bypass global hide unexplored warps
+*   `bettermap.command.override.poi` - Bypass global hide all POIs and hidden POI names
+*   `bettermap.command.override.unexploredpoi` - Bypass global hide unexplored POIs
+*   `bettermap.command.override.spawn` - Bypass global hide spawn
+*   `bettermap.command.override.death` - Bypass global hide death markers
+*   `bettermap.command.override.waypoints` - Bypass global hide waypoints
+
+### Configuration Commands
+
+**Permission:** `bettermap.command.config`
+
+*   Required to use `/bm config` subcommands and to see config values under `/bettermap`.
 
 1.  `/bm config radar <range>`
     
@@ -102,28 +123,31 @@ You can either do `/op add <player>` to give full access or assign specific perm
 7.  `/bm config hideunexploredpoi`
     
     *   Hides POIs in unexplored regions.
-8.  `/bm config waypointteleport`
-    
+8.  `/bm config hideglobalwaypoints`
+
+    *   Hides global waypoints on the map for all players.
+9.  `/bm config waypointteleport`
+
     *   Toggles the ability to teleport to waypoints.
-9.  `/bm config markerteleport`
-    
+10. `/bm config markerteleport`
+
     *   Toggles the ability to teleport to map markers.
-10.  `/bm config shareallexploration`
-    
+11. `/bm config shareallexploration`
+
     *   Toggles "Linked Map" mode (shared exploration data).
-11.  `/bm config track` / `untrack`
-    
+12. `/bm config track` / `untrack`
+
     *   Adds or removes the current world from the active whitelist.
-12.  `/bm config maxchunk <number>`
-    
+13. `/bm config maxchunk <number>`
+
     *   Manually overrides the maximum number of loaded chunks.
-13.  `/bm config autosave <minutes>`
-    
+14. `/bm config autosave <minutes>`
+
     *   Sets the interval for auto-saving map data.
 
 ### Reload Command
 
-**Permission:** `dev.ninesliced.bettermap.command.reload`
+**Permission:** `bettermap.command.reload`
 
 *   `/bm reload`
 *   Reloads the configuration file immediately.
@@ -160,6 +184,7 @@ _Note: Changing `mapQuality` or `maxChunksToLoad` requires a server restart to t
   "allowMapMarkerTeleports": true,
   "hideAllPoiOnMap": false,
   "hideUnexploredPoiOnMap": true,
+  "hideGlobalWaypointsOnMap": false,
   "hiddenPoiNames": [],
   "autoSaveInterval": 5,
   "allowedWorlds": [

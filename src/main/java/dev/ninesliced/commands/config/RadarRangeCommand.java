@@ -11,6 +11,8 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.managers.MapPrivacyManager;
+import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -71,6 +73,8 @@ public class RadarRangeCommand extends AbstractCommand {
             BetterMapConfig config = BetterMapConfig.getInstance();
 
             setNewRange(playerRef, config, rangeValue);
+            MapPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.refreshTrackers(world);
         }, world);
     }
 

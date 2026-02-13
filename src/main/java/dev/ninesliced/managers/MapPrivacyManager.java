@@ -1,24 +1,34 @@
 package dev.ninesliced.managers;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.WeakHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.HytaleServer;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.permissions.PermissionsModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
-import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
+
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.BetterMapConfig;
+import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
-
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 /**
  * Manages player privacy on the map by hiding players if configured.
@@ -26,6 +36,7 @@ import java.util.logging.Logger;
  */
 public class MapPrivacyManager {
     private static final Logger LOGGER = Logger.getLogger(MapPrivacyManager.class.getName());
+    private static final String MAP_MARKER_TELEPORT_PERMISSION = "hytale.world_map.teleport.marker";
     private static MapPrivacyManager instance;
     private final Set<World> monitoredWorlds = Collections.newSetFromMap(new WeakHashMap<>());
     private final Map<World, Map<String, WorldMapManager.MarkerProvider>> backedUpProviders = new WeakHashMap<>();
@@ -89,10 +100,11 @@ public class MapPrivacyManager {
      * This can be called to refresh the privacy settings without restarting the server.
      */
     public void updatePrivacyState() {
-        BetterMapConfig config = BetterMapConfig.getInstance();
-        boolean hide = config.isHidePlayersOnMap();
-        boolean radarEnabled = config.isRadarEnabled();
-        int radarRange = config.getRadarRange();
+        BetterMapConfig globalConfig = BetterMapConfig.getInstance();
+        boolean globalHide = globalConfig.isHidePlayersOnMap();
+        boolean radarEnabled = globalConfig.isRadarEnabled();
+        int radarRange = globalConfig.getRadarRange();
+        boolean allowMarkerTeleports = globalConfig.isAllowMapMarkerTeleports();
 
         try {
             for (World world : this.monitoredWorlds) {
@@ -111,6 +123,15 @@ public class MapPrivacyManager {
                             if (player == null) continue;
 
                             WorldMapTracker tracker = player.getWorldMapTracker();
+
+                            UUID playerUuid = playerRef.getUuid();
+                            PlayerConfig playerConfig = playerUuid != null
+                                ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+                                : null;
+                            boolean hide = globalHide && !canBypassGlobalHidePlayers(player, playerConfig);
+                            if (!hide && playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+                                hide = true;
+                            }
 
                             if (hide) {
                                 tracker.setPlayerMapFilter(ignored -> false);
@@ -166,7 +187,7 @@ public class MapPrivacyManager {
                                 tracker.setPlayerMapFilter(null);
                             }
 
-                            WorldMapHook.sendMapSettingsToPlayer(player);
+                            syncMarkerTeleportPermission(player, allowMarkerTeleports);
                         }
                     } catch (Exception _) {}
                 });
@@ -178,10 +199,20 @@ public class MapPrivacyManager {
     }
 
     private void applyPlayerSettings(Player player, World world) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
-        boolean hide = config.isHidePlayersOnMap();
-        boolean radarEnabled = config.isRadarEnabled();
-        int radarRange = config.getRadarRange();
+        BetterMapConfig globalConfig = BetterMapConfig.getInstance();
+        boolean globalHide = globalConfig.isHidePlayersOnMap();
+        boolean radarEnabled = globalConfig.isRadarEnabled();
+        int radarRange = globalConfig.getRadarRange();
+        boolean allowMarkerTeleports = globalConfig.isAllowMapMarkerTeleports();
+
+        UUID playerUuid = ((CommandSender) player).getUuid();
+        PlayerConfig playerConfig = playerUuid != null
+            ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+            : null;
+        boolean hide = globalHide && !canBypassGlobalHidePlayers(player, playerConfig);
+        if (!hide && playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+            hide = true;
+        }
 
         if (world != null) {
             this.monitoredWorlds.add(world);
@@ -259,25 +290,28 @@ public class MapPrivacyManager {
                 tracker.setPlayerMapFilter(null);
             }
 
-            WorldMapHook.sendMapSettingsToPlayer(player);
+            syncMarkerTeleportPermission(player, allowMarkerTeleports);
         } catch (Exception e) {
             LOGGER.severe("Error applying privacy filter: " + e.getMessage());
         }
     }
 
     private void removeProvider(World world) {
-        BetterMapConfig config = BetterMapConfig.getInstance();
-        boolean shouldRemove = config.isRadarEnabled() || config.isHidePlayersOnMap();
-
         try {
             if (world == null) return;
+
+            BetterMapConfig config = BetterMapConfig.getInstance();
+            boolean shouldRemove = config.isRadarEnabled();
+            if (!shouldRemove && config.isHidePlayersOnMap()) {
+                shouldRemove = !hasGlobalHideOverride(world);
+            }
 
             WorldMapManager mapManager = world.getWorldMapManager();
 
             Map<String, WorldMapManager.MarkerProvider> providers = mapManager.getMarkerProviders();
             if (providers == null) return;
 
-            List<String> targetKeys = Arrays.asList("playerMarkers", "playerIcons", "players");
+            List<String> targetKeys = Arrays.asList("playerIcons", "players");
 
             Map<String, WorldMapManager.MarkerProvider> worldBackups = backedUpProviders.computeIfAbsent(world, ignored -> new HashMap<>());
 
@@ -297,6 +331,73 @@ public class MapPrivacyManager {
             }
         } catch (Exception e) {
             LOGGER.severe("Error managing provider: " + e.getMessage());
+        }
+    }
+
+    private boolean hasGlobalHideOverride(World world) {
+        if (world == null) {
+            return false;
+        }
+
+        try {
+            for (PlayerRef playerRef : world.getPlayerRefs()) {
+                if (playerRef == null) continue;
+
+                Holder<EntityStore> holder = playerRef.getHolder();
+                if (holder == null) continue;
+                Player player = holder.getComponent(Player.getComponentType());
+                if (player == null) continue;
+
+                UUID playerUuid = ((CommandSender) player).getUuid();
+                PlayerConfig playerConfig = playerUuid != null
+                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+                    : null;
+                if (canBypassGlobalHidePlayers(player, playerConfig)) {
+                    return true;
+                }
+            }
+        } catch (Exception _) {
+            return false;
+        }
+
+        return false;
+    }
+
+    private boolean canBypassGlobalHidePlayers(Player player, PlayerConfig playerConfig) {
+        if (player == null) {
+            return false;
+        }
+
+        return playerConfig != null
+            && playerConfig.isOverrideGlobalPlayersHide()
+            && PermissionsUtil.canOverridePlayers(player);
+    }
+
+    private void syncMarkerTeleportPermission(Player player, boolean allowMarkerTeleports) {
+        if (player == null) {
+            return;
+        }
+
+        PermissionsModule perms = PermissionsModule.get();
+        if (perms == null) {
+            return;
+        }
+
+        UUID uuid = ((CommandSender) player).getUuid();
+        Set<String> permissions = Collections.singleton(MAP_MARKER_TELEPORT_PERMISSION);
+
+        try {
+            if (allowMarkerTeleports) {
+                perms.addUserPermission(uuid, permissions);
+            } else {
+                perms.removeUserPermission(uuid, permissions);
+            }
+            World world = player.getWorld();
+            if (world != null) {
+                player.getWorldMapTracker().sendSettings(world);
+            }
+        } catch (Exception e) {
+            LOGGER.fine("Failed to sync map marker teleport permission for " + player.getDisplayName() + ": " + e.getMessage());
         }
     }
 }

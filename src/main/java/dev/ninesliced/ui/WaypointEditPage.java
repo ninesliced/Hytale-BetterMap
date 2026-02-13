@@ -234,12 +234,12 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         public Boolean global;
 
         public static final BuilderCodec<EditData> CODEC = BuilderCodec.<EditData>builder(EditData.class, EditData::new)
-                .addField(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action)
-                .addField(new KeyedCodec<>(KEY_NAME_INPUT, Codec.STRING), (data, value) -> data.nameInput = value, data -> data.nameInput)
-                .addField(new KeyedCodec<>(KEY_INPUT_X, Codec.STRING), (data, value) -> data.inputX = value, data -> data.inputX)
-                .addField(new KeyedCodec<>(KEY_INPUT_Y, Codec.STRING), (data, value) -> data.inputY = value, data -> data.inputY)
-                .addField(new KeyedCodec<>(KEY_INPUT_Z, Codec.STRING), (data, value) -> data.inputZ = value, data -> data.inputZ)
-                .addField(new KeyedCodec<>(KEY_GLOBAL, Codec.BOOLEAN), (data, value) -> data.global = value, data -> data.global)
+                .append(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action).add()
+                .append(new KeyedCodec<>(KEY_NAME_INPUT, Codec.STRING), (data, value) -> data.nameInput = value, data -> data.nameInput).add()
+                .append(new KeyedCodec<>(KEY_INPUT_X, Codec.STRING), (data, value) -> data.inputX = value, data -> data.inputX).add()
+                .append(new KeyedCodec<>(KEY_INPUT_Y, Codec.STRING), (data, value) -> data.inputY = value, data -> data.inputY).add()
+                .append(new KeyedCodec<>(KEY_INPUT_Z, Codec.STRING), (data, value) -> data.inputZ = value, data -> data.inputZ).add()
+                .append(new KeyedCodec<>(KEY_GLOBAL, Codec.BOOLEAN), (data, value) -> data.global = value, data -> data.global).add()
                 .build();
     }
 }

@@ -1,5 +1,6 @@
 package dev.ninesliced.commands.config;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -10,6 +11,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
+import dev.ninesliced.managers.WaypointManager;
+import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
@@ -61,6 +64,17 @@ public class MarkerTeleportCommand extends AbstractCommand {
             config.setAllowMapMarkerTeleports(newState);
 
             MapPrivacyManager.getInstance().updatePrivacyState();
+
+            for (PlayerRef pr : world.getPlayerRefs()) {
+                Holder<EntityStore> h = pr.getHolder();
+                if (h == null) continue;
+                Player p = h.getComponent(Player.getComponentType());
+                if (p != null) {
+                    WorldMapHook.sendMapSettingsToPlayer(p);
+                }
+            }
+
+            WaypointManager.refreshAllPlayersMarkers(world);
 
             String status = newState ? "ENABLED" : "DISABLED";
             Color color = newState ? Color.GREEN : Color.RED;

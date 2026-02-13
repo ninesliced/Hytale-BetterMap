@@ -9,21 +9,20 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.BetterMapConfig;
-import dev.ninesliced.managers.WaypointManager;
+import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.managers.WarpPrivacyManager;
+import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
 import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Command to toggle waypoint teleports.
- */
-public class WaypointTeleportCommand extends AbstractCommand {
+public class HideAllWarpsCommand extends AbstractCommand {
 
-    public WaypointTeleportCommand() {
-        super("waypointteleport", "Toggle waypoint teleports");
-        this.addAliases("waypointtp");
+    public HideAllWarpsCommand() {
+        super("hideallwarps", "Toggle hiding all warps on the world map");
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
@@ -57,19 +56,27 @@ public class WaypointTeleportCommand extends AbstractCommand {
             }
 
             BetterMapConfig config = BetterMapConfig.getInstance();
-            boolean newState = !config.isAllowWaypointTeleports();
-            config.setAllowWaypointTeleports(newState);
-            WaypointManager.refreshAllPlayersMarkers(world);
+            boolean newState = !config.isHideAllWarpsOnMap();
+            config.setHideAllWarpsOnMap(newState);
 
-            String status = newState ? "ENABLED" : "DISABLED";
-            Color color = newState ? Color.GREEN : Color.RED;
-
-            playerRef.sendMessage(Message.raw("Waypoint Teleports " + status).color(color));
-            if (newState) {
-                playerRef.sendMessage(Message.raw("Waypoint teleports are now allowed.").color(Color.GRAY));
-            } else {
-                playerRef.sendMessage(Message.raw("Waypoint teleports are now blocked.").color(Color.GRAY));
+            PlayerConfig playerConfig = playerRef.getUuid() != null
+                ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
+                : null;
+            if (playerConfig != null) {
+                playerConfig.setOverrideGlobalAllWarpsHide(false);
+                playerConfig.setOverrideGlobalOtherWarpsHide(false);
+                PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());
             }
+
+            WarpPrivacyManager.getInstance().updatePrivacyState();
+            WorldMapHook.clearMarkerCaches(world);
+            WorldMapHook.refreshTrackers(world);
+
+            boolean visible = !newState;
+            Color color = visible ? Color.GREEN : Color.RED;
+            String status = visible ? "VISIBLE" : "HIDDEN";
+
+            playerRef.sendMessage(Message.raw("Warps are now " + status + " on the map.").color(color));
         }, world);
     }
 }

@@ -276,8 +276,8 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                 WaypointGuiData.class,
                 WaypointGuiData::new
             )
-            .addField(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action)
-            .addField(new KeyedCodec<>(KEY_TARGET_ID, Codec.STRING), (data, value) -> data.targetId = value, data -> data.targetId)
+            .append(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action).add()
+            .append(new KeyedCodec<>(KEY_TARGET_ID, Codec.STRING), (data, value) -> data.targetId = value, data -> data.targetId).add()
             .build();
 
         private String action;

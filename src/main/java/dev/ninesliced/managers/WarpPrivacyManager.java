@@ -53,6 +53,11 @@ public class WarpPrivacyManager {
         });
 
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
+            if (PlayerConfigManager.getInstance() != null) {
+                PlayerConfigManager.getInstance().getPlayerConfig(
+                    ((com.hypixel.hytale.server.core.command.system.CommandSender) event.getPlayer()).getUuid()
+                );
+            }
             World world = event.getPlayer().getWorld();
             if (world != null) {
                 this.monitoredWorlds.add(world);
@@ -88,11 +93,13 @@ public class WarpPrivacyManager {
             for (World world : this.monitoredWorlds) {
                 if (world == null) continue;
 
-                if (hide) {
-                    this.replaceProvider(world);
-                } else {
-                    this.restoreProvider(world);
-                }
+                world.execute(() -> {
+                    if (hide) {
+                        this.replaceProvider(world);
+                    } else {
+                        this.restoreProvider(world);
+                    }
+                });
             }
         } catch (Exception e) {
             LOGGER.severe("Error updating warp privacy state: " + e.getMessage());
@@ -110,16 +117,16 @@ public class WarpPrivacyManager {
             if (providers == null) return;
 
             WorldMapManager.MarkerProvider existing = providers.get(WarpPrivacyProvider.PROVIDER_ID);
-            if (existing == null || existing instanceof WarpPrivacyProvider) {
+            
+            if (existing instanceof WarpPrivacyProvider) {
                 return;
             }
 
-            backedUpProviders.putIfAbsent(world, existing);
-            providers.put(WarpPrivacyProvider.PROVIDER_ID, warpPrivacyProvider);
-
-            if (BetterMapConfig.getInstance().isDebug()) {
-                LOGGER.info("Replaced warp provider in world " + world.getName());
+            if (existing != null) {
+                backedUpProviders.putIfAbsent(world, existing);
             }
+            
+            providers.put(WarpPrivacyProvider.PROVIDER_ID, warpPrivacyProvider);
         } catch (Exception e) {
             LOGGER.severe("Error replacing warp provider: " + e.getMessage());
         }
@@ -139,10 +146,6 @@ public class WarpPrivacyManager {
             if (providers == null) return;
 
             providers.put(WarpPrivacyProvider.PROVIDER_ID, original);
-
-            if (BetterMapConfig.getInstance().isDebug()) {
-                LOGGER.info("Restored warp provider in world " + world.getName());
-            }
         } catch (Exception e) {
             LOGGER.severe("Error restoring warp provider: " + e.getMessage());
         }
@@ -150,7 +153,12 @@ public class WarpPrivacyManager {
 
     private boolean shouldFilterWarps() {
         BetterMapConfig config = BetterMapConfig.getInstance();
-        return config.isHideOtherWarpsOnMap()
-            || config.isHideUnexploredWarpsOnMap();
+        PlayerConfigManager playerConfigManager = PlayerConfigManager.getInstance();
+        boolean hasPlayerFilters = playerConfigManager != null && playerConfigManager.hasWarpPrivacyOverrides();
+
+        return config.isHideAllWarpsOnMap()
+            || config.isHideOtherWarpsOnMap()
+            || config.isHideUnexploredWarpsOnMap()
+            || hasPlayerFilters;
     }
 }

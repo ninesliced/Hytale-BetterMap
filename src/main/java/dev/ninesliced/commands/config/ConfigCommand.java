@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
  * Command for managing global BetterMap configuration.
  */
 public class ConfigCommand extends AbstractCommandCollection {
-    public static final String CONFIG_PERMISSION = "dev.ninesliced.bettermap.command.config";
+    public static final String CONFIG_PERMISSION = "bettermap.command.config";
 
     /**
      * Constructs the ConfigCommand and registers subcommands.
@@ -35,10 +35,15 @@ public class ConfigCommand extends AbstractCommandCollection {
         this.addSubCommand(new RadarToggleCommand());
         this.addSubCommand(new RadarRangeCommand());
         this.addSubCommand(new HidePlayersCommand());
+        this.addSubCommand(new HideAllWarpsCommand());
         this.addSubCommand(new HideOtherWarpsCommand());
         this.addSubCommand(new HideUnexploredWarpsCommand());
         this.addSubCommand(new HideAllPoiCommand());
         this.addSubCommand(new HideUnexploredPoiCommand());
+        this.addSubCommand(new HideSpawnCommand());
+        this.addSubCommand(new HideDeathMarkerCommand());
+        this.addSubCommand(new HideGlobalWaypointsCommand());
+        this.addSubCommand(new HiddenPoiCommand());
         this.addSubCommand(new WaypointTeleportCommand());
         this.addSubCommand(new MarkerTeleportCommand());
         this.addSubCommand(new TrackWorldCommand());

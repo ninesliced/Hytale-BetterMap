@@ -124,7 +124,7 @@ public class ExplorationPersistence {
                     LOGGER.info("Saving exploration data for world: " + world.getName());
                     world.getPlayerRefs().forEach(playerRef -> {
                         LOGGER.info(" - Saving player: " + playerRef);
-                        Player player = playerRef.getComponent(Player.getComponentType());
+                        Player player = playerRef.getHolder().getComponent(Player.getComponentType());
                         if (player != null) {
                             String playerName = player.getDisplayName();
                             UUID uuid = ((CommandSender) player).getUuid();

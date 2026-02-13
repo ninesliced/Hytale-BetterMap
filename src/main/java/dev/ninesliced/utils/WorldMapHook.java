@@ -1,6 +1,21 @@
 package dev.ninesliced.utils;
 
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+
 import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.iterator.CircleSpiralIterator;
 import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.packets.worldmap.MapChunk;
@@ -9,13 +24,13 @@ import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMapSettings;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -23,10 +38,6 @@ import dev.ninesliced.managers.ChunkStreamingManager;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.MapExpansionManager;
 import dev.ninesliced.managers.PlayerConfigManager;
-
-import javax.annotation.Nonnull;
-import java.util.*;
-import java.util.logging.Logger;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
@@ -74,8 +85,20 @@ public class WorldMapHook {
                 ((RestrictedSpiralIterator) spiralIterator).stop();
             }
 
+            int mapChunkX = 0;
+            int mapChunkZ = 0;
+            Ref<EntityStore> ref = player.getReference();
+            if (ref != null && ref.isValid()) {
+                TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                if (tc != null) {
+                    var pos = tc.getPosition();
+                    mapChunkX = (int) Math.floor(pos.x) >> 5;
+                    mapChunkZ = (int) Math.floor(pos.z) >> 5;
+                }
+            }
+
             CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
-            vanillaIterator.init(0, 0, 0, 1);
+            vanillaIterator.init(mapChunkX, mapChunkZ, 0, 999);
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
@@ -104,7 +127,7 @@ public class WorldMapHook {
             // Clean up streaming manager state for this player
             ChunkStreamingManager.getInstance().removeState(player.getDisplayName());
 
-            LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName());
+            LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
             LOGGER.warning("Error unhooking tracker for " + player.getDisplayName() + ": " + e.getMessage());
         }
@@ -125,13 +148,25 @@ public class WorldMapHook {
 
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
+            int mapChunkX = 0;
+            int mapChunkZ = 0;
+            Ref<EntityStore> ref = player.getReference();
+            if (ref != null && ref.isValid()) {
+                TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                if (tc != null) {
+                    var pos = tc.getPosition();
+                    mapChunkX = (int) Math.floor(pos.x) >> 5;
+                    mapChunkZ = (int) Math.floor(pos.z) >> 5;
+                }
+            }
+
             CircleSpiralIterator vanillaIterator = new CircleSpiralIterator();
-            vanillaIterator.init(0, 0, 0, 1);
+            vanillaIterator.init(mapChunkX, mapChunkZ, 0, 999);
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
 
             ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
 
-            LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName());
+            LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
             LOGGER.warning("Failed to restore vanilla tracker for " + player.getDisplayName() + ": " + e.getMessage());
         }
@@ -411,6 +446,82 @@ public class WorldMapHook {
         }
     }
 
+    public static void clearMarkerCaches(@Nonnull World world) {
+        for (PlayerRef playerRef : world.getPlayerRefs()) {
+            Holder<EntityStore> holder = playerRef.getHolder();
+            if (holder == null) continue;
+            Player player = holder.getComponent(Player.getComponentType());
+            if (player == null) continue;
+
+            try {
+                clearMarkerCaches(player.getWorldMapTracker());
+            } catch (Exception e) {
+                LOGGER.fine("Failed to clear marker cache for " + player.getDisplayName() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    public static void clearPlayerMarkerCache(@Nonnull Player player) {
+        try {
+            clearMarkerCaches(player.getWorldMapTracker());
+        } catch (Exception e) {
+            LOGGER.fine("Failed to clear marker cache for " + player.getDisplayName() + ": " + e.getMessage());
+        }
+    }
+
+    private static void clearMarkerCaches(@Nonnull WorldMapTracker tracker) {
+        Object markerTracker = findMarkerTracker(tracker);
+        if (markerTracker == null) {
+            return;
+        }
+
+        clearCollections(markerTracker);
+        ReflectionHelper.invokeMethod(markerTracker, "clear", new Class<?>[0], new Object[0]);
+        ReflectionHelper.invokeMethod(markerTracker, "reset", new Class<?>[0], new Object[0]);
+    }
+
+    private static Object findMarkerTracker(@Nonnull WorldMapTracker tracker) {
+        Class<?> current = tracker.getClass();
+        while (current != null) {
+            for (Field field : current.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Class<?> type = field.getType();
+                    String typeName = type.getName();
+                    if ("MapMarkerTracker".equals(type.getSimpleName())
+                        || typeName.endsWith(".MapMarkerTracker")) {
+                        Object value = field.get(tracker);
+                        if (value != null) {
+                            return value;
+                        }
+                    }
+                } catch (IllegalAccessException ignored) {
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
+    }
+
+    private static void clearCollections(@Nonnull Object target) {
+        Class<?> current = target.getClass();
+        while (current != null) {
+            for (Field field : current.getDeclaredFields()) {
+                try {
+                    field.setAccessible(true);
+                    Object value = field.get(target);
+                    if (value instanceof Map<?, ?> map) {
+                        map.clear();
+                    } else if (value instanceof Collection<?> collection) {
+                        collection.clear();
+                    }
+                } catch (IllegalAccessException ignored) {
+                }
+            }
+            current = current.getSuperclass();
+        }
+    }
+
     /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
      * Thread-safe implementation to prevent race conditions with the WorldMap thread.
@@ -516,10 +627,16 @@ public class WorldMapHook {
                     }
 
                     if (exploredWorldChunks == null || exploredWorldChunks.isEmpty()) {
-                        this.currentIterator = Collections.emptyIterator();
-                        this.targetMapChunks = new ArrayList<>();
-                        this.initialized = true;
-                        return;
+                        int worldChunkX = cx * 2;
+                        int worldChunkZ = cz * 2;
+                        int bootstrapRadius = BetterMapConfig.getInstance().getExplorationRadius();
+                        
+                        Set<Long> bootstrapChunks = ChunkUtil.getChunksInCircularArea(worldChunkX, worldChunkZ, bootstrapRadius);
+                        data.getExploredChunks().markChunksExplored(bootstrapChunks);
+                        data.getMapExpansion().updateBoundaries(worldChunkX, worldChunkZ, bootstrapRadius);
+                        
+                        exploredWorldChunks = data.getExploredChunks().getExploredChunks();
+                        LOGGER.info("Bootstrapped " + bootstrapChunks.size() + " exploration chunks around (" + worldChunkX + ", " + worldChunkZ + ")");
                     }
 
                     // Check if we need to re-sort or can use cached data

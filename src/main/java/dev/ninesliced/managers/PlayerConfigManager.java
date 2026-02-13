@@ -5,12 +5,12 @@ import com.google.gson.GsonBuilder;
 import dev.ninesliced.configs.BetterMapConfig;
 import dev.ninesliced.configs.PlayerConfig;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -75,7 +75,6 @@ public class PlayerConfigManager {
         }
 
         playerConfigs.put(uuid, config);
-        LOGGER.info("Loaded config for player: " + uuid);
     }
 
     public void savePlayerConfig(UUID uuid) {
@@ -93,7 +92,36 @@ public class PlayerConfigManager {
     public void unloadPlayerConfig(UUID uuid) {
         savePlayerConfig(uuid);
         playerConfigs.remove(uuid);
-        LOGGER.info("Unloaded config for player: " + uuid);
+    }
+
+    public boolean hasPoiPrivacyOverrides() {
+        for (PlayerConfig config : playerConfigs.values()) {
+            if (config == null) {
+                continue;
+            }
+            if (config.isHideAllPoiOnMap()
+                || config.isHideSpawnOnMap()
+                || config.isHideDeathMarkerOnMap()) {
+                return true;
+            }
+            List<String> hidden = config.getHiddenPoiNames();
+            if (hidden != null && !hidden.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean hasWarpPrivacyOverrides() {
+        for (PlayerConfig config : playerConfigs.values()) {
+            if (config == null) {
+                continue;
+            }
+            if (config.isHideAllWarpsOnMap() || config.isHideOtherWarpsOnMap()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private PlayerConfig createDefaultConfig(UUID uuid) {
