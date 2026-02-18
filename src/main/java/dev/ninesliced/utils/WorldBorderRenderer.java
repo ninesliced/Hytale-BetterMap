@@ -69,17 +69,27 @@ public class WorldBorderRenderer {
         long innerRadiusSq = (long) innerRadius * innerRadius;
         long outerRadiusSq = (long) outerRadius * outerRadius;
 
+        // Use integer math: pre-compute world coordinates scaled by width/height
+        // worldX = chunkMinX + px * MAP_CHUNK_SIZE / width  (integer division per pixel)
+        // Pre-compute row's dz² outside the inner loop
         for (int py = 0; py < height; py++) {
-            for (int px = 0; px < width; px++) {
-                float worldX = chunkMinX + (px / scaleX);
-                float worldZ = chunkMinZ + (py / scaleZ);
+            int worldZ = chunkMinZ + py * MAP_CHUNK_SIZE / height;
+            long dz = (long) worldZ - offsetZ;
+            long dzSq = dz * dz;
 
-                float dx = worldX - offsetX;
-                float dz = worldZ - offsetZ;
-                long distSq = (long) (dx * dx + dz * dz);
+            // Early row skip: if dz² alone exceeds outerRadiusSq, no pixel in this row can match
+            if (dzSq > outerRadiusSq) {
+                continue;
+            }
+
+            int rowOffset = py * width;
+            for (int px = 0; px < width; px++) {
+                int worldX = chunkMinX + px * MAP_CHUNK_SIZE / width;
+                long dx = (long) worldX - offsetX;
+                long distSq = dx * dx + dzSq;
 
                 if (distSq >= innerRadiusSq && distSq <= outerRadiusSq) {
-                    int index = py * width + px;
+                    int index = rowOffset + px;
                     if (index >= 0 && index < data.length) {
                         data[index] = BORDER_COLOR;
                     }

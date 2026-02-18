@@ -11,8 +11,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -27,6 +32,18 @@ public class CavePersistence {
     private static final String CAVE_FILE_PREFIX = "cave-";
 
     private final Path storageDir;
+
+    private final Map<String, Set<Long>> loadAllChunksCache = new ConcurrentHashMap<>();
+    private final Set<String> dirtyWorlds = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Dedicated single-thread executor for save I/O to avoid contention on ForkJoinPool.commonPool().
+     */
+    private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "BetterMap-CaveSave");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * Initializes the cave persistence manager, setting up the storage directory.
@@ -123,7 +140,7 @@ public class CavePersistence {
                                 Set<Long> chunks = new HashSet<>(state.getExploredCaveChunks());
                                 
                                 if (!chunks.isEmpty()) {
-                                    java.util.concurrent.ForkJoinPool.commonPool().execute(() -> 
+                                    saveExecutor.execute(() -> 
                                         save(playerName, uuid, worldName, chunks)
                                     );
                                 }
@@ -187,7 +204,7 @@ public class CavePersistence {
 
         Path file = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID.toString() + ".bin");
         
-        LOGGER.info("[CAVE SAVE] Saving " + chunks.size() + " cave chunks for " + playerName + " in " + worldName);
+        LOGGER.fine("[CAVE SAVE] Saving " + chunks.size() + " cave chunks for " + playerName + " in " + worldName);
 
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(file)))) {
             out.writeInt(DATA_VERSION);
@@ -199,6 +216,23 @@ public class CavePersistence {
         } catch (IOException e) {
             LOGGER.severe("Failed to save cave exploration data for " + playerName + ": " + e.getMessage());
         }
+        dirtyWorlds.add(worldName);
+    }
+
+    /**
+     * Shuts down the dedicated save I/O executor, waiting for pending saves to complete.
+     */
+    public void shutdown() {
+        saveExecutor.shutdown();
+        try {
+            if (!saveExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                LOGGER.warning("Cave save executor did not terminate in time, forcing shutdown...");
+                saveExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            saveExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -208,10 +242,19 @@ public class CavePersistence {
      * @return A set of all explored cave chunk indices.
      */
     public Set<Long> loadAllChunks(@Nonnull String worldName) {
+        boolean isDirty = dirtyWorlds.remove(worldName);
+        if (!isDirty) {
+            Set<Long> cached = loadAllChunksCache.get(worldName);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
         Set<Long> allChunks = new HashSet<>();
         Path worldDir = storageDir.resolve(worldName);
 
         if (!Files.exists(worldDir)) {
+            loadAllChunksCache.put(worldName, allChunks);
             return allChunks;
         }
 
@@ -233,6 +276,7 @@ public class CavePersistence {
             LOGGER.severe("Failed to list files in " + worldDir + ": " + e.getMessage());
         }
 
+        loadAllChunksCache.put(worldName, allChunks);
         return allChunks;
     }
 }

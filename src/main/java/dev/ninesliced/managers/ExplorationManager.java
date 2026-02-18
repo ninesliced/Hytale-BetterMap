@@ -167,21 +167,13 @@ public class ExplorationManager {
      * @return A set of all explored chunks.
      */
     private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
+    private volatile long cachedAllExploredGlobalVersion = -1;
     
     public java.util.Set<Long> getAllExploredChunks(String worldName) {
-        long combinedVersion = 0;
-        int playerCount = 0;
-        for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
-            String dataWorld = data.getWorldName();
-            if (dataWorld == null || !dataWorld.equals(worldName)) continue;
-            combinedVersion += data.getExploredChunks().getVersion();
-            playerCount++;
-        }
-        combinedVersion = combinedVersion * 31 + playerCount;
+        // O(1) staleness check using global atomic version counter
+        long currentGlobalVersion = ExplorationTracker.getInstance().getGlobalVersion();
         
-        Long cachedVersion = cachedAllExploredVersion.get(worldName);
-        if (cachedVersion != null && cachedVersion == combinedVersion) {
+        if (currentGlobalVersion == cachedAllExploredGlobalVersion) {
             Set<Long> cached = cachedAllExploredChunks.get(worldName);
             if (cached != null) {
                 return cached;
@@ -206,7 +198,7 @@ public class ExplorationManager {
         }
 
         cachedAllExploredChunks.put(worldName, allChunks);
-        cachedAllExploredVersion.put(worldName, combinedVersion);
+        cachedAllExploredGlobalVersion = currentGlobalVersion;
         return allChunks;
     }
 
@@ -264,6 +256,12 @@ public class ExplorationManager {
             } catch (InterruptedException e) {
                 autoSaveScheduler.shutdownNow();
                 Thread.currentThread().interrupt();
+            }
+            if (persistence != null) {
+                persistence.shutdown();
+            }
+            if (cavePersistence != null) {
+                cavePersistence.shutdown();
             }
             ExplorationTracker.getInstance().clear();
             LOGGER.info("Exploration System shutdown complete");

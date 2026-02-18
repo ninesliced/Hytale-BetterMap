@@ -17,8 +17,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 /**
@@ -30,6 +35,18 @@ public class ExplorationPersistence {
     private static final int DATA_VERSION = 1;
 
     private final Path storageDir;
+
+    private final Map<String, Set<Long>> loadAllChunksCache = new ConcurrentHashMap<>();
+    private final Set<String> dirtyWorlds = ConcurrentHashMap.newKeySet();
+
+    /**
+     * Dedicated single-thread executor for save I/O to avoid contention on ForkJoinPool.commonPool().
+     */
+    private final ExecutorService saveExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "BetterMap-ExplorationSave");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * Initializes the persistence manager, setting up the storage directory.
@@ -153,9 +170,9 @@ public class ExplorationPersistence {
                                 return;
                             }
 
-                            Set<Long> chunks = new HashSet<>(data.getExploredChunks().getExploredChunks());
+                            Set<Long> chunks = data.getExploredChunks().getExploredChunks();
 
-                            java.util.concurrent.ForkJoinPool.commonPool().execute(() ->
+                            saveExecutor.execute(() ->
                                     save(playerName, uuid, worldName, chunks)
                             );
                         } catch (Exception e) {
@@ -202,7 +219,7 @@ public class ExplorationPersistence {
         }
 
         Path file = worldDir.resolve(playerUUID.toString() + ".bin");
-        LOGGER.info("[DEBUG] Saving " + chunks.size() + " chunks for " + playerName + " in world " + worldName);
+        LOGGER.fine("[DEBUG] Saving " + chunks.size() + " chunks for " + playerName + " in world " + worldName);
 
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(file)))) {
             out.writeInt(DATA_VERSION);
@@ -214,6 +231,23 @@ public class ExplorationPersistence {
         } catch (IOException e) {
             LOGGER.severe("Failed to save exploration data for " + playerName + ": " + e.getMessage());
         }
+        dirtyWorlds.add(worldName);
+    }
+
+    /**
+     * Shuts down the dedicated save I/O executor, waiting for pending saves to complete.
+     */
+    public void shutdown() {
+        saveExecutor.shutdown();
+        try {
+            if (!saveExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+                LOGGER.warning("Exploration save executor did not terminate in time, forcing shutdown...");
+                saveExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            saveExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -223,10 +257,19 @@ public class ExplorationPersistence {
      * @return A set of all explored chunk indices.
      */
     public Set<Long> loadAllChunks(@Nonnull String worldName) {
+        boolean isDirty = dirtyWorlds.remove(worldName);
+        if (!isDirty) {
+            Set<Long> cached = loadAllChunksCache.get(worldName);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
         Set<Long> allChunks = new HashSet<>();
         Path worldDir = storageDir.resolve(worldName);
 
         if (!Files.exists(worldDir)) {
+            loadAllChunksCache.put(worldName, allChunks);
             return allChunks;
         }
 
@@ -248,6 +291,7 @@ public class ExplorationPersistence {
             LOGGER.severe("Failed to list files in " + worldDir + ": " + e.getMessage());
         }
 
+        loadAllChunksCache.put(worldName, allChunks);
         return allChunks;
     }
 }

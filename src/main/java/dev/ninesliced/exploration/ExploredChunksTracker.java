@@ -51,6 +51,7 @@ public class ExploredChunksTracker {
             persistentComponent.addExploredChunk(chunkIndex);
             version++;
             cachedSnapshot = null;
+            ExplorationTracker.getInstance().incrementGlobalVersion();
             return true;
         }
 
@@ -60,6 +61,7 @@ public class ExploredChunksTracker {
             if (added) {
                 version++;
                 cachedSnapshot = null;
+                ExplorationTracker.getInstance().incrementGlobalVersion();
             }
             return added;
         } finally {
@@ -82,6 +84,7 @@ public class ExploredChunksTracker {
             }
             version++;
             cachedSnapshot = null;
+            ExplorationTracker.getInstance().incrementGlobalVersion();
             return chunkIndices.size();
         }
 
@@ -93,6 +96,7 @@ public class ExploredChunksTracker {
             if (added > 0) {
                 version++;
                 cachedSnapshot = null;
+                ExplorationTracker.getInstance().incrementGlobalVersion();
             }
             return added;
         } finally {
@@ -210,6 +214,7 @@ public class ExploredChunksTracker {
             persistentComponent.getExploredChunks().clear();
             version++;
             cachedSnapshot = null;
+            ExplorationTracker.getInstance().incrementGlobalVersion();
             return;
         }
 
@@ -218,6 +223,7 @@ public class ExploredChunksTracker {
             memoryExploredChunks.clear();
             version++;
             cachedSnapshot = null;
+            ExplorationTracker.getInstance().incrementGlobalVersion();
         } finally {
             lock.writeLock().unlock();
         }

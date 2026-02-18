@@ -7,8 +7,10 @@ import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.fluid.Fluid;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.ChunkColumn;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.FluidSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 
@@ -194,6 +196,7 @@ public class CaveModeImageBuilder {
     /**
      * Scans a column using multi-layer analysis for better cave detection.
      * Instead of just finding one floor, we analyze the entire vertical slice.
+     * Uses section-level batching to avoid repeated section lookups per Y level.
      */
     private void scanColumnMultiLayer(int x, int z, CaveColumnData result) {
         result.reset();
@@ -216,8 +219,22 @@ public class CaveModeImageBuilder {
         int currentCaveCeilingY = -1;
         int bestCaveSize = 0;
         
+        // Section-level batching: cache the current BlockSection to avoid
+        // repeated getSectionAtBlockY() lookups for every Y level.
+        // Sections are 16 blocks tall, so we only re-fetch when crossing a boundary.
+        BlockChunk blockChunk = worldChunk.getBlockChunk();
+        int cachedSectionIdx = -1;
+        BlockSection cachedSection = null;
+        
         for (int y = minY; y <= maxY; y++) {
-            int blockId = worldChunk.getBlock(x, y, z);
+            // Sections are 16 blocks tall; only re-fetch on section boundary crossing
+            int sectionIdx = y >> 4;
+            if (sectionIdx != cachedSectionIdx) {
+                cachedSectionIdx = sectionIdx;
+                cachedSection = blockChunk.getSectionAtIndex(sectionIdx);
+            }
+            
+            int blockId = cachedSection != null ? cachedSection.get(x, y, z) : 0;
             boolean isAir = isAirOrPassable(blockId);
 
             if (blockId != 0) {
@@ -264,12 +281,12 @@ public class CaveModeImageBuilder {
                     
                     if (containsTarget && !bestContainsTarget) {
                         bestFloorY = currentCaveFloorY;
-                        bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                        bestFloorBlock = getBlockAt(blockChunk, x, Math.max(0, currentCaveFloorY), z);
                         ceilingY = currentCaveCeilingY + 1;
                         bestCaveSize = caveSize;
                     } else if ((containsTarget == bestContainsTarget) && caveSize > bestCaveSize) {
                         bestFloorY = currentCaveFloorY;
-                        bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                        bestFloorBlock = getBlockAt(blockChunk, x, Math.max(0, currentCaveFloorY), z);
                         ceilingY = currentCaveCeilingY + 1;
                         bestCaveSize = caveSize;
                     }
@@ -283,7 +300,7 @@ public class CaveModeImageBuilder {
             int caveSize = currentCaveCeilingY - currentCaveFloorY;
             if (caveSize > bestCaveSize) {
                 bestFloorY = currentCaveFloorY;
-                bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                bestFloorBlock = getBlockAt(blockChunk, x, Math.max(0, currentCaveFloorY), z);
                 ceilingY = maxY;
                 bestCaveSize = caveSize;
             }
@@ -301,23 +318,23 @@ public class CaveModeImageBuilder {
         } else if (airCount > 0) {
             result.hasValidFloor = false;
             result.floorY = lowestAirY > 0 ? lowestAirY - 1 : targetYLevel;
-            result.floorBlockId = worldChunk.getBlock(x, Math.max(0, result.floorY), z);
+            result.floorBlockId = getBlockAt(blockChunk, x, Math.max(0, result.floorY), z);
             result.caveHeight = highestAirY - lowestAirY + 1;
         }
         
-        int targetBlock = worldChunk.getBlock(x, targetYLevel, z);
+        int targetBlock = getBlockAt(blockChunk, x, targetYLevel, z);
         result.isWallAtTarget = !isAirOrPassable(targetBlock);
         result.targetBlockId = targetBlock;
         
         result.lightLevel = Math.max(
-            worldChunk.getBlockChunk().getBlockLight(x, targetYLevel, z),
-            worldChunk.getBlockChunk().getSkyLight(x, targetYLevel, z)
+            blockChunk.getBlockLight(x, targetYLevel, z),
+            blockChunk.getSkyLight(x, targetYLevel, z)
         );
         
         if (result.hasValidFloor && result.floorY >= 0 && result.floorY < 320) {
             int floorLight = Math.max(
-                worldChunk.getBlockChunk().getBlockLight(x, result.floorY + 1, z),
-                worldChunk.getBlockChunk().getSkyLight(x, result.floorY + 1, z)
+                blockChunk.getBlockLight(x, result.floorY + 1, z),
+                blockChunk.getSkyLight(x, result.floorY + 1, z)
             );
             result.lightLevel = Math.max(result.lightLevel, floorLight);
         }
@@ -689,6 +706,16 @@ public class CaveModeImageBuilder {
         if (block == null) return true;
         
         return block.getParticleColor() == null && block.getTintUp() == null;
+    }
+    
+    /**
+     * Gets block ID using a pre-fetched BlockChunk reference, avoiding
+     * the repeated WorldChunk → BlockChunk → section chain.
+     */
+    private static int getBlockAt(BlockChunk blockChunk, int x, int y, int z) {
+        if (y < 0 || y >= 320) return 0;
+        BlockSection section = blockChunk.getSectionAtBlockY(y);
+        return section != null ? section.get(x, y, z) : 0;
     }
     
     /**

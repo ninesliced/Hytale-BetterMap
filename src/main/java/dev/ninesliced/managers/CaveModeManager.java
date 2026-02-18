@@ -5,9 +5,13 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 
+import com.hypixel.hytale.protocol.packets.worldmap.MapChunk;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -184,7 +188,7 @@ public class CaveModeManager {
             if (oldLayer != newLayer && wasUnderground) {
                 state.setPreviousLayer(oldLayer);
                 state.setLayerChanged(true);
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.fine("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
                            " changed layer from " + oldLayer + " to " + newLayer);
             } else {
                 state.setLayerChanged(false);
@@ -199,10 +203,10 @@ public class CaveModeManager {
         
         if (undergroundStateChanged) {
             if (isUnderground) {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.fine("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
                            " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + layerSize) + ")");
             } else {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.fine("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
                            " returned to surface from Y=" + playerY);
             }
         }
@@ -405,7 +409,22 @@ public class CaveModeManager {
         
         /** Flag to prevent concurrent cave overlay processing */
         private volatile boolean caveProcessingInProgress = false;
-        
+
+        // Reusable collections for cave overlay processing (cleared and reused each tick)
+        private final List<MapChunk> reusableChunksToSend = new ArrayList<>();
+        private final Set<Long> reusableTrackerToAdd = new HashSet<>();
+        private final Set<Long> reusableTrackerToRemove = new HashSet<>();
+        private final List<MapChunk> reusableChunksToUnload = new ArrayList<>();
+        private final Set<Long> reusableCandidateSet = new HashSet<>();
+        private final List<long[]> reusableCandidateChunksWithDist = new ArrayList<>();
+
+        public List<MapChunk> borrowChunksToSend() { reusableChunksToSend.clear(); return reusableChunksToSend; }
+        public Set<Long> borrowTrackerToAdd() { reusableTrackerToAdd.clear(); return reusableTrackerToAdd; }
+        public Set<Long> borrowTrackerToRemove() { reusableTrackerToRemove.clear(); return reusableTrackerToRemove; }
+        public List<MapChunk> borrowChunksToUnload() { reusableChunksToUnload.clear(); return reusableChunksToUnload; }
+        public Set<Long> borrowCandidateSet() { reusableCandidateSet.clear(); return reusableCandidateSet; }
+        public List<long[]> borrowCandidateChunksWithDist() { reusableCandidateChunksWithDist.clear(); return reusableCandidateChunksWithDist; }
+
         public boolean isDynamicModeEnabled() {
             return dynamicModeEnabled;
         }

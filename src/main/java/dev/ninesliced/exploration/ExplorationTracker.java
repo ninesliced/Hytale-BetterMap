@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Central tracker for all active players' exploration data.
@@ -17,6 +18,13 @@ public class ExplorationTracker {
     private static final ExplorationTracker INSTANCE = new ExplorationTracker();
 
     private final Map<String, PlayerExplorationData> playerExplorationData = new ConcurrentHashMap<>();
+
+    /**
+     * Global version counter incremented on any player's exploration change.
+     * Used for O(1) cache invalidation in shared exploration mode instead of
+     * iterating all players to compute a combined version hash.
+     */
+    private final AtomicLong globalVersion = new AtomicLong(0);
 
     private ExplorationTracker() {
     }
@@ -29,6 +37,24 @@ public class ExplorationTracker {
     @Nonnull
     public static ExplorationTracker getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * Gets the current global version. This counter is incremented whenever
+     * any player's exploration data changes.
+     *
+     * @return The current global version.
+     */
+    public long getGlobalVersion() {
+        return globalVersion.get();
+    }
+
+    /**
+     * Increments the global version counter. Called by ExploredChunksTracker
+     * when chunks are added or removed.
+     */
+    public void incrementGlobalVersion() {
+        globalVersion.incrementAndGet();
     }
 
     /**
