@@ -235,7 +235,7 @@ public class ExplorationPersistence {
     }
 
     /**
-     * Shuts down the dedicated save I/O executor, waiting for pending saves to complete.
+     * Shuts down the dedicated save I/O executor.
      */
     public void shutdown() {
         saveExecutor.shutdown();

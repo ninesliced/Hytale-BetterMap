@@ -196,7 +196,6 @@ public class CaveModeImageBuilder {
     /**
      * Scans a column using multi-layer analysis for better cave detection.
      * Instead of just finding one floor, we analyze the entire vertical slice.
-     * Uses section-level batching to avoid repeated section lookups per Y level.
      */
     private void scanColumnMultiLayer(int x, int z, CaveColumnData result) {
         result.reset();
@@ -221,7 +220,6 @@ public class CaveModeImageBuilder {
         
         // Section-level batching: cache the current BlockSection to avoid
         // repeated getSectionAtBlockY() lookups for every Y level.
-        // Sections are 16 blocks tall, so we only re-fetch when crossing a boundary.
         BlockChunk blockChunk = worldChunk.getBlockChunk();
         int cachedSectionIdx = -1;
         BlockSection cachedSection = null;
@@ -709,8 +707,7 @@ public class CaveModeImageBuilder {
     }
     
     /**
-     * Gets block ID using a pre-fetched BlockChunk reference, avoiding
-     * the repeated WorldChunk → BlockChunk → section chain.
+     * Gets block ID using a pre-fetched BlockChunk reference.
      */
     private static int getBlockAt(BlockChunk blockChunk, int x, int y, int z) {
         if (y < 0 || y >= 320) return 0;

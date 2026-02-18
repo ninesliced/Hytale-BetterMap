@@ -74,7 +74,6 @@ public class WorldMapHook {
 
     /**
      * Consolidated per-player cave mode state.
-     * Replaces multiple ConcurrentHashMap fields with a single object per player.
      */
     private static final class CaveModePlayerState {
         final Set<Long> loadedChunks = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -1458,7 +1457,6 @@ public class WorldMapHook {
 
     /**
      * Pre-resolved MethodHandle constants for known reflection targets.
-     * Eliminates per-call string concatenation and map lookups from ReflectionHelper.
      */
     private static final class TrackerHandles {
         private static final MethodHandles.Lookup LOOKUP = MethodHandles.lookup();

@@ -21,8 +21,7 @@ public class ExplorationTracker {
 
     /**
      * Global version counter incremented on any player's exploration change.
-     * Used for O(1) cache invalidation in shared exploration mode instead of
-     * iterating all players to compute a combined version hash.
+     * Used for O(1) cache invalidation in shared exploration mode.
      */
     private final AtomicLong globalVersion = new AtomicLong(0);
 
@@ -40,8 +39,7 @@ public class ExplorationTracker {
     }
 
     /**
-     * Gets the current global version. This counter is incremented whenever
-     * any player's exploration data changes.
+     * Gets the current global version.
      *
      * @return The current global version.
      */
@@ -50,8 +48,7 @@ public class ExplorationTracker {
     }
 
     /**
-     * Increments the global version counter. Called by ExploredChunksTracker
-     * when chunks are added or removed.
+     * Increments the global version counter.
      */
     public void incrementGlobalVersion() {
         globalVersion.incrementAndGet();
