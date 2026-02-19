@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -20,11 +20,22 @@ public class ExploredChunksTracker {
     private final Set<Long> memoryExploredChunks;
     private final ExplorationComponent persistentComponent;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    
-    private volatile long version = 0;
-    
-    private volatile Set<Long> cachedSnapshot = null;
-    private volatile long cachedSnapshotVersion = -1;
+
+    // AtomicLong ensures version++ is a single atomic read-modify-write,
+    private final AtomicLong version = new AtomicLong(0);
+
+    // A single volatile reference holds both the snapshot and its version
+    private volatile CacheEntry cache = null;
+
+    private static final class CacheEntry {
+        final Set<Long> snapshot;
+        final long version;
+
+        CacheEntry(Set<Long> snapshot, long version) {
+            this.snapshot = snapshot;
+            this.version = version;
+        }
+    }
 
     /**
      * Creates a new tracker.
@@ -33,11 +44,7 @@ public class ExploredChunksTracker {
      */
     public ExploredChunksTracker(@Nullable ExplorationComponent component) {
         this.persistentComponent = component;
-        if (component == null) {
-            this.memoryExploredChunks = ConcurrentHashMap.newKeySet();
-        } else {
-            this.memoryExploredChunks = null;
-        }
+        this.memoryExploredChunks = (component == null) ? new HashSet<>() : null;
     }
 
     /**
@@ -47,20 +54,21 @@ public class ExploredChunksTracker {
      * @return true if the chunk was newly added, false if already explored.
      */
     public boolean markChunkExplored(long chunkIndex) {
-        if (persistentComponent != null) {
-            persistentComponent.addExploredChunk(chunkIndex);
-            version++;
-            cachedSnapshot = null;
-            ExplorationTracker.getInstance().incrementGlobalVersion();
-            return true;
-        }
-
+        // The write lock now guards both paths, fixing the check-then-act race
+        // on persistentComponent that existed when it ran without any lock.
         lock.writeLock().lock();
         try {
-            boolean added = memoryExploredChunks.add(chunkIndex);
+            boolean added;
+            if (persistentComponent != null) {
+                if (persistentComponent.isExplored(chunkIndex)) return false;
+                persistentComponent.addExploredChunk(chunkIndex);
+                added = true;
+            } else {
+                added = memoryExploredChunks.add(chunkIndex);
+            }
             if (added) {
-                version++;
-                cachedSnapshot = null;
+                version.incrementAndGet();
+                cache = null;
                 ExplorationTracker.getInstance().incrementGlobalVersion();
             }
             return added;
@@ -77,25 +85,25 @@ public class ExploredChunksTracker {
      */
     public int markChunksExplored(@Nonnull Set<Long> chunkIndices) {
         if (chunkIndices.isEmpty()) return 0;
-        
-        if (persistentComponent != null) {
-            for (Long chunk : chunkIndices) {
-                persistentComponent.addExploredChunk(chunk);
-            }
-            version++;
-            cachedSnapshot = null;
-            ExplorationTracker.getInstance().incrementGlobalVersion();
-            return chunkIndices.size();
-        }
 
         lock.writeLock().lock();
         try {
-            int sizeBefore = memoryExploredChunks.size();
-            memoryExploredChunks.addAll(chunkIndices);
-            int added = memoryExploredChunks.size() - sizeBefore;
+            int added = 0;
+            if (persistentComponent != null) {
+                for (Long chunk : chunkIndices) {
+                    if (!persistentComponent.isExplored(chunk)) {
+                        persistentComponent.addExploredChunk(chunk);
+                        added++;
+                    }
+                }
+            } else {
+                int sizeBefore = memoryExploredChunks.size();
+                memoryExploredChunks.addAll(chunkIndices);
+                added = memoryExploredChunks.size() - sizeBefore;
+            }
             if (added > 0) {
-                version++;
-                cachedSnapshot = null;
+                version.incrementAndGet();
+                cache = null;
                 ExplorationTracker.getInstance().incrementGlobalVersion();
             }
             return added;
@@ -111,12 +119,11 @@ public class ExploredChunksTracker {
      * @return True if explored.
      */
     public boolean isChunkExplored(long chunkIndex) {
-        if (persistentComponent != null) {
-            return persistentComponent.isExplored(chunkIndex);
-        }
-
         lock.readLock().lock();
         try {
+            if (persistentComponent != null) {
+                return persistentComponent.isExplored(chunkIndex);
+            }
             return memoryExploredChunks.contains(chunkIndex);
         } finally {
             lock.readLock().unlock();
@@ -132,28 +139,35 @@ public class ExploredChunksTracker {
      */
     @Nonnull
     public Set<Long> getExploredChunks() {
-        long currentVersion = version;
-        Set<Long> snapshot = cachedSnapshot;
-        if (snapshot != null && cachedSnapshotVersion == currentVersion) {
-            return snapshot;
+        // Fast path: check outside the lock first.
+        CacheEntry entry = cache;
+        if (entry != null && entry.version == version.get()) {
+            return entry.snapshot;
         }
-        
-        if (persistentComponent != null) {
-            snapshot = Collections.unmodifiableSet(new HashSet<>(persistentComponent.getExploredChunks()));
-        } else {
-            lock.readLock().lock();
-            try {
-                snapshot = Collections.unmodifiableSet(new HashSet<>(memoryExploredChunks));
-            } finally {
-                lock.readLock().unlock();
+
+        // Slow path: build snapshot under read lock, then re-validate version
+        // to avoid publishing a snapshot that was already stale.
+        lock.readLock().lock();
+        try {
+            entry = cache;
+            long currentVersion = version.get();
+            if (entry != null && entry.version == currentVersion) {
+                return entry.snapshot;
             }
+
+            Set<Long> snapshot;
+            if (persistentComponent != null) {
+                snapshot = Collections.unmodifiableSet(new HashSet<>(persistentComponent.getExploredChunks()));
+            } else {
+                snapshot = Collections.unmodifiableSet(new HashSet<>(memoryExploredChunks));
+            }
+            cache = new CacheEntry(snapshot, currentVersion);
+            return snapshot;
+        } finally {
+            lock.readLock().unlock();
         }
-        
-        cachedSnapshot = snapshot;
-        cachedSnapshotVersion = currentVersion;
-        return snapshot;
     }
-    
+
     /**
      * Iterates over all explored chunks without creating a copy.
      * This is the most efficient way to process all explored chunks.
@@ -161,17 +175,16 @@ public class ExploredChunksTracker {
      * @param action The action to perform on each chunk index.
      */
     public void forEachExploredChunk(@Nonnull Consumer<Long> action) {
-        if (persistentComponent != null) {
-            for (Long chunk : persistentComponent.getExploredChunks()) {
-                action.accept(chunk);
-            }
-            return;
-        }
-
         lock.readLock().lock();
         try {
-            for (Long chunk : memoryExploredChunks) {
-                action.accept(chunk);
+            if (persistentComponent != null) {
+                for (Long chunk : persistentComponent.getExploredChunks()) {
+                    action.accept(chunk);
+                }
+            } else {
+                for (Long chunk : memoryExploredChunks) {
+                    action.accept(chunk);
+                }
             }
         } finally {
             lock.readLock().unlock();
@@ -185,7 +198,7 @@ public class ExploredChunksTracker {
      * @return The current version.
      */
     public long getVersion() {
-        return version;
+        return version.get();
     }
 
     /**
@@ -194,12 +207,11 @@ public class ExploredChunksTracker {
      * @return The number of explored chunks.
      */
     public int getExploredCount() {
-        if (persistentComponent != null) {
-            return persistentComponent.getExploredChunks().size();
-        }
-
         lock.readLock().lock();
         try {
+            if (persistentComponent != null) {
+                return persistentComponent.getExploredChunks().size();
+            }
             return memoryExploredChunks.size();
         } finally {
             lock.readLock().unlock();
@@ -210,19 +222,15 @@ public class ExploredChunksTracker {
      * Clears all explored chunks data.
      */
     public void clear() {
-        if (persistentComponent != null) {
-            persistentComponent.getExploredChunks().clear();
-            version++;
-            cachedSnapshot = null;
-            ExplorationTracker.getInstance().incrementGlobalVersion();
-            return;
-        }
-
         lock.writeLock().lock();
         try {
-            memoryExploredChunks.clear();
-            version++;
-            cachedSnapshot = null;
+            if (persistentComponent != null) {
+                persistentComponent.getExploredChunks().clear();
+            } else {
+                memoryExploredChunks.clear();
+            }
+            version.incrementAndGet();
+            cache = null;
             ExplorationTracker.getInstance().incrementGlobalVersion();
         } finally {
             lock.writeLock().unlock();
