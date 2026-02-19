@@ -226,13 +226,13 @@ $C.@PageOverlay {
             Anchor: (Top: 8);
 
             @FieldRow {
-              Label { Text: "Max Zoom In (Min Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              Label { Text: "Max Zoom Out (Min Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
               $C.@NumberField #PlayerMinScale { Anchor: (Width: 120, Height: 28); }
             }
 
             @FieldRow {
               Anchor: (Top: 4);
-              Label { Text: "Max Zoom Out (Max Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              Label { Text: "Max Zoom In (Max Scale)"; Style: @FieldLabelStyle; FlexWeight: 1; }
               $C.@NumberField #PlayerMaxScale { Anchor: (Width: 120, Height: 28); }
             }
           }

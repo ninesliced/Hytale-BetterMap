@@ -55,9 +55,10 @@ public class ExplorationComponent implements Component<EntityStore> {
      * Marks a chunk as explored.
      *
      * @param chunkIndex The index of the chunk to mark as explored.
+     * @return true if the chunk was newly added, false if it was already explored.
      */
-    public void addExploredChunk(long chunkIndex) {
-        exploredChunks.add(chunkIndex);
+    public boolean addExploredChunk(long chunkIndex) {
+        return exploredChunks.add(chunkIndex);
     }
 
     /**

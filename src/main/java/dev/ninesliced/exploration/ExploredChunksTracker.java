@@ -54,8 +54,15 @@ public class ExploredChunksTracker {
      * @return true if the chunk was newly added, false if already explored.
      */
     public boolean markChunkExplored(long chunkIndex) {
-        // The write lock now guards both paths, fixing the check-then-act race
-        // on persistentComponent that existed when it ran without any lock.
+        if (persistentComponent != null) {
+            boolean added = persistentComponent.addExploredChunk(chunkIndex);
+            if (added) {
+                version++;
+                cachedSnapshot = null;
+            }
+            return added;
+        }
+
         lock.writeLock().lock();
         try {
             boolean added;
@@ -85,6 +92,20 @@ public class ExploredChunksTracker {
      */
     public int markChunksExplored(@Nonnull Set<Long> chunkIndices) {
         if (chunkIndices.isEmpty()) return 0;
+        
+        if (persistentComponent != null) {
+            int added = 0;
+            for (Long chunk : chunkIndices) {
+                if (persistentComponent.addExploredChunk(chunk)) {
+                    added++;
+                }
+            }
+            if (added > 0) {
+                version++;
+                cachedSnapshot = null;
+            }
+            return added;
+        }
 
         lock.writeLock().lock();
         try {
