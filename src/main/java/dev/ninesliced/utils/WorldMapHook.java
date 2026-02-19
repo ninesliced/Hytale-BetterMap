@@ -1539,7 +1539,6 @@ public class WorldMapHook {
         private volatile long cachedMapChunksVersion = -1;
 
         private static final int RESORT_DISTANCE_THRESHOLD = 4;
-        /** Cleanup interval for stale pending reloads (~2 seconds at 10 TPS tracker updates). */
         private static final int PENDING_RELOAD_CLEANUP_INTERVAL = 20;
 
         public RestrictedSpiralIterator(ExplorationTracker.PlayerExplorationData data, WorldMapTracker tracker) {
@@ -1814,10 +1813,7 @@ public class WorldMapHook {
         }
 
         /**
-         * Removes stale entries from the tracker's pendingReloadChunks and pendingReloadFutures
-         * that correspond to chunks no longer in the current target set.
-         * In non-shared exploration mode, the target set changes as the player moves,
-         * leaving behind stale pending entries that block new chunk loading.
+         * Removes stale entries from the tracker's pendingReloadChunks and pendingReloadFutures that are no longer in the current target chunks list.
          */
         private void cleanupStalePendingReloads(List<Long> currentTargetChunks) {
             try {
