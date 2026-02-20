@@ -235,4 +235,122 @@ public class CavePersistence {
 
         return allChunks;
     }
+
+    /**
+     * Deletes all persisted cave exploration files for all worlds.
+     *
+     * @return Number of deleted files.
+     */
+    public int clearAllData() {
+        if (!Files.exists(storageDir)) {
+            return 0;
+        }
+
+        int deleted = 0;
+        try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
+            for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
+                if (!Files.isDirectory(worldDir)) {
+                    continue;
+                }
+
+                try (java.util.stream.Stream<Path> files = Files.list(worldDir)) {
+                    for (Path file : (Iterable<Path>) files::iterator) {
+                        String name = file.getFileName().toString();
+                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) {
+                            continue;
+                        }
+                        try {
+                            Files.deleteIfExists(file);
+                            deleted++;
+                        } catch (IOException e) {
+                            LOGGER.warning("Failed deleting cave exploration file " + file + ": " + e.getMessage());
+                        }
+                    }
+                } catch (IOException e) {
+                    LOGGER.warning("Failed listing cave files in " + worldDir + ": " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.warning("Failed listing cave storage directory " + storageDir + ": " + e.getMessage());
+        }
+
+        LOGGER.info("Deleted " + deleted + " persisted cave exploration file(s)");
+        return deleted;
+    }
+
+    /**
+     * Deletes all persisted cave exploration files for one player across all worlds.
+     *
+     * @param playerUUID The player UUID.
+     * @return Number of deleted files.
+     */
+    public int clearPlayerData(@Nonnull UUID playerUUID) {
+        if (!Files.exists(storageDir)) {
+            return 0;
+        }
+
+        int deleted = 0;
+        String targetFile = CAVE_FILE_PREFIX + playerUUID + ".bin";
+
+        try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
+            for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
+                if (!Files.isDirectory(worldDir)) {
+                    continue;
+                }
+
+                Path file = worldDir.resolve(targetFile);
+                try {
+                    if (Files.deleteIfExists(file)) {
+                        deleted++;
+                    }
+                } catch (IOException e) {
+                    LOGGER.warning("Failed deleting cave exploration file " + file + ": " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.warning("Failed listing cave storage directory " + storageDir + ": " + e.getMessage());
+        }
+
+        return deleted;
+    }
+
+    /**
+     * Lists all player UUIDs that have persisted cave exploration data.
+     */
+    @Nonnull
+    public Set<UUID> listSavedPlayerUuids() {
+        Set<UUID> uuids = new HashSet<>();
+        if (!Files.exists(storageDir)) {
+            return uuids;
+        }
+
+        try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
+            for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
+                if (!Files.isDirectory(worldDir)) {
+                    continue;
+                }
+
+                try (java.util.stream.Stream<Path> files = Files.list(worldDir)) {
+                    for (Path file : (Iterable<Path>) files::iterator) {
+                        String name = file.getFileName().toString();
+                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) {
+                            continue;
+                        }
+
+                        String uuidPart = name.substring(CAVE_FILE_PREFIX.length(), name.length() - 4);
+                        try {
+                            uuids.add(UUID.fromString(uuidPart));
+                        } catch (IllegalArgumentException ignored) {
+                        }
+                    }
+                } catch (IOException e) {
+                    LOGGER.warning("Failed listing cave files in " + worldDir + ": " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            LOGGER.warning("Failed listing cave storage directory " + storageDir + ": " + e.getMessage());
+        }
+
+        return uuids;
+    }
 }

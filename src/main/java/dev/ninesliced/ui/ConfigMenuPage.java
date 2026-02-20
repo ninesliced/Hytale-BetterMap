@@ -39,13 +39,19 @@ import dev.ninesliced.managers.UserMarkerProviderManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.managers.CaveModeManager;
+import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 import dev.ninesliced.utils.WaypointLimitUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
@@ -54,10 +60,26 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
     private static final Logger LOGGER = Logger.getLogger(ConfigMenuPage.class.getName());
     private enum BindingType { STRING, NUMBER, BOOLEAN }
+    private enum ExplorationResetType { MAP, CAVE, PLAYER_SURFACE, PLAYER_CAVE }
+
+    private static class SavedPlayerEntry {
+        private final UUID uuid;
+        private final String label;
+
+        private SavedPlayerEntry(UUID uuid, String label) {
+            this.uuid = uuid;
+            this.label = label;
+        }
+    }
 
     private static final String LAYOUT_PATH = "Pages/BetterMap/ConfigMenu.ui";
 
     private boolean restartRequired = false;
+    private ExplorationResetType pendingExplorationResetType = null;
+    private String pendingExplorationResetPlayerUuid = null;
+    private String pendingExplorationResetPlayerLabel = null;
+    private String selectedExplorationPlayerUuid = null;
+    private String selectedExplorationPlayerLabel = null;
 
     public ConfigMenuPage(PlayerRef player) {
         super(player, CustomPageLifetime.CanDismiss, ConfigEventData.CODEC);
@@ -175,6 +197,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
              ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
 
+             applySavedPlayersDropdown(ui);
+
              bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
              bindChange(events, "#AdminMapQuality", "admin_map_quality", BindingType.STRING);
              bindChange(events, "#AdminMaxChunksToLoad", "admin_max_chunks", BindingType.NUMBER);
@@ -219,6 +243,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindClick(events, "#AdminResetConfirmAllBtn", "admin_reset_confirm_all");
              bindClick(events, "#AdminResetConfirmKeepWorldsBtn", "admin_reset_confirm_keep_worlds");
              bindClick(events, "#AdminResetConfirmCancelBtn", "admin_reset_cancel");
+             bindClick(events, "#AdminResetMapExplorationBtn", "admin_reset_map_exploration");
+             bindClick(events, "#AdminResetCaveExplorationBtn", "admin_reset_cave_exploration");
+             bindChange(events, "#AdminExplorationPlayerSelect", "admin_exploration_player_select", BindingType.STRING);
+             bindClick(events, "#AdminResetSelectedPlayerSurfaceExplorationBtn", "admin_reset_selected_player_surface_exploration");
+             bindClick(events, "#AdminResetSelectedPlayerCaveExplorationBtn", "admin_reset_selected_player_cave_exploration");
+             bindClick(events, "#AdminExplorationResetConfirmBtn", "admin_exploration_reset_confirm");
+             bindClick(events, "#AdminExplorationResetCancelBtn", "admin_exploration_reset_cancel");
 
              bindClick(events, "#HostingBannerBtn", "open_hosting_link");
         }
@@ -393,6 +424,257 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         });
     }
 
+    private void resetAllMapExploration(Player actor) {
+        int deletedFiles = ExplorationManager.getInstance().resetAllMapExploration();
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            universe.getWorlds().values().forEach(world -> {
+                if (world == null) return;
+                world.execute(() -> {
+                    for (PlayerRef pRef : world.getPlayerRefs()) {
+                        Ref<EntityStore> pStoreRef = pRef.getReference();
+                        if (pStoreRef == null || !pStoreRef.isValid()) continue;
+                        Player p = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
+                        if (p == null) continue;
+
+                        try {
+                            WorldMapHook.clearCaveModeLoadedChunks(p.getDisplayName());
+                            WorldMapHook.forceFullMapRefresh(p);
+                        } catch (Exception e) {
+                            LOGGER.warning("Failed to refresh player map after exploration reset: " + e.getMessage());
+                        }
+                    }
+                });
+            });
+        }
+
+        actor.sendMessage(
+            Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                .insert(Message.raw("Reset map exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
+                    .color("#bfcdd5"))
+        );
+    }
+
+    private void resetAllCaveExploration(Player actor) {
+        int deletedFiles = ExplorationManager.getInstance().resetAllCaveExploration();
+        WorldMapHook.clearSharedCaveExplorationCache();
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            universe.getWorlds().values().forEach(world -> {
+                if (world == null) return;
+                world.execute(() -> {
+                    for (PlayerRef pRef : world.getPlayerRefs()) {
+                        Ref<EntityStore> pStoreRef = pRef.getReference();
+                        if (pStoreRef == null || !pStoreRef.isValid()) continue;
+                        Player p = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
+                        if (p == null) continue;
+
+                        try {
+                            CaveModeManager.getInstance().clearCaveExploration(p);
+                            WorldMapHook.clearCaveModeLoadedChunks(p.getDisplayName());
+                            WorldMapHook.forceFullMapRefresh(p);
+                        } catch (Exception e) {
+                            LOGGER.warning("Failed to refresh player map after cave reset: " + e.getMessage());
+                        }
+                    }
+                });
+            });
+        }
+
+        actor.sendMessage(
+            Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                .insert(Message.raw("Reset cave exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
+                    .color("#bfcdd5"))
+        );
+    }
+
+    private void applySavedPlayersDropdown(UICommandBuilder ui) {
+        List<SavedPlayerEntry> savedPlayers = collectSavedPlayersWithData();
+        List<DropdownEntryInfo> entries = new ArrayList<>();
+        Map<String, String> labelsByUuid = new HashMap<>();
+
+        for (SavedPlayerEntry entry : savedPlayers) {
+            String uuid = entry.uuid.toString();
+            labelsByUuid.put(uuid, entry.label);
+            entries.add(new DropdownEntryInfo(LocalizableString.fromString(entry.label), uuid));
+        }
+
+        if (entries.isEmpty()) {
+            selectedExplorationPlayerUuid = null;
+            selectedExplorationPlayerLabel = null;
+            entries.add(new DropdownEntryInfo(LocalizableString.fromString("No saved players found"), ""));
+            ui.set("#AdminExplorationPlayerSelect.Entries", entries);
+            ui.set("#AdminExplorationPlayerSelect.Value", "");
+            return;
+        }
+
+        String currentSelection = selectedExplorationPlayerUuid;
+        if (currentSelection == null || !labelsByUuid.containsKey(currentSelection)) {
+            currentSelection = savedPlayers.get(0).uuid.toString();
+        }
+
+        selectedExplorationPlayerUuid = currentSelection;
+        selectedExplorationPlayerLabel = labelsByUuid.get(currentSelection);
+
+        ui.set("#AdminExplorationPlayerSelect.Entries", entries);
+        ui.set("#AdminExplorationPlayerSelect.Value", currentSelection);
+    }
+
+    @Nonnull
+    private List<SavedPlayerEntry> collectSavedPlayersWithData() {
+        Set<UUID> savedUuids = ExplorationManager.getInstance().getAllSavedPlayerUuids();
+        List<SavedPlayerEntry> result = new ArrayList<>(savedUuids.size());
+        Map<UUID, String> onlineNames = new HashMap<>();
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            for (PlayerRef playerRef : universe.getPlayers()) {
+                if (playerRef != null) {
+                    onlineNames.put(playerRef.getUuid(), playerRef.getUsername());
+                }
+            }
+        }
+
+        List<UUID> sortedUuids = new ArrayList<>(savedUuids);
+        sortedUuids.sort(Comparator.comparing(UUID::toString));
+
+        for (UUID uuid : sortedUuids) {
+            String username = onlineNames.get(uuid);
+            if (username != null && !username.isBlank()) {
+                result.add(new SavedPlayerEntry(uuid, username + " (" + uuid + ")"));
+            } else {
+                result.add(new SavedPlayerEntry(uuid, "UUID: " + uuid));
+            }
+        }
+
+        return result;
+    }
+
+    private void resetSelectedPlayerSurfaceExploration(Player actor, @Nonnull UUID playerUuid, @Nonnull String label) {
+        int deletedMapFiles = ExplorationManager.getInstance().resetMapExplorationForPlayer(playerUuid);
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            PlayerRef playerRef = universe.getPlayer(playerUuid);
+            if (playerRef != null) {
+                Ref<EntityStore> pStoreRef = playerRef.getReference();
+                if (pStoreRef != null && pStoreRef.isValid()) {
+                    Player target = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
+                    if (target != null) {
+                        WorldMapHook.clearCaveModeLoadedChunks(target.getDisplayName());
+                        WorldMapHook.forceFullMapRefresh(target);
+                    }
+                }
+            }
+        }
+
+        actor.sendMessage(
+            Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                .insert(Message.raw("Reset surface exploration for " + label + ". Cleared " + deletedMapFiles + " map file(s).")
+                    .color("#bfcdd5"))
+        );
+    }
+
+    private void resetSelectedPlayerCaveExploration(Player actor, @Nonnull UUID playerUuid, @Nonnull String label) {
+        int deletedCaveFiles = ExplorationManager.getInstance().resetCaveExplorationForPlayer(playerUuid);
+        WorldMapHook.clearSharedCaveExplorationCache();
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            PlayerRef playerRef = universe.getPlayer(playerUuid);
+            if (playerRef != null) {
+                Ref<EntityStore> pStoreRef = playerRef.getReference();
+                if (pStoreRef != null && pStoreRef.isValid()) {
+                    Player target = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
+                    if (target != null) {
+                        CaveModeManager.getInstance().clearCaveExploration(target);
+                        WorldMapHook.clearCaveModeLoadedChunks(target.getDisplayName());
+                        WorldMapHook.forceFullMapRefresh(target);
+                    }
+                }
+            }
+        }
+
+        actor.sendMessage(
+            Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                .insert(Message.raw("Reset cave exploration for " + label + ". Cleared " + deletedCaveFiles + " cave file(s).")
+                    .color("#bfcdd5"))
+        );
+    }
+
+    private void showExplorationResetConfirm(UICommandBuilder ui, UIEventBuilder events, ExplorationResetType type) {
+        pendingExplorationResetType = type;
+        pendingExplorationResetPlayerUuid = null;
+        pendingExplorationResetPlayerLabel = null;
+
+        if (type == ExplorationResetType.PLAYER_SURFACE || type == ExplorationResetType.PLAYER_CAVE) {
+            pendingExplorationResetPlayerUuid = selectedExplorationPlayerUuid;
+            pendingExplorationResetPlayerLabel = selectedExplorationPlayerLabel;
+        }
+
+        ui.set("#AdminExplorationResetConfirm.Visible", true);
+        if (type == ExplorationResetType.CAVE) {
+            ui.set("#AdminExplorationResetConfirmMessage.Text",
+                "Are you sure you want to delete all cave exploration data for all players? This action is irreversible.");
+        } else if (type == ExplorationResetType.PLAYER_SURFACE) {
+            String label = pendingExplorationResetPlayerLabel != null ? pendingExplorationResetPlayerLabel : "selected player";
+            ui.set("#AdminExplorationResetConfirmMessage.Text",
+                "Are you sure you want to delete all surface exploration data for " + label + "? This action is irreversible.");
+        } else if (type == ExplorationResetType.PLAYER_CAVE) {
+            String label = pendingExplorationResetPlayerLabel != null ? pendingExplorationResetPlayerLabel : "selected player";
+            ui.set("#AdminExplorationResetConfirmMessage.Text",
+                "Are you sure you want to delete all cave exploration data for " + label + "? This action is irreversible.");
+        } else {
+            ui.set("#AdminExplorationResetConfirmMessage.Text",
+                "Are you sure you want to delete all map exploration data for all players? This action is irreversible.");
+        }
+        sendUpdate(ui, events, false);
+    }
+
+    private void cancelExplorationReset(UICommandBuilder ui, UIEventBuilder events) {
+        pendingExplorationResetType = null;
+        pendingExplorationResetPlayerUuid = null;
+        pendingExplorationResetPlayerLabel = null;
+        ui.set("#AdminExplorationResetConfirm.Visible", false);
+        sendUpdate(ui, events, false);
+    }
+
+    private void confirmExplorationReset(UICommandBuilder ui, UIEventBuilder events, Player player) {
+        ExplorationResetType action = pendingExplorationResetType;
+        String pendingUuid = pendingExplorationResetPlayerUuid;
+        String pendingLabel = pendingExplorationResetPlayerLabel;
+        pendingExplorationResetType = null;
+        pendingExplorationResetPlayerUuid = null;
+        pendingExplorationResetPlayerLabel = null;
+        ui.set("#AdminExplorationResetConfirm.Visible", false);
+        sendUpdate(ui, events, false);
+
+        if (action == ExplorationResetType.CAVE) {
+            resetAllCaveExploration(player);
+        } else if (action == ExplorationResetType.MAP) {
+            resetAllMapExploration(player);
+        } else if (action == ExplorationResetType.PLAYER_SURFACE || action == ExplorationResetType.PLAYER_CAVE) {
+            if (pendingUuid == null || pendingUuid.isBlank()) {
+                player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                return;
+            }
+
+            try {
+                UUID playerUuid = UUID.fromString(pendingUuid);
+                String label = pendingLabel != null ? pendingLabel : playerUuid.toString();
+                if (action == ExplorationResetType.PLAYER_SURFACE) {
+                    resetSelectedPlayerSurfaceExploration(player, playerUuid, label);
+                } else {
+                    resetSelectedPlayerCaveExploration(player, playerUuid, label);
+                }
+            } catch (IllegalArgumentException e) {
+                player.sendMessage(Message.raw("Invalid player selection.").color("#ff4a4a"));
+            }
+        }
+    }
+
     private void updateCaveRadiusForAllPlayers(int radius) {
         int clampedRadius = Math.max(1, Math.min(radius, 16));
         CaveModeManager caveModeManager = CaveModeManager.getInstance();
@@ -556,6 +838,67 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 if (PermissionsUtil.isAdmin(player)) {
                     ui.set("#AdminResetConfirm.Visible", false);
                     sendUpdate(ui, events, false);
+                }
+                return;
+            }
+            case "admin_reset_map_exploration" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    showExplorationResetConfirm(ui, events, ExplorationResetType.MAP);
+                }
+                return;
+            }
+            case "admin_reset_cave_exploration" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    showExplorationResetConfirm(ui, events, ExplorationResetType.CAVE);
+                }
+                return;
+            }
+            case "admin_exploration_player_select" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    String value = data.getEffectiveValue();
+                    if (value == null || value.isBlank()) {
+                        selectedExplorationPlayerUuid = null;
+                        selectedExplorationPlayerLabel = null;
+                    } else {
+                        selectedExplorationPlayerUuid = value;
+                        selectedExplorationPlayerLabel = collectSavedPlayersWithData().stream()
+                            .filter(entry -> entry.uuid.toString().equals(value))
+                            .map(entry -> entry.label)
+                            .findFirst()
+                            .orElse(value);
+                    }
+                }
+                return;
+            }
+            case "admin_reset_selected_player_surface_exploration" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    if (selectedExplorationPlayerUuid == null || selectedExplorationPlayerUuid.isBlank()) {
+                        player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                        return;
+                    }
+                    showExplorationResetConfirm(ui, events, ExplorationResetType.PLAYER_SURFACE);
+                }
+                return;
+            }
+            case "admin_reset_selected_player_cave_exploration" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    if (selectedExplorationPlayerUuid == null || selectedExplorationPlayerUuid.isBlank()) {
+                        player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                        return;
+                    }
+                    showExplorationResetConfirm(ui, events, ExplorationResetType.PLAYER_CAVE);
+                }
+                return;
+            }
+            case "admin_exploration_reset_confirm" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    confirmExplorationReset(ui, events, player);
+                }
+                return;
+            }
+            case "admin_exploration_reset_cancel" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    cancelExplorationReset(ui, events);
                 }
                 return;
             }

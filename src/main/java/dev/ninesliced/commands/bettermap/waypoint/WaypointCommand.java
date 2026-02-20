@@ -24,6 +24,7 @@ public class WaypointCommand extends AbstractCommand {
         this.addSubCommand(new WaypointUpdateCommand());
         this.addSubCommand(new WaypointEditCommand());
         this.addSubCommand(new WaypointTeleportCommand());
+        this.addSubCommand(new WaypointMarkerTeleportCommand());
         this.addSubCommand(new WaypointIdCommand());
     }
 

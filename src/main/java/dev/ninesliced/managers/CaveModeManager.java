@@ -282,6 +282,46 @@ public class CaveModeManager {
     public void removePlayerByName(@Nonnull String playerName) {
         playerStates.remove(playerName);
     }
+
+    /**
+     * Clears cave exploration/runtime overlay state for a player.
+     */
+    public void clearCaveExploration(@Nonnull Player player) {
+        clearCaveExploration(player.getDisplayName());
+    }
+
+    /**
+     * Clears cave exploration/runtime overlay state for a player by name.
+     */
+    public void clearCaveExploration(@Nonnull String playerName) {
+        DynamicCaveModeState state = playerStates.get(playerName);
+        if (state == null) {
+            return;
+        }
+
+        state.getExploredCaveChunks().clear();
+        state.getLoadedCaveChunks().clear();
+        state.getPendingCaveChunks().clear();
+        state.invalidateTargetCache();
+        state.setLastOverlayMapChunk(Integer.MIN_VALUE, Integer.MIN_VALUE);
+        state.setLastOverlayUpdateMs(0L);
+        state.setNeedsLayerRefresh(true);
+        state.setCaveProcessingInProgress(false);
+    }
+
+    /**
+     * Clears cave exploration/runtime overlay state for all tracked players.
+     *
+     * @return Number of states that were reset.
+     */
+    public int clearAllCaveExploration() {
+        int resetCount = 0;
+        for (String playerName : playerStates.keySet()) {
+            clearCaveExploration(playerName);
+            resetCount++;
+        }
+        return resetCount;
+    }
     
     public void enableCaveMode(@Nonnull Player player, int yLevel) {
         DynamicCaveModeState state = getOrCreateState(player);

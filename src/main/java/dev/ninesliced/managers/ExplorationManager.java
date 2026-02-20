@@ -1,6 +1,7 @@
 package dev.ninesliced.managers;
 
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
@@ -246,6 +247,124 @@ public class ExplorationManager {
      */
     public dev.ninesliced.configs.CavePersistence getCavePersistence() {
         return cavePersistence;
+    }
+
+    /**
+     * Resets map exploration for all tracked players and clears persisted map exploration files.
+     *
+     * @return Number of persisted map files deleted.
+     */
+    public int resetAllMapExploration() {
+        int runtimeResetCount = 0;
+
+        for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
+            data.getExploredChunks().clear();
+            data.getMapExpansion().reset();
+            data.resetLastChunkPosition();
+            runtimeResetCount++;
+        }
+
+        cachedAllExploredChunks.clear();
+        cachedAllExploredVersion.clear();
+
+        int deletedFiles = 0;
+        if (persistenceEnabled && persistence != null) {
+            deletedFiles = persistence.clearAllData();
+        }
+
+        LOGGER.info("Reset map exploration for " + runtimeResetCount + " tracked player state(s); deleted " + deletedFiles + " persisted file(s)");
+        return deletedFiles;
+    }
+
+    /**
+     * Resets cave exploration for all tracked players and clears persisted cave exploration files.
+     *
+     * @return Number of persisted cave files deleted.
+     */
+    public int resetAllCaveExploration() {
+        int runtimeResetCount = CaveModeManager.getInstance().clearAllCaveExploration();
+
+        int deletedFiles = 0;
+        if (persistenceEnabled && cavePersistence != null) {
+            deletedFiles = cavePersistence.clearAllData();
+        }
+
+        LOGGER.info("Reset cave exploration for " + runtimeResetCount + " tracked player state(s); deleted " + deletedFiles + " persisted file(s)");
+        return deletedFiles;
+    }
+
+    /**
+     * Gets all player UUIDs with persisted exploration data (map and/or cave).
+     */
+    @Nonnull
+    public Set<UUID> getAllSavedPlayerUuids() {
+        Set<UUID> result = new HashSet<>();
+        if (!persistenceEnabled) {
+            return result;
+        }
+        if (persistence != null) {
+            result.addAll(persistence.listSavedPlayerUuids());
+        }
+        if (cavePersistence != null) {
+            result.addAll(cavePersistence.listSavedPlayerUuids());
+        }
+        return result;
+    }
+
+    /**
+     * Resets map exploration for a specific player UUID.
+     * Clears persisted files and runtime tracked state if the player is online.
+     *
+     * @param playerUUID The player UUID.
+     * @return Number of persisted map files deleted.
+     */
+    public int resetMapExplorationForPlayer(@Nonnull UUID playerUUID) {
+        int deletedFiles = 0;
+        if (persistenceEnabled && persistence != null) {
+            deletedFiles = persistence.clearPlayerData(playerUUID);
+        }
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            PlayerRef playerRef = universe.getPlayer(playerUUID);
+            if (playerRef != null) {
+                String username = playerRef.getUsername();
+                ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(username);
+                if (data != null) {
+                    data.getExploredChunks().clear();
+                    data.getMapExpansion().reset();
+                    data.resetLastChunkPosition();
+                }
+            }
+        }
+
+        cachedAllExploredChunks.clear();
+        cachedAllExploredVersion.clear();
+        return deletedFiles;
+    }
+
+    /**
+     * Resets cave exploration for a specific player UUID.
+     * Clears persisted files and runtime tracked state if the player is online.
+     *
+     * @param playerUUID The player UUID.
+     * @return Number of persisted cave files deleted.
+     */
+    public int resetCaveExplorationForPlayer(@Nonnull UUID playerUUID) {
+        int deletedFiles = 0;
+        if (persistenceEnabled && cavePersistence != null) {
+            deletedFiles = cavePersistence.clearPlayerData(playerUUID);
+        }
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            PlayerRef playerRef = universe.getPlayer(playerUUID);
+            if (playerRef != null) {
+                CaveModeManager.getInstance().clearCaveExploration(playerRef.getUsername());
+            }
+        }
+
+        return deletedFiles;
     }
 
     /**

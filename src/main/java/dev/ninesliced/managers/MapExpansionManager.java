@@ -100,8 +100,14 @@ public class MapExpansionManager {
         if (minChunkX == Integer.MAX_VALUE) {
             return 0;
         }
-        long width = (long) (maxChunkX - minChunkX + 1);
-        long height = (long) (maxChunkZ - minChunkZ + 1);
+        long width = ((long) maxChunkX - (long) minChunkX) + 1L;
+        long height = ((long) maxChunkZ - (long) minChunkZ) + 1L;
+        if (width <= 0L || height <= 0L) {
+            return 0L;
+        }
+        if (width > Long.MAX_VALUE / height) {
+            return Long.MAX_VALUE;
+        }
         return width * height;
     }
 
@@ -136,15 +142,41 @@ public class MapExpansionManager {
         }
 
         public int getWidth() {
-            return maxX - minX + 1;
+            return saturatingLongToInt(getWidthLong());
         }
 
         public int getHeight() {
-            return maxZ - minZ + 1;
+            return saturatingLongToInt(getHeightLong());
         }
 
         public long getArea() {
-            return (long) getWidth() * getHeight();
+            long width = getWidthLong();
+            long height = getHeightLong();
+            if (width <= 0L || height <= 0L) {
+                return 0L;
+            }
+            if (width > Long.MAX_VALUE / height) {
+                return Long.MAX_VALUE;
+            }
+            return width * height;
+        }
+
+        public long getWidthLong() {
+            return ((long) maxX - (long) minX) + 1L;
+        }
+
+        public long getHeightLong() {
+            return ((long) maxZ - (long) minZ) + 1L;
+        }
+
+        private static int saturatingLongToInt(long value) {
+            if (value <= 0L) {
+                return 0;
+            }
+            if (value > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            }
+            return (int) value;
         }
 
         @Override

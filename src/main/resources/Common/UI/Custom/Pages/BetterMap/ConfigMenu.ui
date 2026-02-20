@@ -457,7 +457,6 @@ $C.@PageOverlay {
               $C.@NumberField #AutoSaveInterval { Anchor: (Width: 120, Height: 28); }
             }
           }
-
           Group {
             LayoutMode: Left;
             Anchor: (Height: 32, Top: 16);
@@ -743,6 +742,65 @@ $C.@PageOverlay {
             }
           }
 
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #9c5c3c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "Exploration Maintenance";
+              Style: (FontSize: 18, TextColor: #c97b4d, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+            Background: #2a201a(0.6);
+            OutlineColor: #5a463a(0.5);
+
+            Label {
+              Text: "Danger Zone: This clears tracked exploration for all players.";
+              Style: @WarningTextStyle;
+            }
+
+            TextButton #AdminResetMapExplorationBtn {
+              Anchor: (Height: 32, Top: 8);
+              Text: "RESET MAP EXPLORATION (ALL PLAYERS)";
+              Style: @NavButtonStyle;
+            }
+
+            TextButton #AdminResetCaveExplorationBtn {
+              Anchor: (Height: 32, Top: 6);
+              Text: "RESET CAVE EXPLORATION (ALL PLAYERS)";
+              Style: @NavButtonStyle;
+            }
+
+            @FieldRow {
+              Anchor: (Top: 8);
+              Label { Text: "Saved Player"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@DropdownBox #AdminExplorationPlayerSelect { Anchor: (Width: 280, Height: 28); }
+            }
+
+            Label {
+              Anchor: (Top: 2, Left: 2);
+              Text: "Offline players are listed by UUID when username is unavailable.";
+              Style: (FontSize: 12, TextColor: #96a9be, VerticalAlignment: Center);
+            }
+
+            TextButton #AdminResetSelectedPlayerSurfaceExplorationBtn {
+              Anchor: (Height: 32, Top: 6);
+              Text: "RESET SELECTED PLAYER SURFACE";
+              Style: @NavButtonStyle;
+            }
+
+            TextButton #AdminResetSelectedPlayerCaveExplorationBtn {
+              Anchor: (Height: 32, Top: 6);
+              Text: "RESET SELECTED PLAYER CAVE";
+              Style: @NavButtonStyle;
+            }
+          }
+
           TextButton #HostingBannerBtn {
             Anchor: (Top: 24, Height: 100);
             Style: @BannerButtonStyle;
@@ -813,6 +871,52 @@ $C.@PageOverlay {
             Anchor: (Top: 24, Height: 100);
             Style: @BannerButtonStyle;
             Background: "Assets/HostingBanner.png";
+          }
+        }
+      }
+    }
+
+    Group #AdminExplorationResetConfirm {
+      Visible: false;
+      Anchor: (Full: 0);
+      Background: #000000(0.6);
+      LayoutMode: Center;
+
+      Group {
+        Anchor: (Width: 440, Height: 148);
+        Background: #1a2533(0.95);
+        OutlineColor: #3a4a5a(0.8);
+        OutlineSize: 1;
+        LayoutMode: Top;
+        Padding: (Full: 12);
+
+        Label {
+          Text: "Confirm Exploration Reset";
+          Style: @SectionTitleStyle;
+        }
+
+        Label #AdminExplorationResetConfirmMessage {
+          Anchor: (Top: 8, Width: 416);
+          Text: "Are you sure you want to delete all exploration data? This action is irreversible.";
+          Style: (FontSize: 13, TextColor: #ff4a4a, RenderBold: true, VerticalAlignment: Center, Wrap: true);
+        }
+
+        Group {
+          LayoutMode: Left;
+          Anchor: (Top: 14, Height: 34);
+
+          TextButton #AdminExplorationResetConfirmBtn {
+            FlexWeight: 1;
+            Text: "YES, DELETE";
+            Style: @NavButtonStyle;
+          }
+
+          Group { Anchor: (Width: 10); }
+
+          TextButton #AdminExplorationResetCancelBtn {
+            FlexWeight: 1;
+            Text: "CANCEL";
+            Style: @NavButtonStyle;
           }
         }
       }

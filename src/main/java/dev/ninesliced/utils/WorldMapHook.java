@@ -144,6 +144,14 @@ public class WorldMapHook {
     }
 
     /**
+     * Clears cached shared cave exploration data for all worlds.
+     * Used when cave exploration is reset from the admin panel.
+     */
+    public static void clearSharedCaveExplorationCache() {
+        sharedCaveExploredChunks.clear();
+    }
+
+    /**
      * Clears the cave mode loaded chunks for a player.
      */
     public static void clearCaveModeLoadedChunks(String playerName) {
@@ -1793,15 +1801,30 @@ public class WorldMapHook {
          * Bootstraps initial exploration chunks when none exist.
          */
         private void bootstrapExploration(int cx, int cz) {
-            int worldChunkX = cx * 2;
-            int worldChunkZ = cz * 2;
-            int bootstrapRadius = ModConfig.getInstance().getExplorationRadius();
+            int worldChunkX = mapChunkToWorldChunk(cx);
+            int worldChunkZ = mapChunkToWorldChunk(cz);
+            int bootstrapRadius = Math.max(0, ModConfig.getInstance().getExplorationRadius());
 
             Set<Long> bootstrapChunks = ChunkUtil.getChunksInCircularArea(worldChunkX, worldChunkZ, bootstrapRadius);
             data.getExploredChunks().markChunksExplored(bootstrapChunks);
             data.getMapExpansion().updateBoundaries(worldChunkX, worldChunkZ, bootstrapRadius);
 
             LOGGER.info("Bootstrapped " + bootstrapChunks.size() + " exploration chunks around (" + worldChunkX + ", " + worldChunkZ + ")");
+        }
+
+        /**
+         * Converts map-chunk coordinates back to world-chunk coordinates using saturation,
+         * preventing int overflow when players are extremely far from origin.
+         */
+        private int mapChunkToWorldChunk(int mapChunkCoord) {
+            long worldChunk = ((long) mapChunkCoord) << 1;
+            if (worldChunk > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            }
+            if (worldChunk < Integer.MIN_VALUE) {
+                return Integer.MIN_VALUE;
+            }
+            return (int) worldChunk;
         }
 
         private void cleanupFarChunks(List<Long> keepChunks) {

@@ -77,7 +77,9 @@ public class ChunkUtil {
         Set<Long> chunks = new HashSet<>(offsets.length + offsets.length / 3);
         
         for (int[] offset : offsets) {
-            chunks.add(chunkCoordsToIndex(centerChunkX + offset[0], centerChunkZ + offset[1]));
+            int chunkX = saturatedAdd(centerChunkX, offset[0]);
+            int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
+            chunks.add(chunkCoordsToIndex(chunkX, chunkZ));
         }
 
         return chunks;
@@ -91,7 +93,9 @@ public class ChunkUtil {
         int[][] offsets = getCircularOffsets(radiusChunks);
         
         for (int[] offset : offsets) {
-            targetSet.add(chunkCoordsToIndex(centerChunkX + offset[0], centerChunkZ + offset[1]));
+            int chunkX = saturatedAdd(centerChunkX, offset[0]);
+            int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
+            targetSet.add(chunkCoordsToIndex(chunkX, chunkZ));
         }
     }
     
@@ -104,13 +108,21 @@ public class ChunkUtil {
         if (cached != null) {
             return cached;
         }
+
+        if (radiusChunks <= 0) {
+            int[][] offsets = new int[][]{{0, 0}};
+            CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
+            return offsets;
+        }
         
-        int radiusSquared = radiusChunks * radiusChunks;
+        long radiusSquared = (long) radiusChunks * radiusChunks;
         
         int count = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (dx * dx + dz * dz <= radiusSquared) {
+                long dxLong = dx;
+                long dzLong = dz;
+                if (dxLong * dxLong + dzLong * dzLong <= radiusSquared) {
                     count++;
                 }
             }
@@ -120,7 +132,9 @@ public class ChunkUtil {
         int index = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
-                if (dx * dx + dz * dz <= radiusSquared) {
+                long dxLong = dx;
+                long dzLong = dz;
+                if (dxLong * dxLong + dzLong * dzLong <= radiusSquared) {
                     offsets[index][0] = dx;
                     offsets[index][1] = dz;
                     index++;
@@ -177,5 +191,16 @@ public class ChunkUtil {
         long dx = x1 - x2;
         long dz = z1 - z2;
         return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    private static int saturatedAdd(int a, int b) {
+        long result = (long) a + b;
+        if (result > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (result < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) result;
     }
 }
