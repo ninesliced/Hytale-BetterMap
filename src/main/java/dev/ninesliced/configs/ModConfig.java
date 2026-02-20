@@ -397,6 +397,7 @@ public class ModConfig {
         setLoggerLevel("dev.ninesliced.managers.WarpPrivacyManager", level);
         setLoggerLevel("dev.ninesliced.managers.PoiPrivacyManager", level);
         setLoggerLevel("dev.ninesliced.managers.PlayerRadarManager", level);
+        setLoggerLevel("dev.ninesliced.managers.UserMarkerProviderManager", level);
         setLoggerLevel("dev.ninesliced.providers.LocationHudProvider", level);
         setLoggerLevel("dev.ninesliced.providers.WarpPrivacyProvider", level);
         setLoggerLevel("dev.ninesliced.providers.PoiPrivacyProvider", level);
@@ -407,6 +408,9 @@ public class ModConfig {
         setLoggerLevel("dev.ninesliced.exploration.ExplorationSyncHandler", level);
         setLoggerLevel("dev.ninesliced.exploration.WaypointData", level);
         setLoggerLevel("dev.ninesliced.exploration.RadarSystem", level);
+        setLoggerLevel("dev.ninesliced.listeners.ExplorationListener", level);
+        setLoggerLevel("dev.ninesliced.configs.CavePersistence", level);
+        setLoggerLevel("dev.ninesliced.managers.WaypointMigrationManager", level);
     }
 
     private void setLoggerLevel(String loggerName, Level level) {

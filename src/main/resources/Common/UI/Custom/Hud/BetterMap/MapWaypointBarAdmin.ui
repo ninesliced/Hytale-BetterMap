@@ -6,7 +6,7 @@
 
 Group #MapWaypointBar {
   LayoutMode: Left;
-  Anchor: (Width: 254, Height: 40, Top: 25, Right: 0);
+  Anchor: (Width: 320, Height: 40, Top: 25, Right: 0);
   Background: #0d1117(0.78);
   Padding: (Left: 6, Right: 6, Top: 3, Bottom: 3);
 

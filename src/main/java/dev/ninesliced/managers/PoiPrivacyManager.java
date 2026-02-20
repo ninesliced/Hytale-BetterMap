@@ -293,6 +293,7 @@ public class PoiPrivacyManager {
             || config.isHideUnexploredPoiOnMap()
             || config.isHideSpawnOnMap()
             || config.isHideDeathMarkerOnMap()
+            || config.isAllowMapMarkerTeleports()
             || (config.getHiddenPoiNames() != null && !config.getHiddenPoiNames().isEmpty())
             || hasPlayerFilters;
     }

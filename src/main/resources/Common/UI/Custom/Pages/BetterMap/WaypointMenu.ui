@@ -43,13 +43,23 @@ $C.@PageOverlay {
             Style: @NavButtonStyle;
         }
         
-        Group { Anchor: (Width: 10); }
+        Group #AdminConfigSpacer { Anchor: (Width: 10); Visible: false; }
         
         TextButton #ConfigButton {
             FlexWeight: 1;
             Anchor: (Height: 32);
             Text: "BETTERMAP CONFIG";
             Style: @NavButtonStyle;
+        }
+
+        Group { Anchor: (Width: 10); }
+
+        TextButton #AdminConfigButton {
+          FlexWeight: 1;
+          Anchor: (Height: 32);
+          Text: "ADMIN CONFIG";
+          Style: @NavButtonStyle;
+          Visible: false;
         }
       }
 

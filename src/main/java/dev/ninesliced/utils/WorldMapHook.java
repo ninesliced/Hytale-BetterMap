@@ -114,6 +114,14 @@ public class WorldMapHook {
     }
 
     /**
+     * Clears cached shared cave exploration data for all worlds.
+     * Used when cave exploration is reset from the admin panel.
+     */
+    public static void clearSharedCaveExplorationCache() {
+        sharedCaveExploredChunks.clear();
+    }
+
+    /**
      * Clears the cave mode loaded chunks for a player.
      */
     public static void clearCaveModeLoadedChunks(String playerName) {
@@ -1610,6 +1618,7 @@ public class WorldMapHook {
         private volatile int centerZ;
         private volatile int currentRadius;
         private int cleanupTimer = 0;
+        private int pendingReloadCleanupTimer = 0;
         private final Object lock = new Object();
 
         private volatile List<Long> cachedRankedChunks = null;
@@ -1622,6 +1631,7 @@ public class WorldMapHook {
         private volatile long cachedMapChunksVersion = -1;
 
         private static final int RESORT_DISTANCE_THRESHOLD = 4;
+        private static final int PENDING_RELOAD_CLEANUP_INTERVAL = 20;
 
         public RestrictedSpiralIterator(ExplorationTracker.PlayerExplorationData data, WorldMapTracker tracker) {
             super();
@@ -1686,6 +1696,7 @@ public class WorldMapHook {
                 this.currentGoalRadius = 0;
                 this.currentRadius = 0;
                 this.cleanupTimer = 0;
+                this.pendingReloadCleanupTimer = 0;
             }
         }
 
@@ -1878,6 +1889,11 @@ public class WorldMapHook {
                         cleanupTimer = 0;
                         cleanupFarChunks(limitedRankedChunks);
                     }
+
+                    if (++pendingReloadCleanupTimer > PENDING_RELOAD_CLEANUP_INTERVAL) {
+                        pendingReloadCleanupTimer = 0;
+                        cleanupStalePendingReloads(this.targetMapChunks);
+                    }
                 } catch (Exception e) {
                     LOGGER.warning("Error in RestrictedSpiralIterator.init(): " + e.getMessage());
                     this.currentIterator = Collections.emptyIterator();
@@ -1931,15 +1947,85 @@ public class WorldMapHook {
          * Bootstraps initial exploration chunks when none exist.
          */
         private void bootstrapExploration(int cx, int cz) {
-            int worldChunkX = cx * 2;
-            int worldChunkZ = cz * 2;
-            int bootstrapRadius = ModConfig.getInstance().getExplorationRadius();
+            int worldChunkX = mapChunkToWorldChunk(cx);
+            int worldChunkZ = mapChunkToWorldChunk(cz);
+            int bootstrapRadius = Math.max(0, ModConfig.getInstance().getExplorationRadius());
 
             Set<Long> bootstrapChunks = ChunkUtil.getChunksInCircularArea(worldChunkX, worldChunkZ, bootstrapRadius);
             data.getExploredChunks().markChunksExplored(bootstrapChunks);
             data.getMapExpansion().updateBoundaries(worldChunkX, worldChunkZ, bootstrapRadius);
 
             LOGGER.info("Bootstrapped " + bootstrapChunks.size() + " exploration chunks around (" + worldChunkX + ", " + worldChunkZ + ")");
+        }
+
+        /**
+         * Converts map-chunk coordinates back to world-chunk coordinates using saturation,
+         * preventing int overflow when players are extremely far from origin.
+         */
+        private int mapChunkToWorldChunk(int mapChunkCoord) {
+            long worldChunk = ((long) mapChunkCoord) << 1;
+            if (worldChunk > Integer.MAX_VALUE) {
+                return Integer.MAX_VALUE;
+            }
+            if (worldChunk < Integer.MIN_VALUE) {
+                return Integer.MIN_VALUE;
+            }
+            return (int) worldChunk;
+        }
+
+        /**
+         * Removes stale entries from the tracker's pendingReloadChunks and pendingReloadFutures that are no longer in the current target chunks list.
+         */
+        private void cleanupStalePendingReloads(List<Long> currentTargetChunks) {
+            try {
+                Object pendingReloadChunksObj = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
+                Object pendingReloadFuturesObj = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
+
+                boolean hasPendingChunks = pendingReloadChunksObj instanceof Set<?> pendingSet && !pendingSet.isEmpty();
+                boolean hasPendingFutures = pendingReloadFuturesObj instanceof Map<?, ?> futuresMap && !futuresMap.isEmpty();
+                if (!hasPendingChunks && !hasPendingFutures) return;
+
+                Set<Long> currentTargetSet = new HashSet<>(currentTargetChunks);
+
+                int removedChunks = 0;
+                int removedFutures = 0;
+
+                if (pendingReloadChunksObj instanceof Set<?> pendingSet) {
+                    Iterator<?> it = pendingSet.iterator();
+                    while (it.hasNext()) {
+                        Object obj = it.next();
+                        if (obj instanceof Long idx) {
+                            if (!currentTargetSet.contains(idx)) {
+                                it.remove();
+                                removedChunks++;
+                            }
+                        }
+                    }
+                }
+
+                if (pendingReloadFuturesObj instanceof Map<?, ?> futuresMap) {
+                    Iterator<? extends Map.Entry<?, ?>> it = futuresMap.entrySet().iterator();
+                    while (it.hasNext()) {
+                        Map.Entry<?, ?> entry = it.next();
+                        if (entry.getKey() instanceof Long idx) {
+                            if (!currentTargetSet.contains(idx)) {
+                                Object value = entry.getValue();
+                                if (value instanceof CompletableFuture<?> future) {
+                                    future.cancel(false);
+                                }
+                                it.remove();
+                                removedFutures++;
+                            }
+                        }
+                    }
+                }
+
+                if (removedChunks > 0 || removedFutures > 0) {
+                    LOGGER.fine("Cleaned up stale pending reloads: " + removedChunks + " chunks, " + removedFutures + " futures");
+                }
+            } catch (Exception e) {
+                LOGGER.warning("Failed to cleanup stale pending reloads: " + e.getMessage());
+            }
         }
 
         private void cleanupFarChunks(List<Long> keepChunks) {
