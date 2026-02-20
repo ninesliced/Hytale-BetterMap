@@ -24,6 +24,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
@@ -37,8 +39,8 @@ public class WaypointMigrationManager {
     private static final String PERSONAL_ID_PREFIX = "user_personal_";
     private static final String SHARED_ID_PREFIX = "user_shared_";
     
-    private static final Set<String> processedFiles = new HashSet<>();
-    private static boolean globalMigrationDone = false;
+    private static final Set<String> processedFiles = ConcurrentHashMap.newKeySet();
+    private static final AtomicBoolean globalMigrationDone = new AtomicBoolean(false);
     
     private WaypointMigrationManager() {
     }
@@ -71,11 +73,10 @@ public class WaypointMigrationManager {
             return;
         }
         
-        if (!globalMigrationDone) {
+        if (globalMigrationDone.compareAndSet(false, true)) {
             for (Path dataDir : dataDirs) {
                 migrateGlobalWaypoints(world, dataDir);
             }
-            globalMigrationDone = true;
         }
         
         for (Path dataDir : dataDirs) {
@@ -128,7 +129,7 @@ public class WaypointMigrationManager {
         }
         
         String fileKey = globalFile.toString();
-        if (processedFiles.contains(fileKey)) {
+        if (!processedFiles.add(fileKey)) {
             return;
         }
         
@@ -141,7 +142,6 @@ public class WaypointMigrationManager {
             if (!root.has("Waypoints")) {
                 LOGGER.info("[Migration] No Waypoints array in global-pings.json");
                 deleteFile(globalFile);
-                processedFiles.add(fileKey);
                 return;
             }
             
@@ -226,7 +226,6 @@ public class WaypointMigrationManager {
             LOGGER.info("[Migration] Migrated " + migratedCount + " global waypoints");
             
             deleteFile(globalFile);
-            processedFiles.add(fileKey);
             
         } catch (Exception e) {
             LOGGER.warning("[Migration] Failed to migrate global waypoints: " + e.getMessage());
@@ -269,7 +268,7 @@ public class WaypointMigrationManager {
      */
     private static void migratePersonalFile(@Nonnull Player player, @Nonnull World world, @Nonnull Path file) {
         String fileKey = file.toString();
-        if (processedFiles.contains(fileKey)) {
+        if (!processedFiles.add(fileKey)) {
             return;
         }
         
@@ -282,7 +281,6 @@ public class WaypointMigrationManager {
             if (!root.has("Waypoints")) {
                 LOGGER.info("[Migration] No Waypoints array in " + file.getFileName());
                 deleteFile(file);
-                processedFiles.add(fileKey);
                 return;
             }
             
@@ -355,7 +353,6 @@ public class WaypointMigrationManager {
             LOGGER.info("[Migration] Migrated " + migratedCount + " personal waypoints from " + file.getFileName());
             
             deleteFile(file);
-            processedFiles.add(fileKey);
             
         } catch (Exception e) {
             LOGGER.warning("[Migration] Failed to migrate personal waypoints from " + file.getFileName() + ": " + e.getMessage());
