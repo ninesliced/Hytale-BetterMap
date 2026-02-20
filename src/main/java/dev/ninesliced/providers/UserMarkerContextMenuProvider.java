@@ -77,15 +77,19 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
 
         if (!hidePersonalWaypoints) {
             PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
-            for (UserMapMarker marker : perWorldData.getUserMapMarkers()) {
-                collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+            if (perWorldData != null) {
+                for (UserMapMarker marker : perWorldData.getUserMapMarkers()) {
+                    collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+                }
             }
         }
         
         if (!hideGlobalWaypoints) {
             WorldMarkersResource worldMarkersResource = world.getChunkStore().getStore().getResource(WorldMarkersResource.getResourceType());
-            for (UserMapMarker marker : worldMarkersResource.getUserMapMarkers()) {
-                collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+            if (worldMarkersResource != null) {
+                for (UserMapMarker marker : worldMarkersResource.getUserMapMarkers()) {
+                    collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+                }
             }
         }
     }
