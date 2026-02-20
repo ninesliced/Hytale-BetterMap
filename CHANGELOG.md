@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.1
+
+* Issue where map becomes black/doesn't load new chunks after a certain time (~60 minutes) issue #25 on github thanks to @darkace1998 for the fix
+* Fix naming in user config ui for zoom in/zoom out
+* Fix spam of debug message on server console
+* Fix forgotten temple gateway, death teleport option shows up properly with our teleport option or while in op and not in creative mode
+* Fix Arithmetic Overflow Crash issue #24 on github thanks to @darkace1998 for the report
+* Add reset map and reset cave map in admin panel task
+* Add admin button to go into admin config directly on waypoint menu and map ui
+
+
 ## v1.3.0
 
 * Added cave mode which add cave chunks on map when inside a cave

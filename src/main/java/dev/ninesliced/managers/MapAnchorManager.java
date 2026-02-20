@@ -58,6 +58,7 @@ public class MapAnchorManager {
 
     private static final String ACTION_OPEN_MANAGER = "bettermap_openManager";
     private static final String ACTION_OPEN_CONFIG = "bettermap_openConfig";
+    private static final String ACTION_OPEN_ADMIN_CONFIG = "bettermap_openAdminConfig";
     private static final String ACTION_CREATE = "bettermap_create";
     private static final String ACTION_EDIT = "bettermap_edit";
     private static final String ACTION_DELETE = "bettermap_delete";
@@ -105,6 +106,17 @@ public class MapAnchorManager {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
             player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(playerRef));
+        });
+
+        anchorModule.register(ACTION_OPEN_ADMIN_CONFIG, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+            Player player = store.getComponent(ref, Player.getComponentType());
+            if (player == null) return;
+
+            if (PermissionsUtil.isAdmin(player)) {
+                player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(playerRef, true));
+            } else {
+                player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(playerRef));
+            }
         });
 
         anchorModule.register(ACTION_CREATE, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
@@ -212,6 +224,7 @@ public class MapAnchorManager {
         if (anchorModule != null) {
             anchorModule.unregister(ACTION_OPEN_MANAGER);
             anchorModule.unregister(ACTION_OPEN_CONFIG);
+            anchorModule.unregister(ACTION_OPEN_ADMIN_CONFIG);
             anchorModule.unregister(ACTION_CREATE);
             anchorModule.unregister(ACTION_EDIT);
             anchorModule.unregister(ACTION_DELETE);
@@ -240,12 +253,16 @@ public class MapAnchorManager {
             UIEventBuilder events = new UIEventBuilder();
 
             String playerName = player.getDisplayName();
+            boolean isAdmin = PermissionsUtil.isAdmin(player);
 
             List<UserMapMarker> markers = WaypointManager.getUserMarkers(player);
             int markerCount = markers != null ? markers.size() : 0;
 
-            commands.append("Hud/BetterMap/MapWaypointBar.ui");
+            commands.append(isAdmin ? "Hud/BetterMap/MapWaypointBarAdmin.ui" : "Hud/BetterMap/MapWaypointBar.ui");
             commands.set("#WaypointCount.Text", "Waypoints: " + markerCount);
+            commands.set("#ConfigButton.Visible", true);
+            commands.set("#AdminConfigSpacer.Visible", isAdmin);
+            commands.set("#AdminConfigButton.Visible", isAdmin);
 
             lastMarkerCounts.put(player.getDisplayName(), markerCount);
 
@@ -267,6 +284,13 @@ public class MapAnchorManager {
                 CustomUIEventBindingType.Activating,
                 "#ConfigButton",
                 EventData.of("action", ACTION_OPEN_CONFIG),
+                false
+            );
+
+            events.addEventBinding(
+                CustomUIEventBindingType.Activating,
+                "#AdminConfigButton",
+                EventData.of("action", ACTION_OPEN_ADMIN_CONFIG),
                 false
             );
 

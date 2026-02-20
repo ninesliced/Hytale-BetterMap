@@ -44,6 +44,12 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder ui, @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         ui.append("Pages/BetterMap/WaypointMenu.ui");
 
+        Player player = store.getComponent(ref, Player.getComponentType());
+        boolean isAdmin = player != null && PermissionsUtil.isAdmin(player);
+        ui.set("#ConfigButton.Visible", true);
+        ui.set("#AdminConfigSpacer.Visible", isAdmin);
+        ui.set("#AdminConfigButton.Visible", isAdmin);
+
         events.addEventBinding(
             CustomUIEventBindingType.Activating,
             "#CreateButton",
@@ -60,6 +66,12 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             CustomUIEventBindingType.Activating,
             "#ConfigButton",
             new EventData().put(WaypointGuiData.KEY_ACTION, Action.CONFIG.name()),
+            false
+        );
+        events.addEventBinding(
+            CustomUIEventBindingType.Activating,
+            "#AdminConfigButton",
+            new EventData().put(WaypointGuiData.KEY_ACTION, Action.ADMIN_CONFIG.name()),
             false
         );
 
@@ -189,6 +201,15 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             return;
         }
 
+        if (action == Action.ADMIN_CONFIG) {
+            if (PermissionsUtil.isAdmin(player)) {
+                player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(this.playerRef, true));
+            } else {
+                player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(this.playerRef));
+            }
+            return;
+        }
+
         switch (action) {
             case CREATE -> {
                 player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(this.playerRef, null));
@@ -274,7 +295,8 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
         DELETE,
         TELEPORT,
         CLOSE,
-        CONFIG;
+        CONFIG,
+        ADMIN_CONFIG;
 
         static Action from(String raw) {
             if (raw == null) {

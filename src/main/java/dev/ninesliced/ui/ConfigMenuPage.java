@@ -75,6 +75,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     private static final String LAYOUT_PATH = "Pages/BetterMap/ConfigMenu.ui";
 
     private boolean restartRequired = false;
+    private final boolean openAdminViewByDefault;
     private ExplorationResetType pendingExplorationResetType = null;
     private String pendingExplorationResetPlayerUuid = null;
     private String pendingExplorationResetPlayerLabel = null;
@@ -82,7 +83,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     private String selectedExplorationPlayerLabel = null;
 
     public ConfigMenuPage(PlayerRef player) {
+        this(player, false);
+    }
+
+    public ConfigMenuPage(PlayerRef player, boolean openAdminViewByDefault) {
         super(player, CustomPageLifetime.CanDismiss, ConfigEventData.CODEC);
+        this.openAdminViewByDefault = openAdminViewByDefault;
     }
 
     @Override
@@ -252,6 +258,17 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindClick(events, "#AdminExplorationResetCancelBtn", "admin_exploration_reset_cancel");
 
              bindClick(events, "#HostingBannerBtn", "open_hosting_link");
+
+             if (openAdminViewByDefault) {
+                 ui.set("#PlayerView.Visible", false);
+                 ui.set("#AdminView.Visible", true);
+                 ui.set("#PlayerViewBtnContainer.Visible", true);
+                 ui.set("#PlayerViewBtnSelectedContainer.Visible", false);
+                 ui.set("#AdminViewBtnContainer.Visible", false);
+                 ui.set("#AdminViewBtnSelectedContainer.Visible", true);
+                 ui.set("#HelpViewBtnContainer.Visible", true);
+                 ui.set("#HelpViewBtnSelectedContainer.Visible", false);
+             }
         }
     }
 

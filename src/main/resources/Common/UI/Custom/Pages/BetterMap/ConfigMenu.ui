@@ -766,7 +766,7 @@ $C.@PageOverlay {
 
             TextButton #AdminResetMapExplorationBtn {
               Anchor: (Height: 32, Top: 8);
-              Text: "RESET MAP EXPLORATION (ALL PLAYERS)";
+              Text: "RESET SURFACE EXPLORATION (ALL PLAYERS)";
               Style: @NavButtonStyle;
             }
 

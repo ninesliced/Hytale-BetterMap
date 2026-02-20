@@ -39,6 +39,7 @@ public class BetterMapCommand extends AbstractCommand {
         this.addAliases("bm", "map");
 
         this.addSubCommand(new ConfigCommand());
+        this.addSubCommand(new AdminCommand());
         this.addSubCommand(new ReloadCommand());
         this.addSubCommand(new HelpCommand());
         this.addSubCommand(new PlayerMinScaleCommand());
