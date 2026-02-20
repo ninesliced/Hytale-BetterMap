@@ -72,6 +72,13 @@ public class ExplorationComponent implements Component<EntityStore> {
     }
 
     /**
+     * Clears all explored chunk data.
+     */
+    public void clearExploredChunks() {
+        exploredChunks.clear();
+    }
+
+    /**
      * Creates a clone of this component.
      *
      * @return A deep copy of the component.
