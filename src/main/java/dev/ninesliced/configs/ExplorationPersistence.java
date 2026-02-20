@@ -69,7 +69,8 @@ public class ExplorationPersistence {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
             int version = in.readInt();
             if (version != DATA_VERSION) {
-                LOGGER.warning("Unknown data version for player " + player.getDisplayName() + ": " + version);
+                LOGGER.warning("Incompatible exploration data version for player " + player.getDisplayName() + ": " + version + " (expected " + DATA_VERSION + ")");
+                return;
             }
 
             int count = in.readInt();
