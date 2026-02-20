@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -23,9 +24,9 @@ public class ExploredChunksTracker {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     
     private final AtomicLong version = new AtomicLong(0);
-    
-    private volatile Set<Long> cachedSnapshot = null;
-    private volatile long cachedSnapshotVersion = -1;
+
+    private record SnapshotCache(Set<Long> snapshot, long version) {}
+    private final AtomicReference<SnapshotCache> snapshotCache = new AtomicReference<>(null);
 
     /**
      * Creates a new tracker.
@@ -54,7 +55,7 @@ public class ExploredChunksTracker {
                 boolean added = persistentComponent.addExploredChunk(chunkIndex);
                 if (added) {
                     version.incrementAndGet();
-                    cachedSnapshot = null;
+                    snapshotCache.set(null);
                 }
                 return added;
             } finally {
@@ -67,7 +68,7 @@ public class ExploredChunksTracker {
             boolean added = memoryExploredChunks.add(chunkIndex);
             if (added) {
                 version.incrementAndGet();
-                cachedSnapshot = null;
+                snapshotCache.set(null);
             }
             return added;
         } finally {
@@ -95,7 +96,7 @@ public class ExploredChunksTracker {
                 }
                 if (added > 0) {
                     version.incrementAndGet();
-                    cachedSnapshot = null;
+                    snapshotCache.set(null);
                 }
                 return added;
             } finally {
@@ -110,7 +111,7 @@ public class ExploredChunksTracker {
             int added = memoryExploredChunks.size() - sizeBefore;
             if (added > 0) {
                 version.incrementAndGet();
-                cachedSnapshot = null;
+                snapshotCache.set(null);
             }
             return added;
         } finally {
@@ -153,11 +154,11 @@ public class ExploredChunksTracker {
     @SuppressWarnings("null") // Collections.unmodifiableSet() is guaranteed non-null but lacks @Nonnull in this JDK
     public Set<Long> getExploredChunks() {
         long currentVersion = version.get();
-        Set<Long> snapshot = cachedSnapshot;
-        if (snapshot != null && cachedSnapshotVersion == currentVersion) {
-            return snapshot;
+        SnapshotCache cached = snapshotCache.get();
+        if (cached != null && cached.version() == currentVersion) {
+            return cached.snapshot();
         }
-        
+
         Set<Long> newSnapshot;
         lock.readLock().lock();
         try {
@@ -170,8 +171,7 @@ public class ExploredChunksTracker {
             lock.readLock().unlock();
         }
 
-        cachedSnapshot = newSnapshot;
-        cachedSnapshotVersion = currentVersion;
+        snapshotCache.set(new SnapshotCache(newSnapshot, currentVersion));
         return newSnapshot;
     }
     
@@ -246,7 +246,7 @@ public class ExploredChunksTracker {
             try {
                 persistentComponent.clearExploredChunks();
                 version.incrementAndGet();
-                cachedSnapshot = null;
+                snapshotCache.set(null);
             } finally {
                 lock.writeLock().unlock();
             }
@@ -257,7 +257,7 @@ public class ExploredChunksTracker {
         try {
             memoryExploredChunks.clear();
             version.incrementAndGet();
-            cachedSnapshot = null;
+            snapshotCache.set(null);
         } finally {
             lock.writeLock().unlock();
         }

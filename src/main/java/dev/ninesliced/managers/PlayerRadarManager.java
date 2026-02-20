@@ -159,8 +159,8 @@ public class PlayerRadarManager {
 
             if (!mapManager.getMarkerProviders().containsKey(PlayerRadarProvider.PROVIDER_ID)) {
                 mapManager.addMarkerProvider(PlayerRadarProvider.PROVIDER_ID, radarProvider);
+                LOGGER.info("Registered PlayerRadarProvider for world: " + worldName);
             }
-            LOGGER.info("Registered PlayerRadarProvider for world: " + worldName);
         } catch (Exception e) {
             registeredWorlds.remove(worldName);
             LOGGER.warning("Failed to register radar provider for world " + worldName + ": " + e.getMessage());

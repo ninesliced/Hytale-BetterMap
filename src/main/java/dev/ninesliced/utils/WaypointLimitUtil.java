@@ -110,7 +110,7 @@ public final class WaypointLimitUtil {
             if (current < 0) {
                 return "Could not access waypoint storage.";
             }
-            if (current > limit) {
+            if (current >= limit) {
                 return "Waypoint limit reached (" + current + "/" + limit + ").";
             }
         } catch (Exception e) {
