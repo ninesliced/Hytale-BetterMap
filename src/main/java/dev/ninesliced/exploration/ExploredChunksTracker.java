@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -21,7 +22,7 @@ public class ExploredChunksTracker {
     private final ExplorationComponent persistentComponent;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     
-    private volatile long version = 0;
+    private final AtomicLong version = new AtomicLong(0);
     
     private volatile Set<Long> cachedSnapshot = null;
     private volatile long cachedSnapshotVersion = -1;
@@ -50,7 +51,7 @@ public class ExploredChunksTracker {
         if (persistentComponent != null) {
             boolean added = persistentComponent.addExploredChunk(chunkIndex);
             if (added) {
-                version++;
+                version.incrementAndGet();
                 cachedSnapshot = null;
             }
             return added;
@@ -60,7 +61,7 @@ public class ExploredChunksTracker {
         try {
             boolean added = memoryExploredChunks.add(chunkIndex);
             if (added) {
-                version++;
+                version.incrementAndGet();
                 cachedSnapshot = null;
             }
             return added;
@@ -86,7 +87,7 @@ public class ExploredChunksTracker {
                 }
             }
             if (added > 0) {
-                version++;
+                version.incrementAndGet();
                 cachedSnapshot = null;
             }
             return added;
@@ -98,7 +99,7 @@ public class ExploredChunksTracker {
             memoryExploredChunks.addAll(chunkIndices);
             int added = memoryExploredChunks.size() - sizeBefore;
             if (added > 0) {
-                version++;
+                version.incrementAndGet();
                 cachedSnapshot = null;
             }
             return added;
@@ -135,7 +136,7 @@ public class ExploredChunksTracker {
      */
     @Nonnull
     public Set<Long> getExploredChunks() {
-        long currentVersion = version;
+        long currentVersion = version.get();
         Set<Long> snapshot = cachedSnapshot;
         if (snapshot != null && cachedSnapshotVersion == currentVersion) {
             return snapshot;
@@ -188,7 +189,7 @@ public class ExploredChunksTracker {
      * @return The current version.
      */
     public long getVersion() {
-        return version;
+        return version.get();
     }
 
     /**
@@ -215,7 +216,7 @@ public class ExploredChunksTracker {
     public void clear() {
         if (persistentComponent != null) {
             persistentComponent.getExploredChunks().clear();
-            version++;
+            version.incrementAndGet();
             cachedSnapshot = null;
             return;
         }
@@ -223,7 +224,7 @@ public class ExploredChunksTracker {
         lock.writeLock().lock();
         try {
             memoryExploredChunks.clear();
-            version++;
+            version.incrementAndGet();
             cachedSnapshot = null;
         } finally {
             lock.writeLock().unlock();
