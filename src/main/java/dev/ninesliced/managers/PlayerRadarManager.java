@@ -14,7 +14,6 @@ import dev.ninesliced.providers.PlayerRadarProvider;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +32,7 @@ public class PlayerRadarManager {
     private static final Logger LOGGER = Logger.getLogger(PlayerRadarManager.class.getName());
     private static PlayerRadarManager instance;
 
-    private final Set<String> registeredWorlds = new HashSet<>();
+    private final Set<String> registeredWorlds = ConcurrentHashMap.newKeySet();
     private final Map<String, List<RadarData>> worldRadarCache = new ConcurrentHashMap<>();
     private final PlayerRadarProvider radarProvider;
 
@@ -146,25 +145,24 @@ public class PlayerRadarManager {
     public void registerForWorld(@Nonnull World world) {
         String worldName = world.getName();
 
-        if (registeredWorlds.contains(worldName)) {
+        if (!registeredWorlds.add(worldName)) {
             return;
         }
 
         try {
             WorldMapManager mapManager = world.getWorldMapManager();
             if (mapManager == null) {
+                registeredWorlds.remove(worldName);
                 LOGGER.warning("Cannot register radar provider: WorldMapManager is null for world " + worldName);
                 return;
             }
 
             if (!mapManager.getMarkerProviders().containsKey(PlayerRadarProvider.PROVIDER_ID)) {
                 mapManager.addMarkerProvider(PlayerRadarProvider.PROVIDER_ID, radarProvider);
-                registeredWorlds.add(worldName);
-                LOGGER.info("Registered PlayerRadarProvider for world: " + worldName);
-            } else {
-                registeredWorlds.add(worldName);
             }
+            LOGGER.info("Registered PlayerRadarProvider for world: " + worldName);
         } catch (Exception e) {
+            registeredWorlds.remove(worldName);
             LOGGER.warning("Failed to register radar provider for world " + worldName + ": " + e.getMessage());
         }
     }
