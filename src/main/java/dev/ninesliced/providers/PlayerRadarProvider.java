@@ -49,11 +49,13 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            if (viewerUuid != null) {
-                PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid);
-                if (playerConfig != null && playerConfig.isHidePlayersOnMap()) {
-                    return;
-                }
+            if (viewerUuid == null) {
+                return;
+            }
+
+            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid);
+            if (playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+                return;
             }
 
             List<RadarData> radarDataList = PlayerRadarManager.getInstance().getRadarData(world.getName());
