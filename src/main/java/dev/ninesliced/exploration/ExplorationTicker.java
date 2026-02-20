@@ -44,7 +44,7 @@ public class ExplorationTicker {
      * @return The ticker instance.
      */
     @Nonnull
-    public static ExplorationTicker getInstance() {
+    public static synchronized ExplorationTicker getInstance() {
         if (INSTANCE == null) {
             INSTANCE = new ExplorationTicker();
         }
