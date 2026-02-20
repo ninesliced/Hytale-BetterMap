@@ -188,7 +188,6 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
         return new MapMarker(
             marker.getId(),
             displayName,
-            displayName.rawText,
             marker.getIcon(),
             packetTransform,
             null,
