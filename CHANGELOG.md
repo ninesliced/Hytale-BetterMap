@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.1-pre-release-2026.02.19-ad6f58ec8
+
+* Update Api changes for the new release of hytale (2026.02.19-ad6f58ec8) to fix the map becoming black
+
 ## v1.3.1
 
 * Issue where map becomes black/doesn't load new chunks after a certain time (~60 minutes) issue #25 on github thanks to @darkace1998 for the fix
