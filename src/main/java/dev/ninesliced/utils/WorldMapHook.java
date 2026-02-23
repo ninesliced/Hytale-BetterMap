@@ -97,10 +97,8 @@ public class WorldMapHook {
     private static final Map<String, Set<Long>> sharedCaveExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * Pending mutations to the WorldMapTracker's {@code loaded} set, keyed by player name.
-     * Enqueued from the world/ticker thread; drained and applied on the WorldMap thread
-     * inside {@link #updateExplorationState} to avoid concurrent modification of the
-     * underlying {@code LongOpenHashSet} (which is not thread-safe).
+     * Pending mutations to the WorldMapTracker's drained and applied on the WorldMap thread
+     * inside {@link #updateExplorationState} to safely modify the `loaded` set without concurrency issues.
      */
     private static final Map<String, java.util.concurrent.ConcurrentLinkedQueue<Runnable>> pendingTrackerModifications =
             new java.util.concurrent.ConcurrentHashMap<>();
@@ -381,8 +379,6 @@ public class WorldMapHook {
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
             // Drain any pending trackerLoaded mutations queued from the async cave processing path.
-            // This runs on the WorldMap thread, which is the only thread that safely accesses
-            // the LongOpenHashSet `loaded` field (unloadImages iterates it on the same thread).
             java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
                     pendingTrackerModifications.get(player.getDisplayName());
             if (pendingMods != null) {
@@ -858,9 +854,6 @@ public class WorldMapHook {
             final Set<Long> finalTrackerToRemove = trackerToRemove;
 
             // Queue trackerLoaded mutations to be applied on the WorldMap thread.
-            // The WorldMap thread iterates `loaded` (a LongOpenHashSet) in unloadImages().
-            // Modifying it from any other thread (world thread, ticker thread) without
-            // synchronization corrupts the fastutil iterator (this.wrapped becomes null).
             if (trackerLoaded != null && (!finalTrackerToRemove.isEmpty() || !finalTrackerToAdd.isEmpty())) {
                 final String pName = player.getDisplayName();
                 final Set<Long> frozenCaveChunks = new HashSet<>(loadedCaveChunks);
@@ -1901,10 +1894,6 @@ public class WorldMapHook {
                         Map.Entry<?, ?> entry = it.next();
                         if (entry.getKey() instanceof Long idx) {
                             if (!currentTargetSet.contains(idx)) {
-                                // Do NOT cancel the future — Hytale's WorldMapTracker.updateWorldMap()
-                                // calls getNow() on these futures later in the same tick, and cancelling
-                                // them here causes a CancellationException in Hytale's own code.
-                                // Simply removing the entry is sufficient for our cleanup.
                                 it.remove();
                                 removedFutures++;
                             }
