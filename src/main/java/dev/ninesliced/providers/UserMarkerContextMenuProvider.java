@@ -71,7 +71,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         if (playerId != null) {
             Boolean previous = TELEPORT_MENU_STATE.put(playerId, showTeleport);
             if (previous != null && previous != showTeleport) {
-                forceResyncAllMarkers(player);
+                scheduleResyncAllMarkers(world, player);
             }
         }
 
@@ -152,6 +152,17 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
             ReflectionHelper.setFieldValueRecursive(markerTracker, "smallMovementsTimer", 0.0f);
         } catch (Exception e) {
             LOGGER.warning("Failed to refresh marker context menu: " + e.getMessage());
+        }
+    }
+
+    private void scheduleResyncAllMarkers(@Nonnull World world, @Nonnull Player player) {
+        try {
+            if (!world.isAlive()) {
+                return;
+            }
+            world.execute(() -> forceResyncAllMarkers(player));
+        } catch (Exception e) {
+            LOGGER.warning("Failed to schedule marker context menu refresh: " + e.getMessage());
         }
     }
 }

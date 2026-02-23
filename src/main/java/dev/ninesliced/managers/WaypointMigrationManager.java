@@ -81,39 +81,6 @@ public class WaypointMigrationManager {
         for (Path dataDir : dataDirs) {
             migratePersonalWaypoints(player, world, dataDir);
         }
-        
-        if (Files.exists(dataDirLowercase) && !dataDirUppercase.equals(dataDirLowercase)) {
-            deleteDirectoryRecursively(dataDirLowercase);
-        }
-    }
-    
-    /**
-     * Recursively deletes a directory and all its contents.
-     * Used for cleaning up the lowercase "data" folder.
-     */
-    private static void deleteDirectoryRecursively(@Nonnull Path directory) {
-        try {
-            if (!Files.exists(directory)) {
-                return;
-            }
-            
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(directory)) {
-                for (Path entry : stream) {
-                    if (Files.isDirectory(entry)) {
-                        deleteDirectoryRecursively(entry);
-                    } else {
-                        Files.delete(entry);
-                        LOGGER.info("[Migration] Deleted file: " + entry.getFileName());
-                    }
-                }
-            }
-            
-            Files.delete(directory);
-            LOGGER.info("[Migration] Deleted directory: " + directory.getFileName());
-            
-        } catch (IOException e) {
-            LOGGER.warning("[Migration] Failed to delete directory " + directory + ": " + e.getMessage());
-        }
     }
     
     /**
@@ -432,25 +399,6 @@ public class WaypointMigrationManager {
         try {
             Files.delete(file);
             LOGGER.info("[Migration] Deleted legacy file: " + file.getFileName());
-            
-            Path parent = file.getParent();
-            while (parent != null) {
-                String folderName = parent.getFileName().toString();
-                
-                if (folderName.equals("Data")) {
-                    break;
-                }
-                
-                try (DirectoryStream<Path> stream = Files.newDirectoryStream(parent)) {
-                    if (!stream.iterator().hasNext()) {
-                        Files.delete(parent);
-                        LOGGER.info("[Migration] Deleted empty directory: " + folderName);
-                        parent = parent.getParent();
-                    } else {
-                        break;
-                    }
-                }
-            }
         } catch (IOException e) {
             LOGGER.warning("[Migration] Failed to delete legacy file " + file.getFileName() + ": " + e.getMessage());
         }

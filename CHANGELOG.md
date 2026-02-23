@@ -1,8 +1,15 @@
 # Changelog
 
-## v1.3.1-pre-release-2026.02.19-ad6f58ec8
+## v1.3.2-pre-release-2026.02.19-ad6f58ec8
 
 * Update Api changes for the new release of hytale (2026.02.19-ad6f58ec8) to fix the map becoming black
+
+## v1.3.2
+
+* Issue where map becomes black due to cave layer thanks to @darkace1998 for the fix
+* Fixed warning Failed to refresh marker context menu: Assert not in thread
+* Fix exception caused by the processPendingReloadChunks function
+* Fix Issue on mac where "Data" folder will be deleted instead of "data" folder
 
 ## v1.3.1
 
