@@ -8,8 +8,10 @@ import dev.ninesliced.configs.PlayerConfig;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -82,10 +84,26 @@ public class PlayerConfigManager {
         if (config == null) return;
 
         Path configFile = configDir.resolve(uuid.toString() + ".json");
-        try (Writer writer = Files.newBufferedWriter(configFile)) {
+        Path tempFile = configDir.resolve(uuid.toString() + ".json.tmp");
+        try (Writer writer = Files.newBufferedWriter(tempFile)) {
             GSON.toJson(config, writer);
         } catch (IOException e) {
-            LOGGER.warning("Failed to save config for player " + uuid + ": " + e.getMessage());
+            LOGGER.warning("Failed to write config for player " + uuid + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            return;
+        }
+        try {
+            Files.move(tempFile, configFile, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            try {
+                Files.move(tempFile, configFile, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                LOGGER.warning("Failed to finalize config for player " + uuid + ": " + ex.getMessage());
+                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            }
+        } catch (IOException e) {
+            LOGGER.warning("Failed to finalize config for player " + uuid + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
         }
     }
 

@@ -5,8 +5,10 @@ import com.google.gson.*;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -422,11 +424,28 @@ public class ModConfig {
      * Saves the current configuration to disk.
      */
     public void save() {
-        try (Writer writer = Files.newBufferedWriter(configPath)) {
+        Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
+        try (Writer writer = Files.newBufferedWriter(tempPath)) {
             GSON.toJson(this, writer);
-            LOGGER.info("Configuration saved to " + configPath);
         } catch (IOException e) {
-            LOGGER.severe("Failed to save configuration: " + e.getMessage());
+            LOGGER.severe("Failed to write configuration: " + e.getMessage());
+            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            return;
+        }
+        try {
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            LOGGER.info("Configuration saved to " + configPath);
+        } catch (AtomicMoveNotSupportedException e) {
+            try {
+                Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.info("Configuration saved to " + configPath);
+            } catch (IOException ex) {
+                LOGGER.severe("Failed to finalize configuration: " + ex.getMessage());
+                try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            }
+        } catch (IOException e) {
+            LOGGER.severe("Failed to finalize configuration: " + e.getMessage());
+            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
         }
     }
 
