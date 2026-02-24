@@ -13,9 +13,11 @@ import dev.ninesliced.utils.ChunkUtil;
 
 import javax.annotation.Nonnull;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -202,9 +204,10 @@ public class ExplorationPersistence {
         }
 
         Path file = worldDir.resolve(playerUUID.toString() + ".bin");
+        Path tempFile = worldDir.resolve(playerUUID.toString() + ".bin.tmp");
         LOGGER.info("[DEBUG] Saving " + chunks.size() + " chunks for " + playerName + " in world " + worldName);
 
-        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(file)))) {
+        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(tempFile)))) {
             out.writeInt(DATA_VERSION);
             out.writeInt(chunks.size());
 
@@ -212,7 +215,23 @@ public class ExplorationPersistence {
                 out.writeLong(chunk);
             }
         } catch (IOException e) {
-            LOGGER.severe("Failed to save exploration data for " + playerName + ": " + e.getMessage());
+            LOGGER.severe("Failed to write exploration data for " + playerName + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            return;
+        }
+
+        try {
+            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            try {
+                Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                LOGGER.severe("Failed to finalize exploration data for " + playerName + ": " + ex.getMessage());
+                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            }
+        } catch (IOException e) {
+            LOGGER.severe("Failed to finalize exploration data for " + playerName + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
         }
     }
 
