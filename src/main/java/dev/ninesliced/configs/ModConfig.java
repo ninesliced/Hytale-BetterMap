@@ -424,7 +424,7 @@ public class ModConfig {
      * Saves the current configuration to disk.
      */
     public void save() {
-        Path tempPath = configPath.resolveSibling(configPath.getFileName() + ".tmp");
+        Path tempPath = configPath.resolveSibling(configPath.getFileName().toString() + ".tmp");
         try (Writer writer = Files.newBufferedWriter(tempPath)) {
             GSON.toJson(this, writer);
         } catch (IOException e) {
