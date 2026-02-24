@@ -97,6 +97,13 @@ public class WorldMapHook {
     private static final Map<String, Set<Long>> sharedCaveExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
+     * Pending mutations to the WorldMapTracker's drained and applied on the WorldMap thread
+     * inside {@link #updateExplorationState} to safely modify the `loaded` set without concurrency issues.
+     */
+    private static final Map<String, java.util.concurrent.ConcurrentLinkedQueue<Runnable>> pendingTrackerModifications =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
      * Gets or creates the cave mode loaded chunks set for a player.
      */
     private static Set<Long> getCaveModeLoadedChunks(String playerName) {
@@ -177,6 +184,7 @@ public class WorldMapHook {
         caveModeRetryCounter.remove(playerName);
         caveModeLastSharedCount.remove(playerName);
         caveModeLastShareEnabled.remove(playerName);
+        pendingTrackerModifications.remove(playerName);
     }
 
     /**
@@ -196,6 +204,7 @@ public class WorldMapHook {
         caveModeRetryCounter.remove(playerName);
         caveModeLastSharedCount.remove(playerName);
         caveModeLastShareEnabled.remove(playerName);
+        pendingTrackerModifications.remove(playerName);
     }
 
     /**
@@ -369,6 +378,18 @@ public class WorldMapHook {
      */
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
+            // Drain any pending trackerLoaded mutations queued from the async cave processing path.
+            java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
+                    pendingTrackerModifications.get(player.getDisplayName());
+            if (pendingMods != null) {
+                Runnable mod;
+                while ((mod = pendingMods.poll()) != null) {
+                    try { mod.run(); } catch (Exception e) {
+                        LOGGER.fine("[CAVE] Error applying pending tracker mod: " + e.getMessage());
+                    }
+                }
+            }
+
             ExplorationTracker explorationTracker = ExplorationTracker.getInstance();
             ExplorationTracker.PlayerExplorationData explorationData = explorationTracker.getPlayerData(player);
 
@@ -832,25 +853,25 @@ public class WorldMapHook {
             final Set<Long> finalTrackerToAdd = trackerToAdd;
             final Set<Long> finalTrackerToRemove = trackerToRemove;
 
-            if (!finalChunksToSend.isEmpty() || !finalChunksToUnload.isEmpty()) {
-                world.execute(() -> {
-                    try {
-                        Ref<EntityStore> ref = player.getReference();
-                        if (ref == null || !ref.isValid()) return;
-
-                        if (trackerLoaded != null) {
+            // Queue trackerLoaded mutations to be applied on the WorldMap thread.
+            if (trackerLoaded != null && (!finalTrackerToRemove.isEmpty() || !finalTrackerToAdd.isEmpty())) {
+                final String pName = player.getDisplayName();
+                final Set<Long> frozenCaveChunks = new HashSet<>(loadedCaveChunks);
+                pendingTrackerModifications
+                        .computeIfAbsent(pName, k -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                        .add(() -> {
                             for (Long idx : finalTrackerToRemove) {
                                 trackerLoaded.remove(idx);
                             }
                             for (Long idx : finalTrackerToAdd) {
                                 trackerLoaded.add(idx);
                             }
-
+                            // Evict excess surface chunks to keep the set bounded.
                             int totalLoaded = trackerLoaded.size();
                             if (totalLoaded > maxChunks) {
                                 List<Long> surfaceToEvict = new ArrayList<>();
                                 for (Long idx : trackerLoaded) {
-                                    if (!loadedCaveChunks.contains(idx)) {
+                                    if (!frozenCaveChunks.contains(idx)) {
                                         surfaceToEvict.add(idx);
                                     }
                                 }
@@ -861,17 +882,19 @@ public class WorldMapHook {
                                     long ddz = (long) emz - playerMapChunkZ;
                                     return -(ddx * ddx + ddz * ddz);
                                 }));
-
                                 int toRemove = totalLoaded - maxChunks;
                                 for (int i = 0; i < toRemove && i < surfaceToEvict.size(); i++) {
-                                    Long idx = surfaceToEvict.get(i);
-                                    int emx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                                    int emz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                                    finalChunksToUnload.add(new MapChunk(emx, emz, null));
-                                    trackerLoaded.remove(idx);
+                                    trackerLoaded.remove(surfaceToEvict.get(i));
                                 }
                             }
-                        }
+                        });
+            }
+
+            if (!finalChunksToSend.isEmpty() || !finalChunksToUnload.isEmpty()) {
+                world.execute(() -> {
+                    try {
+                        Ref<EntityStore> ref = player.getReference();
+                        if (ref == null || !ref.isValid()) return;
 
                         if (!finalChunksToUnload.isEmpty()) {
                             UpdateWorldMap unloadPacket = new UpdateWorldMap(finalChunksToUnload.toArray(new MapChunk[0]), null, null);
@@ -1871,10 +1894,6 @@ public class WorldMapHook {
                         Map.Entry<?, ?> entry = it.next();
                         if (entry.getKey() instanceof Long idx) {
                             if (!currentTargetSet.contains(idx)) {
-                                Object value = entry.getValue();
-                                if (value instanceof CompletableFuture<?> future) {
-                                    future.cancel(false);
-                                }
                                 it.remove();
                                 removedFutures++;
                             }

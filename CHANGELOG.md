@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.2
+
+* Issue where map becomes black due to cave layer thanks to @darkace1998 for the fix
+* Fixed warning Failed to refresh marker context menu: Assert not in thread
+* Fix exception caused by the processPendingReloadChunks function
+* Fix Issue on mac where "Data" folder will be deleted instead of "data" folder
+
 ## v1.3.1
 
 * Issue where map becomes black/doesn't load new chunks after a certain time (~60 minutes) issue #25 on github thanks to @darkace1998 for the fix
