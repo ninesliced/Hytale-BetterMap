@@ -89,7 +89,7 @@ public class BetterMap extends JavaPlugin {
     @Override
     protected void setup() {
         instance = this;
-        new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.3");
+        new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.3-pre-release-2026.02.26-7681d338c");
         LOGGER.info("========================================");
         LOGGER.info("Setting up Persistent Map Exploration Mod");
         LOGGER.info("========================================");
