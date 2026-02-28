@@ -67,7 +67,7 @@ $C.@PageOverlay {
       }
 
       Label {
-        Text: "Coordinates (X / Z)";
+        Text: "Coordinates (X / Y / Z)";
         Style: (FontSize: 16, TextColor: #93844c, RenderBold: true); 
         Anchor: (Height: 20);
       }
@@ -76,10 +76,12 @@ $C.@PageOverlay {
         Anchor: (Height: 40);
         $C.@TextField #InputX { FlexWeight: 1; PlaceholderText: "X"; }
         Panel { Anchor: (Width: 10, Height: 1); }
+        $C.@TextField #InputY { FlexWeight: 1; PlaceholderText: "Y"; }
+        Panel { Anchor: (Width: 10, Height: 1); }
         $C.@TextField #InputZ { FlexWeight: 1; PlaceholderText: "Z"; }
         Panel { Anchor: (Width: 10, Height: 1); }
         TextButton #CurrentLocationBtn {
-          Anchor: (Width: 56, Height: 36, Top: 2);
+          Anchor: (Width: 64, Height: 36, Top: 2);
           Text: "Here";
           Style: TextButtonStyle(
             Default: (Background: $C.@DefaultSquareButtonDefaultBackground, LabelStyle: $C.@DefaultButtonLabelStyle),

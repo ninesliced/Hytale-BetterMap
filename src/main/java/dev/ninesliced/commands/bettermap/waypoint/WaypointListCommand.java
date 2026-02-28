@@ -46,7 +46,8 @@ public class WaypointListCommand extends AbstractPlayerCommand {
 
         context.sendMessage(Message.raw("Active Waypoints:"));
         for (UserMapMarker marker : markers) {
-            String positionStr = String.format("%.0f, %.0f", marker.getX(), marker.getZ());
+            double markerY = WaypointManager.getMarkerYOrDefault(world, player, marker.getId(), 100.0);
+            String positionStr = String.format("%.0f, %.0f, %.0f", marker.getX(), markerY, marker.getZ());
             String markerName = marker.getName() != null ? marker.getName() : "Unnamed";
             String sharedStatus = WaypointManager.isSharedId(marker.getId()) ? " [Shared]" : "";
             context.sendMessage(Message.raw("- " + markerName + " @ " + positionStr + sharedStatus));

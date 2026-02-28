@@ -90,11 +90,6 @@ public final class WaypointLimitUtil {
             return "World not loaded.";
         }
         try {
-            UserMapMarkerConfig config = world.getGameplayConfig().getWorldMapConfig().getUserMapMarkerConfig();
-            if (!config.isAllowCreatingMarkers()) {
-                return "Waypoint creation is disabled in this world.";
-            }
-
             ModConfig cfg = ModConfig.getInstance();
             int limit = shared ? cfg.getMaxSharedMarkersPerPlayer() : cfg.getMaxPersonalMarkersPerPlayer();
 

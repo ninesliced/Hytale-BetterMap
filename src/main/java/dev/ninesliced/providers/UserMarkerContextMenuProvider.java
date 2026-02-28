@@ -24,8 +24,10 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.ReflectionHelper;
+import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
 import java.util.Map;
@@ -43,6 +45,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
     public static final UserMarkerContextMenuProvider INSTANCE = new UserMarkerContextMenuProvider();
     private static final Logger LOGGER = Logger.getLogger(UserMarkerContextMenuProvider.class.getName());
     private static final Map<UUID, Boolean> TELEPORT_MENU_STATE = new ConcurrentHashMap<>();
+    private static final Map<UUID, Boolean> SHARED_EDIT_MENU_STATE = new ConcurrentHashMap<>();
     
     private UserMarkerContextMenuProvider() {
     }
@@ -50,9 +53,13 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
     @Override
     public void update(@Nonnull World world, @Nonnull Player player, @Nonnull MarkersCollector collector) {
         boolean allowWaypointTeleport = ModConfig.getInstance().isAllowWaypointTeleports();
+        boolean allowContextMenuTeleport = ModConfig.getInstance().isAllowContextMenuWaypointTeleports();
         boolean hasTeleportPermission = PermissionsUtil.canTeleport(player);
-        boolean hasNativeTeleport = player.getWorldMapTracker() != null && player.getWorldMapTracker().isAllowTeleportToMarkers();
-        boolean showTeleport = allowWaypointTeleport && hasTeleportPermission && !hasNativeTeleport;
+        boolean isPrivileged = PermissionsUtil.isAdmin(player);
+        boolean showTeleport = allowWaypointTeleport && hasTeleportPermission
+            && (allowContextMenuTeleport || isPrivileged);
+        boolean canEditAnyShared = PermissionsUtil.canEditSharedWaypointByPermission(player)
+            || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
 
         UUID playerId = ((CommandSender) player).getUuid();
         PlayerConfig playerConfig = playerId != null ? PlayerConfigManager.getInstance().getPlayerConfig(playerId) : null;
@@ -73,19 +80,25 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
             if (previous != null && previous != showTeleport) {
                 scheduleResyncAllMarkers(world, player);
             }
+
+            Boolean previousSharedEdit = SHARED_EDIT_MENU_STATE.put(playerId, canEditAnyShared);
+            if (previousSharedEdit != null && previousSharedEdit != canEditAnyShared) {
+                WorldMapHook.sendMapSettingsToPlayer(player);
+                scheduleResyncAllMarkers(world, player);
+            }
         }
 
         if (!hidePersonalWaypoints) {
             PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
             for (UserMapMarker marker : perWorldData.getUserMapMarkers()) {
-                collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+                collector.add(buildMarkerWithContextMenu(world, player, marker, showTeleport));
             }
         }
         
         if (!hideGlobalWaypoints) {
             WorldMarkersResource worldMarkersResource = world.getChunkStore().getStore().getResource(WorldMarkersResource.getResourceType());
             for (UserMapMarker marker : worldMarkersResource.getUserMapMarkers()) {
-                collector.add(buildMarkerWithContextMenu(marker, showTeleport));
+                collector.add(buildMarkerWithContextMenu(world, player, marker, showTeleport));
             }
         }
     }
@@ -93,11 +106,12 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
     /**
      * Builds a MapMarker with context menu options (Edit).
      */
-    private MapMarker buildMarkerWithContextMenu(@Nonnull UserMapMarker marker, boolean showTeleport) {
+    private MapMarker buildMarkerWithContextMenu(@Nonnull World world, @Nonnull Player player, @Nonnull UserMapMarker marker, boolean showTeleport) {
+        double markerY = WaypointManager.getMarkerYOrDefault(world, player, marker.getId(), 100.0);
         MapMarkerBuilder builder = new MapMarkerBuilder(
             marker.getId(),
             marker.getIcon(),
-            new Transform(marker.getX(), 100.0, marker.getZ())
+            new Transform(marker.getX(), markerY, marker.getZ())
         );
         
         if (marker.getName() != null) {
@@ -118,7 +132,19 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         if (showTeleport) {
             builder.withContextMenuItem(new ContextMenuItem("Teleport", "bettermap waypoint teleport " + marker.getId()));
         }
-        builder.withContextMenuItem(new ContextMenuItem("Edit", "bettermap waypoint edit " + marker.getId()));
+
+        String markerId = marker.getId();
+        boolean isShared = markerId != null && markerId.startsWith("user_shared_");
+        boolean canEditShared = PermissionsUtil.canEditSharedWaypoint(player, marker);
+        boolean isOwner = marker.getCreatedByUuid() != null && marker.getCreatedByUuid().equals(player.getUuid());
+
+        if (!isShared || canEditShared) {
+            builder.withContextMenuItem(new ContextMenuItem("Edit", "bettermap waypoint edit " + marker.getId()));
+        }
+
+        if ((isShared && canEditShared) && !isOwner) {
+            builder.withContextMenuItem(new ContextMenuItem("Remove Marker", "bettermap waypoint delete " + marker.getId()));
+        }
         
         return builder.build();
     }

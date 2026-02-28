@@ -67,6 +67,7 @@ public class WaypointAddCommand extends AbstractPlayerCommand {
 
         String icon = "UserA.png";
         float x = (float) transformComponent.getPosition().x;
+        double y = transformComponent.getPosition().y;
         float z = (float) transformComponent.getPosition().z;
 
         boolean makeShared = Boolean.TRUE.equals(this.globalArg.get(context));
@@ -81,7 +82,7 @@ public class WaypointAddCommand extends AbstractPlayerCommand {
             return;
         }
 
-        WaypointManager.addMarker(player, name, icon, x, z, null, makeShared);
+        WaypointManager.addMarker(player, name, icon, x, z, y, null, makeShared);
         String scope = makeShared ? "shared" : "personal";
         context.sendMessage(Message.raw("Added " + scope + " waypoint '" + name + "' at your location!"));
     }

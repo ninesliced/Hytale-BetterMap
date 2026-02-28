@@ -138,9 +138,12 @@ public class MapAnchorManager {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
 
-            if (WaypointManager.isSharedId(waypointId) && !PermissionsUtil.canUseGlobalWaypoints(player)) {
-                player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
-                return;
+            if (WaypointManager.isSharedId(waypointId)) {
+                UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
+                if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+                    player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
+                    return;
+                }
             }
             player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(playerRef, waypointId));
         });
@@ -152,9 +155,12 @@ public class MapAnchorManager {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
 
-            if (WaypointManager.isSharedId(waypointId) && !PermissionsUtil.canUseGlobalWaypoints(player)) {
-                player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
-                return;
+            if (WaypointManager.isSharedId(waypointId)) {
+                UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
+                if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+                    player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
+                    return;
+                }
             }
             boolean removed = WaypointManager.removeMarker(player, waypointId);
             if (removed) {
@@ -181,18 +187,21 @@ public class MapAnchorManager {
 
             float markerX = marker.getX();
             float markerZ = marker.getZ();
+            Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
 
-            double destinationY = 64.0;
+            double destinationY = storedY != null ? storedY : 64.0;
             try {
-                long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
-                WorldChunk chunk = world.getChunk(chunkIndex);
-                if (chunk != null) {
-                    int blockX = MathUtil.floor(markerX);
-                    int blockZ = MathUtil.floor(markerZ);
-                    int localX = blockX & 31;
-                    int localZ = blockZ & 31;
-                    short surfaceHeight = chunk.getHeight(localX, localZ);
-                    destinationY = surfaceHeight + 1.0;
+                if (storedY == null) {
+                    long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
+                    WorldChunk chunk = world.getChunk(chunkIndex);
+                    if (chunk != null) {
+                        int blockX = MathUtil.floor(markerX);
+                        int blockZ = MathUtil.floor(markerZ);
+                        int localX = blockX & 31;
+                        int localZ = blockZ & 31;
+                        short surfaceHeight = chunk.getHeight(localX, localZ);
+                        destinationY = surfaceHeight + 1.0;
+                    }
                 }
             } catch (Exception e) {
                 TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
@@ -466,7 +475,7 @@ public class MapAnchorManager {
                     String.format("#%02X%02X%02X", tint.red & 0xFF, tint.green & 0xFF, tint.blue & 0xFF));
             }
 
-            boolean canEdit = !isShared || PermissionsUtil.canUseGlobalWaypoints(player);
+            boolean canEdit = !isShared || PermissionsUtil.canEditSharedWaypoint(player, marker);
 
             commands.set(itemPath + " #EditButton.Visible", canEdit);
             if (canEdit) {

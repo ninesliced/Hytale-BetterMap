@@ -28,6 +28,8 @@ import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
@@ -96,11 +98,24 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             return;
         }
 
+        List<UserMapMarker> sortedMarkers = new ArrayList<>(markers);
+        sortedMarkers.sort(
+            Comparator.comparing(
+                marker -> {
+                    String name = marker.getName();
+                    if (name == null || name.isBlank()) {
+                        return "~";
+                    }
+                    return name.toLowerCase(Locale.ROOT);
+                }
+            )
+        );
+
         boolean canTeleport = PermissionsUtil.canTeleport(player)
             && ModConfig.getInstance().isAllowWaypointTeleports();
 
         int index = 0;
-        for (UserMapMarker marker : markers) {
+        for (UserMapMarker marker : sortedMarkers) {
             if (marker == null || marker.getId() == null) {
                 continue;
             }
@@ -124,6 +139,10 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             ui.set(itemPath + " #WorldValue.Text", worldName);
 
             ui.set(itemPath + " #XValue.Text", String.format(Locale.ROOT, "%.1f", marker.getX()));
+            double markerY = player.getWorld() != null
+                ? WaypointManager.getMarkerYOrDefault(player.getWorld(), player, marker.getId(), 100.0)
+                : 100.0;
+            ui.set(itemPath + " #YValue.Text", String.format(Locale.ROOT, "%.1f", markerY));
             ui.set(itemPath + " #ZValue.Text", String.format(Locale.ROOT, "%.1f", marker.getZ()));
 
             String createdBy = marker.getCreatedByName();
@@ -148,7 +167,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                 );
             }
 
-            boolean canEdit = !isShared || PermissionsUtil.canUseGlobalWaypoints(player);
+            boolean canEdit = !isShared || PermissionsUtil.canEditSharedWaypoint(player, marker);
             ui.set(itemPath + " #EditButton.Visible", canEdit);
             if (canEdit) {
                 events.addEventBinding(
@@ -216,9 +235,12 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             }
             case DELETE -> {
                 if (data.targetId != null && !data.targetId.isEmpty()) {
-                    if (WaypointManager.isSharedId(data.targetId) && !PermissionsUtil.canUseGlobalWaypoints(player)) {
-                        player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
-                        return;
+                    if (WaypointManager.isSharedId(data.targetId)) {
+                        UserMapMarker marker = WaypointManager.getMarker(player, data.targetId);
+                        if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+                            player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
+                            return;
+                        }
                     }
                     boolean removed = WaypointManager.removeMarker(player, data.targetId);
                     if (removed) {
@@ -228,9 +250,12 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             }
             case EDIT -> {
                 if (data.targetId != null && !data.targetId.isEmpty()) {
-                    if (WaypointManager.isSharedId(data.targetId) && !PermissionsUtil.canUseGlobalWaypoints(player)) {
-                        player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
-                        return;
+                    if (WaypointManager.isSharedId(data.targetId)) {
+                        UserMapMarker marker = WaypointManager.getMarker(player, data.targetId);
+                        if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+                            player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
+                            return;
+                        }
                     }
                      player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(this.playerRef, data.targetId));
                 }
@@ -250,18 +275,21 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
 
                         float markerX = marker.getX();
                         float markerZ = marker.getZ();
+                        Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
 
-                        double destinationY = 64.0;
+                        double destinationY = storedY != null ? storedY : 64.0;
                         try {
-                            long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
-                            WorldChunk chunk = world.getChunk(chunkIndex);
-                            if (chunk != null) {
-                                int blockX = MathUtil.floor(markerX);
-                                int blockZ = MathUtil.floor(markerZ);
-                                int localX = blockX & 31;
-                                int localZ = blockZ & 31;
-                                short surfaceHeight = chunk.getHeight(localX, localZ);
-                                destinationY = surfaceHeight + 1.0;
+                            if (storedY == null) {
+                                long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
+                                WorldChunk chunk = world.getChunk(chunkIndex);
+                                if (chunk != null) {
+                                    int blockX = MathUtil.floor(markerX);
+                                    int blockZ = MathUtil.floor(markerZ);
+                                    int localX = blockX & 31;
+                                    int localZ = blockZ & 31;
+                                    short surfaceHeight = chunk.getHeight(localX, localZ);
+                                    destinationY = surfaceHeight + 1.0;
+                                }
                             }
                         } catch (Exception e) {
                             TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());

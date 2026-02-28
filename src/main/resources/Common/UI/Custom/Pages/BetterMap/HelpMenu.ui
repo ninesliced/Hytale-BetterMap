@@ -258,6 +258,14 @@ $C.@PageOverlay {
                   Label { Text: "When enabled, players can teleport directly to their saved waypoints from the waypoint menu. Disable to make waypoints only serve as visual markers on the map."; Style: @ParamDescStyle; Anchor: (Top: 4); }
                 }
                 @ParamRow {
+                  Label { Text: "Allow Map Marker Context-Menu Teleports"; Style: @ParamNameStyle; }
+                  Label { Text: "When enabled, players can teleport to map markers using the default Hytale map right-click context menu. When disabled, the native \"Teleport to marker\" option is hidden/blocked and teleportation is only available through BetterMap UIs and commands. Enabled by default."; Style: @ParamDescStyle; Anchor: (Top: 4); }
+                }
+                @ParamRow {
+                  Label { Text: "Allow Native Map Right-Click Marker Creation"; Style: @ParamNameStyle; }
+                  Label { Text: "When enabled, players can use the default Hytale map right-click context menu to place new markers. When disabled, the native \"Place new marker\" option is hidden/blocked and marker creation is only available through BetterMap UIs and commands. Enabled by default."; Style: @ParamDescStyle; Anchor: (Top: 4); }
+                }
+                @ParamRow {
                   Label { Text: "Share All Exploration"; Style: @ParamNameStyle; }
                   Label { Text: "Creates a linked map shared by all players. Any area explored by one player becomes visible for everyone. Useful for cooperative servers. When disabled, each player has their own separate exploration data."; Style: @ParamDescStyle; Anchor: (Top: 4); }
                 }

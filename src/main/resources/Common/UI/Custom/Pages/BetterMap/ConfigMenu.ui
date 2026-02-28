@@ -509,6 +509,21 @@ $C.@PageOverlay {
             }
 
             @CheckboxRow {
+              $C.@CheckBox #AllowWaypointContextMenuTeleport { }
+              Label { Text: "Allow Map Marker Context-Menu Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowNativeMapMarkerCreation { }
+              Label { Text: "Allow Native Map Right-Click Marker Creation"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowGlobalWaypointEdits { }
+              Label { Text: "Allow Global Waypoint Edit/Delete For Everyone"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
               $C.@CheckBox #ShareAllExploration { }
               Label { Text: "Share All Exploration"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
             }

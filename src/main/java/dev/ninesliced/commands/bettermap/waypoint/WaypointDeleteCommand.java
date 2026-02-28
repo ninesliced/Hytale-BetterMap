@@ -44,7 +44,7 @@ public class WaypointDeleteCommand extends AbstractPlayerCommand {
         
         UserMapMarker marker = WaypointManager.findMarker(player, target);
         if (marker != null && WaypointManager.isSharedId(marker.getId())) {
-            if (!PermissionsUtil.canUseGlobalWaypoints(player)) {
+            if (!PermissionsUtil.canEditSharedWaypoint(player, marker)) {
                 context.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
                 return;
             }

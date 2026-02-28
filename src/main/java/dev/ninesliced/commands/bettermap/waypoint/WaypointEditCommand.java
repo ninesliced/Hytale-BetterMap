@@ -14,6 +14,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.ui.WaypointEditPage;
+import dev.ninesliced.utils.PermissionsUtil;
 
 import javax.annotation.Nonnull;
 
@@ -49,6 +50,11 @@ public class WaypointEditCommand extends AbstractPlayerCommand {
         UserMapMarker marker = WaypointManager.getMarker(player, id);
         if (marker == null) {
             context.sendMessage(Message.raw("Waypoint not found: " + id).color("#FF4444"));
+            return;
+        }
+
+        if (WaypointManager.isSharedId(marker.getId()) && !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+            context.sendMessage(Message.raw("You do not have permission to edit shared waypoints.").color("#FF4444"));
             return;
         }
         

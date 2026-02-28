@@ -1359,10 +1359,20 @@ public class WorldMapHook {
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
             UpdateWorldMapSettings packet = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
             ModConfig config = ModConfig.getInstance();
+            WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
+            boolean allowNativeMarkerCreation = config.isAllowNativeMapMarkerCreation();
 
             if (packet != null) {
                 packet.minScale = config.getMinScale();
                 packet.maxScale = config.getMaxScale();
+                packet.allowTeleportToMarkers = false;
+                packet.allowCreatingMapMarkers = allowNativeMarkerCreation;
+                packet.allowRemovingOtherPlayersMarkers = false;
+            }
+
+            if (worldMapConfig != null && worldMapConfig.getUserMapMarkerConfig() != null) {
+                ReflectionHelper.setFieldValueRecursive(worldMapConfig.getUserMapMarkerConfig(), "allowCreatingMarkers", allowNativeMarkerCreation);
+                ReflectionHelper.setFieldValueRecursive(worldMapConfig.getUserMapMarkerConfig(), "allowDeleteOtherPlayersSharedMarkers", false);
             }
 
             ReflectionHelper.setFieldValueRecursive(settings, "minScale", config.getMinScale());
@@ -1417,12 +1427,13 @@ public class WorldMapHook {
             }
 
             WorldMapTracker tracker = player.getWorldMapTracker();
+            ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToMarkers", false);
             packet.allowTeleportToCoordinates = tracker.isAllowTeleportToCoordinates();
-            packet.allowTeleportToMarkers = tracker.isAllowTeleportToMarkers();
+            packet.allowTeleportToMarkers = false;
 
             WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
-            packet.allowCreatingMapMarkers = worldMapConfig.getUserMapMarkerConfig().isAllowCreatingMarkers();
-            packet.allowRemovingOtherPlayersMarkers = worldMapConfig.getUserMapMarkerConfig().isAllowDeleteOtherPlayersSharedMarkers();
+            packet.allowCreatingMapMarkers = ModConfig.getInstance().isAllowNativeMapMarkerCreation();
+            packet.allowRemovingOtherPlayersMarkers = false;
             packet.allowShowOnMapToggle = worldMapConfig.canTogglePlayersInMap();
             packet.allowCompassTrackingToggle = worldMapConfig.canTrackPlayersInCompass();
 

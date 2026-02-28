@@ -15,6 +15,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.managers.WaypointManager;
+import dev.ninesliced.utils.PermissionsUtil;
 
 import javax.annotation.Nonnull;
 
@@ -52,7 +53,12 @@ public class WaypointUpdateCommand extends AbstractPlayerCommand {
         UserMapMarker marker = WaypointManager.findMarker(player, target);
         
         if (marker != null) {
-            WaypointManager.updateMarker(player, marker.getId(), newNameRaw, marker.getIcon(), marker.getX(), marker.getZ(), marker.getColorTint());
+            if (WaypointManager.isSharedId(marker.getId()) && !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+                context.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
+                return;
+            }
+            Double markerY = WaypointManager.getMarkerY(world, player, marker.getId());
+            WaypointManager.updateMarker(player, marker.getId(), newNameRaw, marker.getIcon(), marker.getX(), marker.getZ(), markerY, marker.getColorTint());
             String oldName = marker.getName() != null ? marker.getName() : "Unnamed";
             context.sendMessage(Message.raw("Updated waypoint: " + oldName + " -> " + newNameRaw));
         } else {

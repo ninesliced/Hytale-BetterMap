@@ -114,6 +114,25 @@ Group #WaypointItem {
     }
 
     Label {
+      Text: "Y: ";
+      Style: (
+        FontSize: 13,
+        RenderBold: true,
+        TextColor: #93844c
+      );
+    }
+
+    Label #YValue {
+      Text: "0";
+      Style: (
+        FontSize: 13,
+        RenderBold: false,
+        TextColor: #ffffff
+      );
+      Padding: (Right: 10);
+    }
+
+    Label {
       Text: "Z: ";
       Style: (
         FontSize: 13,

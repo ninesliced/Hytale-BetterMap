@@ -86,6 +86,14 @@ You can either do `/op add <player>` to give full access or assign specific perm
 
 * **Map Teleport:** Allows the user to teleport to locations via the Waypoint UI buttons or by **right-clicking** anywhere on the map.
 
+### Global Shared Waypoint Edit/Delete
+
+**Permission:** `bettermap.command.waypoint.editglobal`
+
+* Allows editing/deleting shared waypoints created by other players.
+* Marker owners can always edit/delete their own shared waypoints.
+* This permission overrides the global toggle if the toggle is disabled.
+
 ### Map Privacy Overrides
 
 **Permissions:**
@@ -129,31 +137,34 @@ You can either do `/op add <player>` to give full access or assign specific perm
 8.  `/bm config hideglobalwaypoints`
 
     * Hides global waypoints on the map for all players.
-9.  `/bm config waypointteleport`
+9.  `/bm config editglobalwaypoints`
+
+    * Toggles whether all players can edit/delete shared waypoints created by others.
+10. `/bm config waypointteleport`
 
     * Toggles the ability to teleport to waypoints.
-10. `/bm config markerteleport`
+11. `/bm config markerteleport`
 
     * Toggles the ability to teleport to map markers.
-11. `/bm config shareallexploration`
+12. `/bm config shareallexploration`
 
     * Toggles "Linked Map" mode (shared exploration data).
-12. `/bm config track` / `untrack`
+13. `/bm config track` / `untrack`
 
     * Adds or removes the current world from the active whitelist.
-13. `/bm config maxchunk <number>`
+14. `/bm config maxchunk <number>`
 
     * Manually overrides the maximum number of loaded chunks.
-14. `/bm config autosave <minutes>`
+15. `/bm config autosave <minutes>`
 
     * Sets the interval for auto-saving map data.
-15. `/bm config worldborder`
+16. `/bm config worldborder`
     
     * Toggles the world border visualization on the map.
-16. `/bm config worldborderradius <radius>`
+17. `/bm config worldborderradius <radius>`
     
     * Sets the world border radius in blocks.
-17. `/bm config worldborderoffset <x> <z>`
+18. `/bm config worldborderoffset <x> <z>`
     
     * Sets the world border center offset (X and Z coordinates).
 
@@ -195,6 +206,7 @@ _Note: Changing `mapQuality` or `maxChunksToLoad` requires a server restart to t
   "hideOtherWarpsOnMap": false,
   "hideUnexploredWarpsOnMap": true,
   "allowWaypointTeleports": true,
+    "allowGlobalWaypointEditsForEveryone": false,
   "allowMapMarkerTeleports": true,
   "hideAllPoiOnMap": false,
   "hideUnexploredPoiOnMap": true,

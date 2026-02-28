@@ -5,8 +5,10 @@ import com.google.gson.*;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -42,7 +44,10 @@ public class ModConfig {
     private boolean hideOtherWarpsOnMap = false;
     private boolean hideUnexploredWarpsOnMap = true;
     private boolean allowWaypointTeleports = true;
+    private boolean allowContextMenuWaypointTeleports = true;
+    private boolean allowGlobalWaypointEditsForEveryone = false;
     private boolean allowMapMarkerTeleports = true;
+    private boolean allowNativeMapMarkerCreation = true;
     private boolean hideAllPoiOnMap = false;
     private boolean hideUnexploredPoiOnMap = true;
     private boolean hideSpawnOnMap = false;
@@ -234,8 +239,26 @@ public class ModConfig {
                         needsSave = true;
                     }
 
+                    if (jsonObject.has("allowContextMenuWaypointTeleports")) {
+                        this.allowContextMenuWaypointTeleports = loaded.allowContextMenuWaypointTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowGlobalWaypointEditsForEveryone")) {
+                        this.allowGlobalWaypointEditsForEveryone = loaded.allowGlobalWaypointEditsForEveryone;
+                    } else {
+                        needsSave = true;
+                    }
+
                     if (jsonObject.has("allowMapMarkerTeleports")) {
                         this.allowMapMarkerTeleports = loaded.allowMapMarkerTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowNativeMapMarkerCreation")) {
+                        this.allowNativeMapMarkerCreation = loaded.allowNativeMapMarkerCreation;
                     } else {
                         needsSave = true;
                     }
@@ -411,6 +434,7 @@ public class ModConfig {
         setLoggerLevel("dev.ninesliced.listeners.ExplorationListener", level);
         setLoggerLevel("dev.ninesliced.configs.CavePersistence", level);
         setLoggerLevel("dev.ninesliced.managers.WaypointMigrationManager", level);
+        setLoggerLevel("dev.ninesliced.managers.CaveModeManager", level);
     }
 
     private void setLoggerLevel(String loggerName, Level level) {
@@ -422,11 +446,28 @@ public class ModConfig {
      * Saves the current configuration to disk.
      */
     public void save() {
-        try (Writer writer = Files.newBufferedWriter(configPath)) {
+        Path tempPath = configPath.resolveSibling(configPath.getFileName().toString() + ".tmp");
+        try (Writer writer = Files.newBufferedWriter(tempPath)) {
             GSON.toJson(this, writer);
-            LOGGER.info("Configuration saved to " + configPath);
         } catch (IOException e) {
-            LOGGER.severe("Failed to save configuration: " + e.getMessage());
+            LOGGER.severe("Failed to write configuration: " + e.getMessage());
+            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            return;
+        }
+        try {
+            Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            LOGGER.info("Configuration saved to " + configPath);
+        } catch (AtomicMoveNotSupportedException e) {
+            try {
+                Files.move(tempPath, configPath, StandardCopyOption.REPLACE_EXISTING);
+                LOGGER.info("Configuration saved to " + configPath);
+            } catch (IOException ex) {
+                LOGGER.severe("Failed to finalize configuration: " + ex.getMessage());
+                try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            }
+        } catch (IOException e) {
+            LOGGER.severe("Failed to finalize configuration: " + e.getMessage());
+            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
         }
     }
 
@@ -731,12 +772,40 @@ public class ModConfig {
     }
 
     /**
+     * Checks if teleporting via marker context menus is allowed.
+     *
+     * @return True if context-menu waypoint teleports are allowed.
+     */
+    public boolean isAllowContextMenuWaypointTeleports() {
+        return allowContextMenuWaypointTeleports;
+    }
+
+    /**
+     * Checks if editing/deleting shared waypoints is globally allowed for all players.
+     * Marker creators can always edit their own shared waypoints regardless of this setting.
+     *
+     * @return True if all players can edit/delete shared waypoints.
+     */
+    public boolean isAllowGlobalWaypointEditsForEveryone() {
+        return allowGlobalWaypointEditsForEveryone;
+    }
+
+    /**
      * Checks if map marker teleports (POIs/warps) are allowed.
      *
      * @return True if map marker teleports are allowed.
      */
     public boolean isAllowMapMarkerTeleports() {
         return allowMapMarkerTeleports;
+    }
+
+    /**
+     * Checks if players can create markers from the native map right-click menu.
+     *
+     * @return True if native map marker creation is enabled.
+     */
+    public boolean isAllowNativeMapMarkerCreation() {
+        return allowNativeMapMarkerCreation;
     }
 
     /**
@@ -820,12 +889,42 @@ public class ModConfig {
     }
 
     /**
+     * Sets whether waypoint teleports via context menu are allowed.
+     *
+     * @param allowContextMenuWaypointTeleports True to allow context-menu teleports.
+     */
+    public void setAllowContextMenuWaypointTeleports(boolean allowContextMenuWaypointTeleports) {
+        this.allowContextMenuWaypointTeleports = allowContextMenuWaypointTeleports;
+        save();
+    }
+
+    /**
+     * Sets whether editing/deleting shared waypoints is globally allowed for all players.
+     *
+     * @param allowGlobalWaypointEditsForEveryone True to allow everyone to edit/delete shared waypoints.
+     */
+    public void setAllowGlobalWaypointEditsForEveryone(boolean allowGlobalWaypointEditsForEveryone) {
+        this.allowGlobalWaypointEditsForEveryone = allowGlobalWaypointEditsForEveryone;
+        save();
+    }
+
+    /**
      * Sets whether map marker teleports (POIs/warps) are allowed.
      *
      * @param allowMapMarkerTeleports True to allow map marker teleports.
      */
     public void setAllowMapMarkerTeleports(boolean allowMapMarkerTeleports) {
         this.allowMapMarkerTeleports = allowMapMarkerTeleports;
+        save();
+    }
+
+    /**
+     * Sets whether native map right-click marker creation is allowed.
+     *
+     * @param allowNativeMapMarkerCreation True to allow native map marker creation.
+     */
+    public void setAllowNativeMapMarkerCreation(boolean allowNativeMapMarkerCreation) {
+        this.allowNativeMapMarkerCreation = allowNativeMapMarkerCreation;
         save();
     }
 
@@ -969,7 +1068,10 @@ public class ModConfig {
         this.hideOtherWarpsOnMap = defaults.hideOtherWarpsOnMap;
         this.hideUnexploredWarpsOnMap = defaults.hideUnexploredWarpsOnMap;
         this.allowWaypointTeleports = defaults.allowWaypointTeleports;
+        this.allowContextMenuWaypointTeleports = defaults.allowContextMenuWaypointTeleports;
+        this.allowGlobalWaypointEditsForEveryone = defaults.allowGlobalWaypointEditsForEveryone;
         this.allowMapMarkerTeleports = defaults.allowMapMarkerTeleports;
+        this.allowNativeMapMarkerCreation = defaults.allowNativeMapMarkerCreation;
         this.hideAllPoiOnMap = defaults.hideAllPoiOnMap;
         this.hideUnexploredPoiOnMap = defaults.hideUnexploredPoiOnMap;
         this.hiddenPoiNames = new ArrayList<>(defaults.hiddenPoiNames);

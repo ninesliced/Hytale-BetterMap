@@ -1,8 +1,18 @@
 # Changelog
 
-## v1.3.2-pre-release-2026.02.19-ad6f58ec8
+## v1.3.3-pre-release-2026.02.26-7681d338c
 
-* Update Api changes for the new release of hytale (2026.02.19-ad6f58ec8) to fix the map becoming black
+* Update Api changes for the new release of hytale (2026.02.26-7681d338c) to fix the map becoming black
+
+## v1.3.3
+
+* Added option to disable teleport on right click on map without needing to be op/in creative (require permission)
+* Added option to disable native map right-click marker creation (require permission)
+* Fix issue where map doesn't show when changing world due to file saving/loading issue thanks to @darkace1998 
+* Fix order of waypoint in waypoint menu to be in a alphabetical order instead of random
+* Add save of y coordinate for waypoints and show it in the waypoint menu (need to recreate waypoints for it to work)
+* Add option to enable/disable editing of global waypoints in the waypoint menu if you are not the creator or an admin (also can use permission to edit global waypoints)
+* Add Hstats compatibility for better tracking of the mod usage
 
 ## v1.3.2
 

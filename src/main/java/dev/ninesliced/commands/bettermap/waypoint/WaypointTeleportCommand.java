@@ -62,6 +62,8 @@ public class WaypointTeleportCommand extends AbstractPlayerCommand {
             return;
         }
 
+        Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
+
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         double fallbackY = transform != null ? transform.getPosition().y : 64.0;
         Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
@@ -71,12 +73,14 @@ public class WaypointTeleportCommand extends AbstractPlayerCommand {
         long chunkIndex = ChunkUtil.indexChunkFromBlock(blockX, blockZ);
 
         world.getChunkStore().getChunkReferenceAsync(chunkIndex).thenAcceptAsync(chunkRef -> {
-            double destinationY = fallbackY;
+            double destinationY = storedY != null ? storedY : fallbackY;
             try {
-                BlockChunk blockChunk = world.getChunkStore().getStore()
-                    .getComponent((Ref<ChunkStore>) chunkRef, BlockChunk.getComponentType());
-                if (blockChunk != null) {
-                    destinationY = blockChunk.getHeight(blockX, blockZ) + 1.0;
+                if (storedY == null) {
+                    BlockChunk blockChunk = world.getChunkStore().getStore()
+                        .getComponent((Ref<ChunkStore>) chunkRef, BlockChunk.getComponentType());
+                    if (blockChunk != null) {
+                        destinationY = blockChunk.getHeight(blockX, blockZ) + 1.0;
+                    }
                 }
             } catch (Exception ignored) {
             }

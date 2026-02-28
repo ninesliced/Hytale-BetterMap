@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 
@@ -36,11 +37,6 @@ public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
 
-        if (!PermissionsUtil.canUseGlobalWaypoints(player)) {
-            context.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
-            return;
-        }
-
         String target = this.targetArg.get(context);
         
         UserMapMarker marker = WaypointManager.findMarker(player, target);
@@ -50,6 +46,14 @@ public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
                 context.sendMessage(Message.raw("Could not find shared waypoint with that name or id."));
                 return;
             }
+
+            boolean canDeleteUnknownShared = PermissionsUtil.canEditSharedWaypointByPermission(player)
+                || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
+            if (!canDeleteUnknownShared) {
+                context.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
+                return;
+            }
+
             boolean deletedFallback = WaypointManager.removeMarker(player, target);
             if (deletedFallback) {
                 context.sendMessage(Message.raw("Shared waypoint has been removed."));
@@ -61,6 +65,11 @@ public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
 
         if (!WaypointManager.isSharedId(marker.getId())) {
             context.sendMessage(Message.raw("That is a personal waypoint. Use 'remove' instead of 'removeglobal'."));
+            return;
+        }
+
+        if (!PermissionsUtil.canEditSharedWaypoint(player, marker)) {
+            context.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
             return;
         }
 

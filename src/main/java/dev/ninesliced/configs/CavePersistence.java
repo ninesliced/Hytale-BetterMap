@@ -7,9 +7,11 @@ import dev.ninesliced.managers.CaveModeManager;
 
 import javax.annotation.Nonnull;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -186,18 +188,35 @@ public class CavePersistence {
         }
 
         Path file = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID.toString() + ".bin");
-        
+        Path tempFile = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID.toString() + ".bin.tmp");
+
         LOGGER.info("[CAVE SAVE] Saving " + chunks.size() + " cave chunks for " + playerName + " in " + worldName);
 
-        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(file)))) {
+        try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(tempFile)))) {
             out.writeInt(DATA_VERSION);
             out.writeInt(chunks.size());
-            
+
             for (Long chunk : chunks) {
                 out.writeLong(chunk);
             }
         } catch (IOException e) {
-            LOGGER.severe("Failed to save cave exploration data for " + playerName + ": " + e.getMessage());
+            LOGGER.severe("Failed to write cave exploration data for " + playerName + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            return;
+        }
+
+        try {
+            Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            try {
+                Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException ex) {
+                LOGGER.severe("Failed to finalize cave exploration data for " + playerName + ": " + ex.getMessage());
+                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            }
+        } catch (IOException e) {
+            LOGGER.severe("Failed to finalize cave exploration data for " + playerName + ": " + e.getMessage());
+            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
         }
     }
 

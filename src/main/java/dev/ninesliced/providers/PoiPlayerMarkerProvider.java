@@ -2,6 +2,7 @@ package dev.ninesliced.providers;
 
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
+import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
@@ -17,6 +18,7 @@ import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
@@ -64,6 +66,9 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
             }
 
             ModConfig globalConfig = ModConfig.getInstance();
+            boolean showTeleport = globalConfig.isAllowMapMarkerTeleports()
+                && (globalConfig.isAllowContextMenuWaypointTeleports() || PermissionsUtil.isAdmin(viewer))
+                && PermissionsUtil.canTeleport(viewer);
             boolean canOverridePoi = PermissionsUtil.canOverridePoi(viewer);
             boolean canOverrideUnexplored = PermissionsUtil.canOverrideUnexploredPoi(viewer);
             PlayerConfig playerConfig = null;
@@ -107,7 +112,7 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
             if (!filter) {
                 for (UserMapMarker marker : markersCollection) {
                     if (marker == null) continue;
-                    collector.add(convertToMapMarker(marker));
+                    collector.add(convertToMapMarker(world, viewer, marker, showTeleport));
                 }
                 return;
             }
@@ -116,7 +121,7 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
             if (pointsOfInterest == null || pointsOfInterest.isEmpty()) {
                 for (UserMapMarker marker : markersCollection) {
                     if (marker == null) continue;
-                    collector.add(convertToMapMarker(marker));
+                    collector.add(convertToMapMarker(world, viewer, marker, showTeleport));
                 }
                 return;
             }
@@ -156,7 +161,7 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
                 }
 
                 if (!isPoi) {
-                    collector.add(convertToMapMarker(marker));
+                    collector.add(convertToMapMarker(world, viewer, marker, showTeleport));
                     continue;
                 }
 
@@ -166,7 +171,7 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
                 }
 
                 if (!hide) {
-                    collector.add(convertToMapMarker(marker));
+                    collector.add(convertToMapMarker(world, viewer, marker, showTeleport));
                 }
             }
         } catch (Exception e) {
@@ -177,20 +182,31 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
     /**
      * Converts a UserMapMarker to a MapMarker for the collector.
      */
-    private static MapMarker convertToMapMarker(UserMapMarker marker) {
+    private static MapMarker convertToMapMarker(World world, Player viewer, UserMapMarker marker, boolean showTeleport) {
+        double markerY = WaypointManager.getMarkerYOrDefault(world, viewer, marker.getId(), 100.0);
         com.hypixel.hytale.protocol.Transform packetTransform = PositionUtil.toTransformPacket(
-            new Transform(marker.getX(), 100.0, marker.getZ())
+            new Transform(marker.getX(), markerY, marker.getZ())
         );
 
         FormattedMessage displayName = new FormattedMessage();
         displayName.rawText = marker.getName();
+
+        ContextMenuItem[] contextMenuItems = null;
+        if (showTeleport) {
+            int x = (int) Math.round(marker.getX());
+            int y = (int) Math.round(markerY);
+            int z = (int) Math.round(marker.getZ());
+            contextMenuItems = new ContextMenuItem[]{
+                new ContextMenuItem("Teleport", "bettermap waypoint markertp " + x + " " + y + " " + z)
+            };
+        }
 
         return new MapMarker(
             marker.getId(),
             displayName,
             marker.getIcon(),
             packetTransform,
-            null,
+            contextMenuItems,
             null
         );
     }

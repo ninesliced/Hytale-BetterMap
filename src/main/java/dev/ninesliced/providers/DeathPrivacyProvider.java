@@ -85,11 +85,9 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            boolean hasNativeTeleport = player.getWorldMapTracker() != null
-                && player.getWorldMapTracker().isAllowTeleportToMarkers();
             boolean showTeleport = globalConfig.isAllowMapMarkerTeleports()
-                && PermissionsUtil.canTeleport(player)
-                && !hasNativeTeleport;
+                && (globalConfig.isAllowContextMenuWaypointTeleports() || PermissionsUtil.isAdmin(player))
+                && PermissionsUtil.canTeleport(player);
 
             for (PlayerDeathPositionData deathPosition : deathPositions) {
                 if (deathPosition == null) {

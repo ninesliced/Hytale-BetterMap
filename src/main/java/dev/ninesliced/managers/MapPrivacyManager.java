@@ -394,7 +394,7 @@ public class MapPrivacyManager {
             }
             World world = player.getWorld();
             if (world != null) {
-                player.getWorldMapTracker().sendSettings(world);
+                WorldMapHook.sendMapSettingsToPlayer(player);
             }
         } catch (Exception e) {
             LOGGER.fine("Failed to sync map marker teleport permission for " + player.getDisplayName() + ": " + e.getMessage());

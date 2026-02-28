@@ -16,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.PermissionsUtil;
 
 import javax.annotation.Nonnull;
 
@@ -38,8 +39,18 @@ public class WaypointMarkerTeleportCommand extends AbstractPlayerCommand {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
 
-        if (!ModConfig.getInstance().isAllowWaypointTeleports()) {
+        if (!PermissionsUtil.canTeleport(player)) {
             context.sendMessage(Message.raw("You don't have permission to teleport to map markers."));
+            return;
+        }
+
+        ModConfig config = ModConfig.getInstance();
+        boolean isPrivileged = PermissionsUtil.isAdmin(player);
+        boolean allowMarkerTeleports = config.isAllowMapMarkerTeleports();
+        boolean allowContextMenuTeleports = config.isAllowContextMenuWaypointTeleports() || isPrivileged;
+
+        if (!allowMarkerTeleports || !allowContextMenuTeleports) {
+            context.sendMessage(Message.raw("Map marker context-menu teleports are disabled."));
             return;
         }
 

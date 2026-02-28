@@ -26,6 +26,7 @@ import dev.ninesliced.managers.UserMarkerProviderManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.managers.MapAnchorManager;
 import dev.ninesliced.providers.LocationHudProvider;
+import dev.ninesliced.hstats.HStats;
 import dev.ninesliced.systems.LocationSystem;
 import dev.ninesliced.utils.WaypointLimitUtil;
 
@@ -88,6 +89,7 @@ public class BetterMap extends JavaPlugin {
     @Override
     protected void setup() {
         instance = this;
+        new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.3");
         LOGGER.info("========================================");
         LOGGER.info("Setting up Persistent Map Exploration Mod");
         LOGGER.info("========================================");

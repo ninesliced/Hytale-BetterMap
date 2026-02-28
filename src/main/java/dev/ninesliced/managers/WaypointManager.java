@@ -32,8 +32,12 @@ import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.util.MathUtil;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
@@ -71,6 +75,7 @@ public class WaypointManager {
      * No-op now that we rely on Hytale's built-in marker storage.
      */
     public static void initialize(@Nonnull Path configDir) {
+        WaypointYPersistence.getInstance().initialize(configDir);
     }
 
     /**
@@ -108,6 +113,20 @@ public class WaypointManager {
                                  float z,
                                  @Nullable Color tint,
                                  boolean shared) {
+        addMarker(player, name, icon, x, z, null, tint, shared);
+    }
+
+    /**
+     * Creates a new marker with the given parameters and optional Y coordinate.
+     */
+    public static void addMarker(@Nonnull Player player,
+                                 @Nonnull String name,
+                                 @Nonnull String icon,
+                                 float x,
+                                 float z,
+                                 @Nullable Double y,
+                                 @Nullable Color tint,
+                                 boolean shared) {
         World world = player.getWorld();
         if (world == null || !isTrackedWorld(world)) return;
 
@@ -121,9 +140,17 @@ public class WaypointManager {
         marker.setPosition(x, z);
         marker.setColorTint(tint != null ? tint : new Color((byte) 0, (byte) 0, (byte) 0));
         marker.withCreatedByName(player.getDisplayName());
-        marker.withCreatedByUuid(((CommandSender) player).getUuid());
+        UUID ownerUuid = ((CommandSender) player).getUuid();
+        marker.withCreatedByUuid(ownerUuid);
 
         store.addUserMapMarker(marker);
+
+        double markerY = y != null ? y : getCurrentPlayerY(player, 100.0);
+        if (shared) {
+            WaypointYPersistence.getInstance().setGlobalY(world.getName(), marker.getId(), markerY);
+        } else if (ownerUuid != null) {
+            WaypointYPersistence.getInstance().setPersonalY(world.getName(), ownerUuid, marker.getId(), markerY);
+        }
 
         MapAnchorManager.getInstance().refreshAnchor(player);
     }
@@ -141,6 +168,12 @@ public class WaypointManager {
         }
 
         entry.store.removeUserMapMarker(entry.marker.getId());
+        UUID ownerUuid = resolveOwnerUuid(player, entry.marker);
+        if (entry.shared) {
+            WaypointYPersistence.getInstance().removeGlobal(world.getName(), entry.marker.getId());
+        } else if (ownerUuid != null) {
+            WaypointYPersistence.getInstance().removePersonal(world.getName(), ownerUuid, entry.marker.getId());
+        }
 
         MapAnchorManager.getInstance().refreshAnchor(player);
 
@@ -159,6 +192,17 @@ public class WaypointManager {
                                        @Nullable Float newX,
                                        @Nullable Float newZ,
                                        @Nullable Color newTint) {
+        return updateMarker(player, id, newName, newIcon, newX, newZ, null, newTint);
+    }
+
+    public static boolean updateMarker(@Nonnull Player player,
+                                       @Nonnull String id,
+                                       @Nullable String newName,
+                                       @Nullable String newIcon,
+                                       @Nullable Float newX,
+                                       @Nullable Float newZ,
+                                       @Nullable Double newY,
+                                       @Nullable Color newTint) {
         World world = player.getWorld();
         if (world == null || !isTrackedWorld(world)) return false;
 
@@ -176,8 +220,15 @@ public class WaypointManager {
             String finalName = (newName != null && !newName.trim().isEmpty()) ? newName.trim() : existing.getName();
             String finalIcon = (newIcon != null && !newIcon.trim().isEmpty()) ? normalizeIcon(newIcon.trim()) : existing.getIcon();
             Color finalTint = newTint != null ? newTint : existing.getColorTint();
+            UUID ownerUuid = resolveOwnerUuid(player, existing);
+            Double existingY = getMarkerY(world, player, id);
 
             entry.store.removeUserMapMarker(id);
+            if (entry.shared) {
+                WaypointYPersistence.getInstance().removeGlobal(world.getName(), id);
+            } else if (ownerUuid != null) {
+                WaypointYPersistence.getInstance().removePersonal(world.getName(), ownerUuid, id);
+            }
 
             UserMapMarker newMarker = new UserMapMarker();
             newMarker.setId((entry.shared ? SHARED_ID_PREFIX : PERSONAL_ID_PREFIX) + UUID.randomUUID());
@@ -189,6 +240,13 @@ public class WaypointManager {
             newMarker.withCreatedByUuid(existing.getCreatedByUuid());
 
             entry.store.addUserMapMarker(newMarker);
+
+            double markerY = newY != null ? newY : (existingY != null ? existingY : getCurrentPlayerY(player, 100.0));
+            if (entry.shared) {
+                WaypointYPersistence.getInstance().setGlobalY(world.getName(), newMarker.getId(), markerY);
+            } else if (ownerUuid != null) {
+                WaypointYPersistence.getInstance().setPersonalY(world.getName(), ownerUuid, newMarker.getId(), markerY);
+            }
 
             MapAnchorManager.getInstance().refreshAnchor(player);
 
@@ -217,6 +275,15 @@ public class WaypointManager {
 
         if (updated) {
             entry.store.setUserMapMarkers(markers);
+
+            if (newY != null) {
+                UUID ownerUuid = resolveOwnerUuid(player, existing);
+                if (entry.shared) {
+                    WaypointYPersistence.getInstance().setGlobalY(world.getName(), id, newY);
+                } else if (ownerUuid != null) {
+                    WaypointYPersistence.getInstance().setPersonalY(world.getName(), ownerUuid, id, newY);
+                }
+            }
 
             if (entry.shared) {
                 forceRemoveAndResyncMarkerForAllClients(world, id);
@@ -311,6 +378,84 @@ public class WaypointManager {
      */
     public static boolean isSharedId(@Nonnull String id) {
         return id.startsWith(SHARED_ID_PREFIX);
+    }
+
+    @Nullable
+    public static Double getMarkerY(@Nonnull World world, @Nonnull Player player, @Nonnull String markerId) {
+        if (isSharedId(markerId)) {
+            return WaypointYPersistence.getInstance().getGlobalY(world.getName(), markerId);
+        }
+
+        UUID playerUuid = ((CommandSender) player).getUuid();
+        if (playerUuid == null) {
+            return null;
+        }
+        return WaypointYPersistence.getInstance().getPersonalY(world.getName(), playerUuid, markerId);
+    }
+
+    public static double getMarkerYOrDefault(@Nonnull World world, @Nonnull Player player, @Nonnull String markerId, double fallback) {
+        Double y = getMarkerY(world, player, markerId);
+        if (y != null) {
+            return y;
+        }
+
+        MarkerEntry entry = findMarkerEntry(player, world, markerId);
+        if (entry == null || entry.marker == null) {
+            return fallback;
+        }
+
+        double resolvedY = resolveHighestBlockY(world, entry.marker.getX(), entry.marker.getZ(), fallback);
+
+        UUID ownerUuid = resolveOwnerUuid(player, entry.marker);
+        if (entry.shared) {
+            WaypointYPersistence.getInstance().setGlobalY(world.getName(), markerId, resolvedY);
+        } else if (ownerUuid != null) {
+            WaypointYPersistence.getInstance().setPersonalY(world.getName(), ownerUuid, markerId, resolvedY);
+        }
+
+        return resolvedY;
+    }
+
+    @Nullable
+    private static UUID resolveOwnerUuid(@Nonnull Player actingPlayer, @Nonnull UserMapMarker marker) {
+        UUID owner = marker.getCreatedByUuid();
+        if (owner != null) {
+            return owner;
+        }
+        return ((CommandSender) actingPlayer).getUuid();
+    }
+
+    private static double getCurrentPlayerY(@Nonnull Player player, double fallback) {
+        try {
+            Ref<EntityStore> ref = player.getReference();
+            if (ref != null && ref.isValid()) {
+                TransformComponent transform = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
+                if (transform != null) {
+                    return transform.getPosition().y;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return fallback;
+    }
+
+    private static double resolveHighestBlockY(@Nonnull World world, float x, float z, double fallback) {
+        try {
+            long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
+            WorldChunk chunk = world.getChunk(chunkIndex);
+            if (chunk == null) {
+                return fallback;
+            }
+
+            int blockX = MathUtil.floor(x);
+            int blockZ = MathUtil.floor(z);
+            int localX = blockX & 31;
+            int localZ = blockZ & 31;
+            short surfaceHeight = chunk.getHeight(localX, localZ);
+            return surfaceHeight + 1.0;
+        } catch (Exception ignored) {
+            return fallback;
+        }
     }
 
     private static UserMapMarkersStore resolveStore(@Nonnull World world, @Nonnull Player player, boolean shared) {
