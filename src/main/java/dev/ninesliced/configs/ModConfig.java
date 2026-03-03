@@ -76,6 +76,8 @@ public class ModConfig {
     private boolean webMapDiskCacheEnabled = true;
     private boolean webMapShowOnlyExplored = true;
     private WebMapDataMode webMapDataMode = WebMapDataMode.GLOBAL;
+    private int webMapRefreshIntervalMinutes = 60;
+    private int webMapRefreshRadiusChunks = 4;
 
     private transient Path configPath;
     private transient Path configDir;
@@ -430,6 +432,18 @@ public class ModConfig {
                             }
                             needsSave = true;
                         }
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapRefreshIntervalMinutes")) {
+                        this.webMapRefreshIntervalMinutes = loaded.webMapRefreshIntervalMinutes;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapRefreshRadiusChunks")) {
+                        this.webMapRefreshRadiusChunks = loaded.webMapRefreshRadiusChunks;
                     } else {
                         needsSave = true;
                     }
@@ -1148,6 +1162,8 @@ public class ModConfig {
         this.webMapDiskCacheEnabled = defaults.webMapDiskCacheEnabled;
         this.webMapShowOnlyExplored = defaults.webMapShowOnlyExplored;
         this.webMapDataMode = defaults.webMapDataMode;
+        this.webMapRefreshIntervalMinutes = defaults.webMapRefreshIntervalMinutes;
+        this.webMapRefreshRadiusChunks = defaults.webMapRefreshRadiusChunks;
 
         updateLoggers();
         save();
@@ -1503,6 +1519,44 @@ public class ModConfig {
      */
     public void setWebMapDataMode(WebMapDataMode mode) {
         this.webMapDataMode = mode == null ? WebMapDataMode.GLOBAL : mode;
+        save();
+    }
+
+    /**
+     * Gets the interval (in minutes) between forced refresh checks for chunks near players.
+     *
+     * @return Refresh interval in minutes.
+     */
+    public int getWebMapRefreshIntervalMinutes() {
+        return webMapRefreshIntervalMinutes;
+    }
+
+    /**
+     * Sets the interval (in minutes) between forced refresh checks for chunks near players.
+     *
+     * @param minutes Refresh interval in minutes.
+     */
+    public void setWebMapRefreshIntervalMinutes(int minutes) {
+        this.webMapRefreshIntervalMinutes = Math.max(1, Math.min(minutes, 10080));
+        save();
+    }
+
+    /**
+     * Gets the radius (in chunks) around online players where stale chunk refresh is allowed.
+     *
+     * @return Radius in chunks.
+     */
+    public int getWebMapRefreshRadiusChunks() {
+        return webMapRefreshRadiusChunks;
+    }
+
+    /**
+     * Sets the radius (in chunks) around online players where stale chunk refresh is allowed.
+     *
+     * @param radius Radius in chunks.
+     */
+    public void setWebMapRefreshRadiusChunks(int radius) {
+        this.webMapRefreshRadiusChunks = Math.max(0, Math.min(radius, 64));
         save();
     }
 

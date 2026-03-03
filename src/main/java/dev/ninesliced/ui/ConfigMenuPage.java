@@ -151,10 +151,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         bindClick(events, "#AdminViewBtn", "view_admin");
         bindClick(events, "#AdminViewBtnSelected", "view_admin");
         bindClick(events, "#OpenWaypointsBtn", "open_waypoints");
+        bindClick(events, "#PlayerWebMapOpenBtn", "player_webmap_open");
         bindClick(events, "#PlayerResetDefaultsBtn", "player_reset_defaults");
         bindClick(events, "#HelpViewBtn", "open_help");
         bindClick(events, "#HelpViewBtnSelected", "open_help");
         bindClick(events, "#CloseBtn", "close_menu");
+
+        ui.set("#PlayerWebMapOpenBtn.Visible", ModConfig.getInstance().isWebMapEnabled());
 
         if (isAdmin) {
              ui.set("#AdminViewContainer.Visible", true);
@@ -212,6 +215,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#WebMapPort.Value", gConfig.getWebMapPort());
              ui.set("#WebMapDiskCache.Value", gConfig.isWebMapDiskCacheEnabled());
              ui.set("#WebMapShowUnexplored.Value", !gConfig.isWebMapShowOnlyExplored());
+             ui.set("#WebMapRefreshInterval.Value", gConfig.getWebMapRefreshIntervalMinutes());
+             ui.set("#WebMapRefreshRadius.Value", gConfig.getWebMapRefreshRadiusChunks());
+             ui.set("#WebMapOpenBtn.Visible", gConfig.isWebMapEnabled());
+             ui.set("#PlayerWebMapOpenBtn.Visible", gConfig.isWebMapEnabled());
 
              applySavedPlayersDropdown(ui);
 
@@ -262,6 +269,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindChange(events, "#WebMapPort", "admin_webmap_port", BindingType.NUMBER);
              bindChange(events, "#WebMapDiskCache", "admin_webmap_disk_cache", BindingType.BOOLEAN);
              bindChange(events, "#WebMapShowUnexplored", "admin_webmap_show_unexplored", BindingType.BOOLEAN);
+             bindChange(events, "#WebMapRefreshInterval", "admin_webmap_refresh_interval", BindingType.NUMBER);
+             bindChange(events, "#WebMapRefreshRadius", "admin_webmap_refresh_radius", BindingType.NUMBER);
              bindClick(events, "#WebMapActivateBtn", "admin_webmap_activate");
              bindClick(events, "#WebMapOpenBtn", "admin_webmap_open");
 
@@ -333,10 +342,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
     private void openWebMapForPlayer(Player player) {
         WebMapService webMapService = BetterMap.get().getWebMapService();
-        String url = webMapService.getBaseUrl();
+        String url = webMapService.createAutoLoginUrl(((CommandSender) player).getUuid(), player.getDisplayName());
         Message linkMessage = Message.raw("")
             .insert(Message.raw("[BetterMap] ").color("#93844c").bold(true))
-            .insert(Message.raw("Open your WebMap: ").color("#bfcdd5"))
+            .insert(Message.raw("Open your WebMap (direct login): ").color("#bfcdd5"))
             .insert(Message.raw(url).color("#4c9cff").link(url));
         player.sendMessage(linkMessage);
     }
@@ -863,6 +872,14 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(playerRef));
                 return;
             }
+            case "player_webmap_open" -> {
+                if (!ModConfig.getInstance().isWebMapEnabled()) {
+                    player.sendMessage(Message.raw("WebMap is disabled.").color("#ff4a4a"));
+                } else {
+                    openWebMapForPlayer(player);
+                }
+                return;
+            }
             case "open_help" -> {
                 player.getPageManager().openCustomPage(ref, store, new HelpMenuPage(playerRef));
                 return;
@@ -963,6 +980,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     gConfig.setWebMapEnabled(true);
                     BetterMap.get().getWebMapService().start();
                     ui.set("#WebMapEnabled.Value", true);
+                    ui.set("#WebMapOpenBtn.Visible", true);
+                    ui.set("#PlayerWebMapOpenBtn.Visible", true);
                     sendUpdate(ui, events, false);
                     openWebMapForPlayer(player);
                 }
@@ -1561,6 +1580,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         } else {
                             service.stop();
                         }
+                        ui.set("#WebMapOpenBtn.Visible", enabled);
+                        ui.set("#PlayerWebMapOpenBtn.Visible", enabled);
+                        sendUpdate(ui, new UIEventBuilder(), false);
                     }
                     break;
                 case "admin_webmap_port":
@@ -1584,6 +1606,22 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     if (val != null) {
                         boolean showUnexplored = Boolean.parseBoolean(val);
                         gConfig.setWebMapShowOnlyExplored(!showUnexplored);
+                    }
+                    break;
+                case "admin_webmap_refresh_interval":
+                    if (val != null) {
+                        int minutes = Integer.parseInt(val);
+                        gConfig.setWebMapRefreshIntervalMinutes(minutes);
+                        ui.set("#WebMapRefreshInterval.Value", gConfig.getWebMapRefreshIntervalMinutes());
+                        sendUpdate(ui, new UIEventBuilder(), false);
+                    }
+                    break;
+                case "admin_webmap_refresh_radius":
+                    if (val != null) {
+                        int radius = Integer.parseInt(val);
+                        gConfig.setWebMapRefreshRadiusChunks(radius);
+                        ui.set("#WebMapRefreshRadius.Value", gConfig.getWebMapRefreshRadiusChunks());
+                        sendUpdate(ui, new UIEventBuilder(), false);
                     }
                     break;
             }

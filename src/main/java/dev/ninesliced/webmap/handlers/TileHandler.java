@@ -2,6 +2,8 @@ package dev.ninesliced.webmap.handlers;
 
 import dev.ninesliced.webmap.tiles.TileManager;
 import dev.ninesliced.webmap.tiles.TileQuality;
+import dev.ninesliced.webmap.auth.WebMapAccessPolicy;
+import dev.ninesliced.webmap.auth.WebMapViewer;
 import dev.ninesliced.webmap.data.WebViewFilter;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFutureListener;
@@ -31,13 +33,20 @@ public class TileHandler {
         this.defaultQuality = defaultQuality;
     }
 
-    public void handle(ChannelHandlerContext ctx, FullHttpRequest req) {
+    public void handle(ChannelHandlerContext ctx, FullHttpRequest req, WebMapViewer viewer) {
         if (req.method() != HttpMethod.GET) {
             sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED);
             return;
         }
 
-        Matcher matcher = TILE_PATTERN.matcher(req.uri());
+        String uri = req.uri();
+        String pathOnly = uri;
+        int queryIndex = uri.indexOf('?');
+        if (queryIndex >= 0) {
+            pathOnly = uri.substring(0, queryIndex);
+        }
+
+        Matcher matcher = TILE_PATTERN.matcher(pathOnly);
         if (!matcher.matches()) {
             sendError(ctx, HttpResponseStatus.BAD_REQUEST);
             return;
@@ -48,7 +57,8 @@ public class TileHandler {
         int zoom = Integer.parseInt(matcher.group(3));
         int x = Integer.parseInt(matcher.group(4));
         int z = Integer.parseInt(matcher.group(5));
-        WebViewFilter filter = parseFilter(req.uri());
+        WebViewFilter requested = parseFilter(uri);
+        WebViewFilter filter = WebMapAccessPolicy.enforceFilter(requested, viewer);
         boolean keepAlive = HttpUtil.isKeepAlive(req);
 
         tileManager.getTile(worldName, quality, zoom, x, z, filter.mode(), filter.playerUuid())
@@ -64,7 +74,9 @@ public class TileHandler {
                 response.headers()
                     .set(HttpHeaderNames.CONTENT_TYPE, "image/png")
                     .set(HttpHeaderNames.CONTENT_LENGTH, data.length)
-                    .set(HttpHeaderNames.CACHE_CONTROL, "max-age=120")
+                    .set(HttpHeaderNames.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
+                    .set(HttpHeaderNames.PRAGMA, "no-cache")
+                    .set(HttpHeaderNames.EXPIRES, "0")
                     .set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*");
 
                 if (keepAlive) {

@@ -2,6 +2,8 @@ package dev.ninesliced.webmap.handlers;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import dev.ninesliced.webmap.auth.WebMapAccessPolicy;
+import dev.ninesliced.webmap.auth.WebMapViewer;
 import dev.ninesliced.webmap.data.WorldDataCollector;
 import dev.ninesliced.webmap.data.WebViewFilter;
 import io.netty.buffer.Unpooled;
@@ -41,7 +43,7 @@ public class WorldDataHandler {
         sendJson(ctx, worldDataCollector.getWorlds());
     }
 
-    public void handleSnapshot(ChannelHandlerContext ctx, FullHttpRequest req) {
+    public void handleSnapshot(ChannelHandlerContext ctx, FullHttpRequest req, WebMapViewer viewer) {
         if (req.method() != HttpMethod.GET) {
             sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED);
             return;
@@ -62,8 +64,10 @@ public class WorldDataHandler {
 
         String worldName = matcher.group(1);
         Map<String, String> query = parseQuery(uri);
-        WebViewFilter filter = WebViewFilter.parse(query.get("mode"), query.get("playerUuid"));
-        sendJson(ctx, worldDataCollector.buildSnapshot(worldName, filter));
+        WebViewFilter requested = WebViewFilter.parse(query.get("mode"), query.get("playerUuid"));
+        WebViewFilter effective = WebMapAccessPolicy.enforceFilter(requested, viewer);
+        boolean allowGlobalMode = WebMapAccessPolicy.allowGlobalMode(viewer);
+        sendJson(ctx, worldDataCollector.buildSnapshot(worldName, effective, allowGlobalMode));
     }
 
     private Map<String, String> parseQuery(String uri) {

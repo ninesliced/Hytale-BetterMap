@@ -57,6 +57,7 @@ public class BetterMapCommand extends AbstractCommand {
         this.addSubCommand(new PlayerResetPrivacyCommand());
         this.addSubCommand(new PlayerLocationPositionCommand());
         this.addSubCommand(new PlayerCaveModeCommand());
+        this.addSubCommand(new WebMapCodeCommand());
         this.addSubCommand(new WaypointCommand());
     }
 

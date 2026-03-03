@@ -3,13 +3,16 @@ package dev.ninesliced.webmap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.webmap.auth.WebMapAccessPolicy;
+import dev.ninesliced.webmap.auth.WebMapViewer;
+import dev.ninesliced.webmap.data.WebViewFilter;
 import dev.ninesliced.webmap.data.WorldDataCollector;
+import dev.ninesliced.webmap.preload.WebMapPreloadService;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,13 +25,16 @@ public class LiveDataBroadcaster {
     private static final Gson GSON = new GsonBuilder().create();
 
     private final WorldDataCollector worldDataCollector;
-    private final Set<Channel> channels;
+    private final WebMapPreloadService preloadService;
+    private final Map<Channel, WebMapViewer> channels;
     private final Object broadcastLock = new Object();
     private ScheduledExecutorService scheduler;
 
-    public LiveDataBroadcaster(WorldDataCollector worldDataCollector) {
+    public LiveDataBroadcaster(WorldDataCollector worldDataCollector,
+                               WebMapPreloadService preloadService) {
         this.worldDataCollector = worldDataCollector;
-        this.channels = ConcurrentHashMap.newKeySet();
+        this.preloadService = preloadService;
+        this.channels = new ConcurrentHashMap<>();
     }
 
     public void start() {
@@ -45,7 +51,7 @@ public class LiveDataBroadcaster {
 
     public void shutdown() {
         stopSchedulerOnly();
-        for (Channel channel : channels) {
+        for (Channel channel : channels.keySet()) {
             if (channel.isOpen()) {
                 channel.close();
             }
@@ -53,8 +59,8 @@ public class LiveDataBroadcaster {
         channels.clear();
     }
 
-    public void addChannel(Channel channel) {
-        channels.add(channel);
+    public void addChannel(Channel channel, WebMapViewer viewer) {
+        channels.put(channel, viewer);
     }
 
     public void removeChannel(Channel channel) {
@@ -76,27 +82,32 @@ public class LiveDataBroadcaster {
             return;
         }
 
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("type", "world_update");
-        payload.put("timestamp", System.currentTimeMillis());
-
-        Map<String, Object> worlds = new LinkedHashMap<>();
-        worldDataCollector.getWorlds().forEach(world -> {
-            Object worldName = world.get("name");
-            if (worldName instanceof String name) {
-                worlds.put(name, worldDataCollector.buildSnapshot(name));
-            }
-        });
-        payload.put("worlds", worlds);
-
-        TextWebSocketFrame frame = new TextWebSocketFrame(GSON.toJson(payload));
-        for (Channel channel : channels) {
+        for (Map.Entry<Channel, WebMapViewer> entry : channels.entrySet()) {
+            Channel channel = entry.getKey();
             if (!channel.isActive()) {
                 continue;
             }
-            channel.writeAndFlush(frame.retainedDuplicate());
+
+            WebMapViewer viewer = entry.getValue();
+            WebViewFilter filter = WebMapAccessPolicy.enforceFilter(WebViewFilter.global(), viewer);
+            boolean allowGlobalMode = WebMapAccessPolicy.allowGlobalMode(viewer);
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("type", "world_update");
+            payload.put("timestamp", System.currentTimeMillis());
+            payload.put("preload", preloadService.status(viewer));
+
+            Map<String, Object> worlds = new LinkedHashMap<>();
+            worldDataCollector.getWorlds().forEach(world -> {
+                Object worldName = world.get("name");
+                if (worldName instanceof String name) {
+                    worlds.put(name, worldDataCollector.buildSnapshot(name, filter, allowGlobalMode));
+                }
+            });
+            payload.put("worlds", worlds);
+
+            channel.writeAndFlush(new TextWebSocketFrame(GSON.toJson(payload)));
         }
-        frame.release();
     }
 
     private long resolveIntervalMs() {

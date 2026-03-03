@@ -6,6 +6,7 @@
 	const BLOCK_TO_MAP_SCALE = TILE_SIZE / CHUNK_SIZE;
 	const DEFAULT_WORLD = 'world';
 	const GLOBAL_TILE_CACHE = new Map();
+	const MIN_OVERLAY_VISIBLE_MS = 350;
 
 	L.TileLayer.Batch = L.TileLayer.extend({
 		options: {
@@ -13,7 +14,8 @@
 			batchDelayNegative: 340,
 			maxBatchSize: 2500,
 			batchEndpoint: '/api/tiles/batch',
-			memoryCacheMaxEntries: 120000
+			memoryCacheMaxEntries: 120000,
+			maxRetryAttempts: 2
 		},
 
 		initialize: function (urlTemplate, options) {
@@ -36,7 +38,7 @@
 			this._worldName = worldName;
 			this._quality = quality;
 			this._mode = mode || 'global';
-			this._playerUuid = playerUuid || '';
+			this._playerUuid = this._mode === 'player' ? (playerUuid || '') : '';
 		},
 
 		onAdd: function (map) {
@@ -61,6 +63,11 @@
 			const cacheKey = this._cacheKey(zoom, coords.x, coords.y);
 			const cached = this._tileMemoryCache.get(cacheKey);
 			if (cached) {
+				if (cached.empty) {
+					this._tileMemoryCache.delete(cacheKey);
+					this._queue(key, coords, tile, done);
+					return tile;
+				}
 				this._tileMemoryCache.delete(cacheKey);
 				this._tileMemoryCache.set(cacheKey, cached);
 				this._applyTilePayload(tile, done, cached);
@@ -111,7 +118,43 @@
 			}
 		},
 
+		_applyPayloadToEntry: function (entry, payload) {
+			if (!entry || !entry.requests) {
+				return;
+			}
+			for (const request of entry.requests) {
+				if (!request || !request.tile || !request.done) {
+					continue;
+				}
+				this._applyTilePayload(request.tile, request.done, payload);
+			}
+		},
+
+		_completeEntryWithError: function (entry, error) {
+			if (!entry || !entry.requests) {
+				return;
+			}
+			for (const request of entry.requests) {
+				if (!request || !request.done) {
+					continue;
+				}
+				request.done(error, request.tile);
+			}
+		},
+
+		_pruneDisconnectedRequests: function (entry) {
+			if (!entry || !entry.requests) {
+				return false;
+			}
+			entry.requests = entry.requests.filter(request => request && request.tile && request.tile.isConnected && request.done);
+			return entry.requests.length > 0;
+		},
+
 		_storeTilePayload: function (z, x, y, payload) {
+			if (!payload || payload.empty) {
+				this._tileMemoryCache.delete(this._cacheKey(z, x, y));
+				return;
+			}
 			const cacheKey = this._cacheKey(z, x, y);
 			this._tileMemoryCache.set(cacheKey, payload);
 			while (this._tileMemoryCache.size > this.options.memoryCacheMaxEntries) {
@@ -129,7 +172,12 @@
 
 		_queue: function (key, coords, tile, done) {
 			const target = this._isSending ? this._queuedWhileSending : this._pendingTiles;
-			target.set(key, { coords, tile, done });
+			const existing = target.get(key);
+			if (existing) {
+				existing.requests.push({ tile, done });
+			} else {
+				target.set(key, { coords, requests: [{ tile, done }], attempts: 0 });
+			}
 
 			if (this._isZooming) {
 				return;
@@ -163,8 +211,8 @@
 				this._isZooming = false;
 
 				// Discard queued tiles whose DOM elements were removed during zoom
-				for (const [key, request] of this._queuedWhileSending) {
-					if (!request.tile.isConnected) {
+				for (const [key, entry] of this._queuedWhileSending) {
+					if (!this._pruneDisconnectedRequests(entry)) {
 						this._queuedWhileSending.delete(key);
 					}
 				}
@@ -202,10 +250,46 @@
 			this._isSending = false;
 		},
 
+		_requeueEntries: function (chunk) {
+			const target = this._isSending ? this._queuedWhileSending : this._pendingTiles;
+			for (const [key, entry] of chunk) {
+				if (!this._pruneDisconnectedRequests(entry)) {
+					continue;
+				}
+				const existing = target.get(key);
+				if (existing) {
+					existing.requests.push(...entry.requests);
+					existing.attempts = Math.max(existing.attempts || 0, entry.attempts || 0);
+				} else {
+					target.set(key, entry);
+				}
+			}
+		},
+
+		_retryOrFailEntries: function (entries, error) {
+			if (!entries || entries.size === 0) {
+				return;
+			}
+			const retryChunk = new Map();
+			for (const [key, entry] of entries) {
+				if (!this._pruneDisconnectedRequests(entry)) {
+					continue;
+				}
+				entry.attempts = (entry.attempts || 0) + 1;
+				if (entry.attempts <= this.options.maxRetryAttempts) {
+					retryChunk.set(key, entry);
+				} else {
+					this._completeEntryWithError(entry, error);
+				}
+			}
+			if (retryChunk.size > 0) {
+				this._requeueEntries(retryChunk);
+			}
+		},
+
 		_sendBatch: function () {
-			// Prune tiles whose img elements are no longer in the document
-			for (const [key, request] of this._pendingTiles) {
-				if (!request.tile.isConnected) {
+			for (const [key, entry] of this._pendingTiles) {
+				if (!this._pruneDisconnectedRequests(entry)) {
 					this._pendingTiles.delete(key);
 				}
 			}
@@ -252,19 +336,14 @@
 
 		_sendChunk: function (chunk, signal) {
 			const tiles = [];
-			for (const [key, request] of [...chunk]) {
-				// Skip tiles no longer attached to the document
-				if (!request.tile.isConnected) {
-					chunk.delete(key);
-					continue;
-				}
+			for (const [key, entry] of [...chunk]) {
 				const [z, x, y] = key.split('/').map(Number);
 				const cacheKey = this._cacheKey(z, x, y);
 				const cached = this._tileMemoryCache.get(cacheKey);
 				if (cached) {
 					this._tileMemoryCache.delete(cacheKey);
 					this._tileMemoryCache.set(cacheKey, cached);
-					this._applyTilePayload(request.tile, request.done, cached);
+					this._applyPayloadToEntry(entry, cached);
 					chunk.delete(key);
 					continue;
 				}
@@ -320,8 +399,8 @@
 							offset += 4;
 
 							const key = `${z}/${x}/${y}`;
-							const request = chunk.get(key);
-							if (!request) {
+							const entry = chunk.get(key);
+							if (!entry) {
 								if (dataLength > 0) {
 									offset += dataLength;
 								}
@@ -331,7 +410,7 @@
 							if (dataLength <= 0) {
 								const payload = { empty: true, src: this._emptyTile };
 								this._storeTilePayload(z, x, y, payload);
-								this._applyTilePayload(request.tile, request.done, payload);
+								this._applyPayloadToEntry(entry, payload);
 								chunk.delete(key);
 								continue;
 							}
@@ -340,47 +419,42 @@
 							offset += dataLength;
 							const payload = { empty: false, src: this._bytesToObjectUrl(bytes), objectUrl: true };
 							this._storeTilePayload(z, x, y, payload);
-							this._applyTilePayload(request.tile, request.done, payload);
+							this._applyPayloadToEntry(entry, payload);
 							chunk.delete(key);
 						}
 					} else {
 						const data = result.json || {};
 						for (const [key, tileData] of Object.entries(data.tiles || {})) {
-							const request = chunk.get(key);
-							if (!request) {
+							const entry = chunk.get(key);
+							if (!entry) {
 								continue;
 							}
 							const [z, x, y] = key.split('/').map(Number);
 							if (tileData.empty) {
 								const payload = { empty: true, src: this._emptyTile };
 								this._storeTilePayload(z, x, y, payload);
-								this._applyTilePayload(request.tile, request.done, payload);
+								this._applyPayloadToEntry(entry, payload);
 								chunk.delete(key);
 								continue;
 							}
 							if (!tileData.data) {
-								request.done(new Error('Missing tile payload'), request.tile);
+								this._completeEntryWithError(entry, new Error('Missing tile payload'));
 								chunk.delete(key);
 								continue;
 							}
 							const payload = { empty: false, src: this._base64ToObjectUrl(tileData.data), objectUrl: true };
 							this._storeTilePayload(z, x, y, payload);
-							this._applyTilePayload(request.tile, request.done, payload);
+							this._applyPayloadToEntry(entry, payload);
 							chunk.delete(key);
 						}
 					}
 
-					for (const [, request] of chunk) {
-						request.done(new Error('Tile payload missing from batch response'), request.tile);
+					if (chunk.size > 0) {
+						this._retryOrFailEntries(chunk, new Error('Tile payload missing from batch response'));
 					}
 				})
 				.catch(error => {
-					if (error.name === 'AbortError') {
-						return;
-					}
-					for (const [, request] of chunk) {
-						request.done(error, request.tile);
-					}
+					this._retryOrFailEntries(chunk, error || new Error('Tile batch failed'));
 				});
 		}
 	});
@@ -394,6 +468,9 @@
 		tileLayer: null,
 		world: DEFAULT_WORLD,
 		quality: 'medium',
+		allowGlobalMode: true,
+		preloadReady: false,
+		preloadCancelled: false,
 		viewMode: 'global',
 		selectedPlayerUuid: '',
 		worlds: [],
@@ -406,9 +483,243 @@
 		worldMarkers: {}
 	};
 
+	function clearTileMemoryCache() {
+		for (const [, payload] of GLOBAL_TILE_CACHE) {
+			if (payload && payload.objectUrl) {
+				URL.revokeObjectURL(payload.src);
+			}
+		}
+		GLOBAL_TILE_CACHE.clear();
+	}
+
+	function isCurrentPreloadRequest(status, worldName, quality) {
+		return status && status.world === worldName && status.quality === quality;
+	}
+
+	function sleep(ms) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+
+	function showStartupOverlay() {
+		const overlay = document.getElementById('startup-overlay');
+		overlay.classList.add('visible');
+	}
+
+	function hideStartupOverlay() {
+		const overlay = document.getElementById('startup-overlay');
+		overlay.classList.remove('visible');
+	}
+
+	function updateStartupProgress(status) {
+		const messageEl = document.getElementById('startup-progress-message');
+		const textEl = document.getElementById('startup-progress-text');
+		const fillEl = document.getElementById('startup-progress-fill');
+		const total = Number(status.total || 0);
+		const processed = Number(status.processed || 0);
+		const percent = Number(status.percent || 0);
+		let prefix = '';
+		if ((status.lockedByOther || (status.active && status.canStop === false)) && status.ownerUsername) {
+			prefix = `${status.ownerUsername} is currently loading ${status.world} (${status.quality}). `;
+		}
+		messageEl.textContent = `${prefix}${status.message || 'Loading explored chunks...'}`;
+		textEl.textContent = `${processed} / ${total} chunks loaded`;
+		fillEl.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+		const stopButton = document.getElementById('startup-stop-btn');
+		if (stopButton) {
+			stopButton.disabled = status.canStop === false;
+		}
+	}
+
+	async function stopPreload() {
+		const response = await fetch('/api/preload/stop', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: '{}',
+			keepalive: true
+		});
+		if (!response.ok) {
+			throw new Error('Failed to stop preload');
+		}
+		return response.json();
+	}
+
+	function stopPreloadOnUnload() {
+		if (state.preloadReady) {
+			return;
+		}
+		state.preloadCancelled = true;
+		try {
+			navigator.sendBeacon('/api/preload/stop', new Blob(['{}'], { type: 'application/json' }));
+		} catch (_) {
+		}
+		fetch('/api/preload/stop', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: '{}',
+			keepalive: true
+		}).catch(() => {
+		});
+	}
+
+	async function fetchPreloadStatus() {
+		const response = await fetch('/api/preload/status');
+		if (!response.ok) {
+			throw new Error('Failed to fetch preload status');
+		}
+		return response.json();
+	}
+
+	async function startWorldPreload(worldName, quality) {
+		const response = await fetch('/api/preload/start', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ world: worldName, quality })
+		});
+		if (!response.ok) {
+			throw new Error('Failed to start preload');
+		}
+		return response.json();
+	}
+
+	function setupStartupWorldChooser(worlds) {
+		const worldCard = document.getElementById('startup-world-card');
+		const progressCard = document.getElementById('startup-progress-card');
+		const worldSelect = document.getElementById('startup-world-select');
+		const startupQualitySelect = document.getElementById('startup-quality-select');
+		const loadButton = document.getElementById('startup-load-btn');
+		const stopButton = document.getElementById('startup-stop-btn');
+		const progressMessage = document.getElementById('startup-progress-message');
+
+		const names = worlds.map(item => item.name);
+		worldSelect.innerHTML = names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+		if (names.length > 0) {
+			worldSelect.value = names[0];
+		}
+		startupQualitySelect.value = state.quality || 'medium';
+		loadButton.disabled = names.length === 0;
+		if (names.length === 0) {
+			progressCard.classList.remove('hidden');
+			worldCard.classList.add('hidden');
+			progressMessage.textContent = 'No worlds available yet.';
+			updateStartupProgress({ processed: 0, total: 0, percent: 0, message: 'No worlds available yet.' });
+			return;
+		}
+
+		const runStart = async () => {
+			state.preloadCancelled = false;
+			const selected = worldSelect.value;
+			const selectedQuality = startupQualitySelect.value || 'medium';
+			if (!selected) {
+				return;
+			}
+
+			state.world = selected;
+			state.quality = selectedQuality;
+			worldCard.classList.add('hidden');
+			progressCard.classList.remove('hidden');
+
+			let status = await startWorldPreload(selected, selectedQuality);
+			if (status.lockedByOther) {
+				window.alert(`${status.ownerUsername || 'Another user'} is currently loading ${status.world} (${status.quality}). Please wait.`);
+			}
+			updateStartupProgress(status);
+
+			while (!status.done) {
+				await new Promise(resolve => setTimeout(resolve, 350));
+				status = await fetchPreloadStatus();
+				updateStartupProgress(status);
+				if (status.cancelled || state.preloadCancelled) {
+					break;
+				}
+			}
+
+			if (status.cancelled || state.preloadCancelled) {
+				progressCard.classList.add('hidden');
+				worldCard.classList.remove('hidden');
+				loadButton.disabled = false;
+				progressMessage.textContent = 'Preload cancelled.';
+				return;
+			}
+
+			if (status.lockedByOther && !isCurrentPreloadRequest(status, selected, selectedQuality)) {
+				progressCard.classList.add('hidden');
+				worldCard.classList.remove('hidden');
+				loadButton.disabled = false;
+				progressMessage.textContent = `${status.ownerUsername || 'Another user'} is loading ${status.world} (${status.quality}). Try again once finished.`;
+				return;
+			}
+
+			state.preloadReady = true;
+			hideStartupOverlay();
+			state.map.invalidateSize(false);
+			clearTileMemoryCache();
+			await refreshWorldSelector();
+			updateViewControls();
+			updateTileLayer();
+			applySnapshot(await fetchSnapshot(state.world));
+		};
+
+		loadButton.onclick = () => {
+			loadButton.disabled = true;
+			stopButton.disabled = false;
+			runStart().catch(() => {
+				const messageEl = document.getElementById('startup-progress-message');
+				messageEl.textContent = 'Preload failed. Please retry.';
+				progressCard.classList.add('hidden');
+				worldCard.classList.remove('hidden');
+				loadButton.disabled = false;
+				stopButton.disabled = false;
+			});
+		};
+
+		stopButton.onclick = () => {
+			stopButton.disabled = true;
+			state.preloadCancelled = true;
+			stopPreload().then(status => {
+				updateStartupProgress(status);
+				progressCard.classList.add('hidden');
+				worldCard.classList.remove('hidden');
+				loadButton.disabled = false;
+				stopButton.disabled = false;
+			}).catch(() => {
+				stopButton.disabled = false;
+			});
+		};
+	}
+
+	async function openHomeSelection() {
+		state.preloadReady = false;
+		state.lastSnapshot = null;
+		clearTileMemoryCache();
+		if (state.tileLayer) {
+			state.map.removeLayer(state.tileLayer);
+			state.tileLayer = null;
+		}
+		clearAllEntityMarkers();
+		showStartupOverlay();
+		const worldCard = document.getElementById('startup-world-card');
+		const progressCard = document.getElementById('startup-progress-card');
+		const startupWorldSelect = document.getElementById('startup-world-select');
+		const startupQualitySelect = document.getElementById('startup-quality-select');
+		const progressMessage = document.getElementById('startup-progress-message');
+		progressCard.classList.add('hidden');
+		worldCard.classList.remove('hidden');
+		progressMessage.textContent = 'Select world and quality to load.';
+
+		const worlds = await fetchWorlds();
+		state.worlds = worlds;
+		setupStartupWorldChooser(worlds);
+		if (startupWorldSelect && state.world) {
+			startupWorldSelect.value = state.world;
+		}
+		if (startupQualitySelect && state.quality) {
+			startupQualitySelect.value = state.quality;
+		}
+	}
+
 	function tileQuery() {
 		const params = new URLSearchParams();
-		params.set('mode', state.viewMode);
+		params.set('mode', state.viewMode || 'global');
 		if (state.viewMode === 'player' && state.selectedPlayerUuid) {
 			params.set('playerUuid', state.selectedPlayerUuid);
 		}
@@ -493,10 +804,10 @@
 
 	function updateTileLayer() {
 		if (state.tileLayer) {
+			state.tileLayer._cancelAll();
 			state.map.removeLayer(state.tileLayer);
 		}
-		const query = tileQuery();
-		state.tileLayer = L.tileLayer.batch(`/api/tiles/${state.world}/${state.quality}/{z}/{x}/{y}.png?${query}`, {
+		state.tileLayer = L.tileLayer.batch('', {
 			tileSize: TILE_SIZE,
 			minNativeZoom: -4,
 			maxNativeZoom: 0,
@@ -504,13 +815,23 @@
 			maxZoom: 4,
 			noWrap: true,
 			keepBuffer: 4,
+			updateWhenIdle: true,
 			updateWhenZooming: false,
-			bounds: [[-120000, -120000], [120000, 120000]],
-			batchEndpoint: '/api/tiles/batch',
-			keepOffscreenBatchOnZoom: false
+			bounds: [[-120000, -120000], [120000, 120000]]
 		});
 		state.tileLayer.setContext(state.world, state.quality, state.viewMode, state.selectedPlayerUuid);
 		state.tileLayer.addTo(state.map);
+	}
+
+	function refreshTileContext(redraw) {
+		if (!state.tileLayer) {
+			return;
+		}
+		state.tileLayer.setContext(state.world, state.quality, state.viewMode, state.selectedPlayerUuid);
+		if (redraw) {
+			state.tileLayer._cancelAll();
+			state.tileLayer.redraw();
+		}
 	}
 
 	function clearAllEntityMarkers() {
@@ -639,11 +960,20 @@
 		if (!snapshot) {
 			return;
 		}
+		const previousMode = state.viewMode;
+		const previousPlayer = state.selectedPlayerUuid;
 		state.lastSnapshot = snapshot;
+		state.allowGlobalMode = snapshot.allowGlobalMode !== false;
+		if (!state.allowGlobalMode) {
+			state.viewMode = 'player';
+		}
 		if ((state.viewMode !== 'player' && snapshot.defaultMode === 'player') || (state.viewMode === 'global' && !state.selectedPlayerUuid && snapshot.filterPlayerUuid)) {
 			state.viewMode = snapshot.defaultMode === 'player' ? 'player' : state.viewMode;
 		}
 		refreshPlayerFilterOptions(snapshot.players || []);
+		if (state.preloadReady && (previousMode !== state.viewMode || previousPlayer !== state.selectedPlayerUuid)) {
+			refreshTileContext(true);
+		}
 		applyFilteredSnapshot();
 	}
 
@@ -697,11 +1027,25 @@
 
 	function updateViewControls() {
 		const modeSelect = document.getElementById('mode-select');
+		const modeGroup = document.getElementById('mode-group');
+		const globalOption = modeSelect.querySelector('option[value="global"]');
+		if (globalOption) {
+			globalOption.disabled = !state.allowGlobalMode;
+		}
+		if (!state.allowGlobalMode && state.viewMode !== 'player') {
+			state.viewMode = 'player';
+		}
 		const playerGroup = document.getElementById('player-filter-group');
+		if (!state.allowGlobalMode) {
+			modeGroup.classList.add('hidden');
+			playerGroup.classList.add('hidden');
+		} else {
+			modeGroup.classList.remove('hidden');
+			playerGroup.classList.toggle('hidden', state.viewMode !== 'player');
+		}
 		if (modeSelect.value !== state.viewMode) {
 			modeSelect.value = state.viewMode;
 		}
-		playerGroup.classList.toggle('hidden', state.viewMode !== 'player');
 	}
 
 	async function fetchWorlds() {
@@ -728,16 +1072,22 @@
 	async function refreshWorldSelector() {
 		const worlds = await fetchWorlds();
 		state.worlds = worlds;
-
-		const select = document.getElementById('world-select');
 		const names = worlds.map(item => item.name);
 		if (names.length > 0 && !names.includes(state.world)) {
 			state.world = names[0];
 			clearAllEntityMarkers();
-			updateTileLayer();
+			if (state.preloadReady) {
+				updateTileLayer();
+			}
 		}
-
-		select.innerHTML = names.map(name => `<option value="${escapeHtml(name)}" ${name === state.world ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('');
+		const overlayVisible = document.getElementById('startup-overlay').classList.contains('visible');
+		if (overlayVisible) {
+			setupStartupWorldChooser(worlds);
+			const startupWorldSelect = document.getElementById('startup-world-select');
+			if (startupWorldSelect && state.world) {
+				startupWorldSelect.value = state.world;
+			}
+		}
 	}
 
 	function updateConnectionStatus(label, className) {
@@ -763,7 +1113,13 @@
 		socket.onmessage = event => {
 			try {
 				const message = JSON.parse(event.data);
+				if (message.preload) {
+					updateStartupProgress(message.preload);
+				}
 				if (message.type !== 'world_update' || !message.worlds) {
+					return;
+				}
+				if (!state.preloadReady) {
 					return;
 				}
 				const snapshot = message.worlds[state.world];
@@ -790,35 +1146,23 @@
 		return div.innerHTML;
 	}
 
-	async function onWorldChanged() {
-		const selected = document.getElementById('world-select').value;
-		if (!selected || selected === state.world) {
-			return;
-		}
-		state.world = selected;
-		clearAllEntityMarkers();
-		updateTileLayer();
-		applySnapshot(await fetchSnapshot(state.world));
-	}
-
-	async function onQualityChanged() {
-		const selected = document.getElementById('quality-select').value;
-		if (!selected || selected === state.quality) {
-			return;
-		}
-		state.quality = selected;
-		updateTileLayer();
-	}
-
 	async function onModeChanged() {
+		if (!state.preloadReady) {
+			return;
+		}
 		const selected = document.getElementById('mode-select').value;
+		if (!state.allowGlobalMode && selected === 'global') {
+			state.viewMode = 'player';
+			updateViewControls();
+			return;
+		}
 		if (!selected || selected === state.viewMode) {
 			updateViewControls();
 			return;
 		}
 		state.viewMode = selected;
 		updateViewControls();
-		updateTileLayer();
+		refreshTileContext(true);
 		if (state.lastSnapshot) {
 			applyFilteredSnapshot();
 		}
@@ -826,12 +1170,15 @@
 	}
 
 	async function onPlayerFilterChanged() {
+		if (!state.preloadReady) {
+			return;
+		}
 		const selected = document.getElementById('player-select').value;
 		if (!selected || selected === state.selectedPlayerUuid) {
 			return;
 		}
 		state.selectedPlayerUuid = selected;
-		updateTileLayer();
+		refreshTileContext(true);
 		if (state.lastSnapshot) {
 			applyFilteredSnapshot();
 		}
@@ -839,6 +1186,9 @@
 	}
 
 	async function init() {
+		showStartupOverlay();
+		window.addEventListener('beforeunload', stopPreloadOnUnload);
+		window.addEventListener('pagehide', stopPreloadOnUnload);
 		state.map = L.map('map', {
 			crs: L.CRS.Simple,
 			minZoom: -6,
@@ -856,13 +1206,16 @@
 			document.getElementById('coords-display').textContent = `X: ${x}, Z: ${z}`;
 		});
 
-		document.getElementById('world-select').addEventListener('change', () => {
-			onWorldChanged().catch(() => {
+		document.getElementById('return-home-btn').addEventListener('click', () => {
+			openHomeSelection().catch(() => {
 			});
 		});
-		document.getElementById('quality-select').addEventListener('change', () => {
-			onQualityChanged().catch(() => {
-			});
+		document.getElementById('reload-map-btn').addEventListener('click', () => {
+			clearTileMemoryCache();
+			if (state.tileLayer) {
+				state.tileLayer._cancelAll();
+				state.tileLayer.redraw();
+			}
 		});
 		document.getElementById('mode-select').addEventListener('change', () => {
 			onModeChanged().catch(() => {
@@ -873,13 +1226,15 @@
 			});
 		});
 
-		await refreshWorldSelector();
-		updateViewControls();
-		updateTileLayer();
-		applySnapshot(await fetchSnapshot(state.world));
 		connectWebSocket();
+		const worlds = await fetchWorlds();
+		state.worlds = worlds;
+		setupStartupWorldChooser(worlds);
 
 		setInterval(() => {
+			if (!state.preloadReady) {
+				return;
+			}
 			refreshWorldSelector().catch(() => {
 			});
 		}, 30000);

@@ -2,6 +2,9 @@ package dev.ninesliced.webmap.tiles;
 
 import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
@@ -12,6 +15,7 @@ import dev.ninesliced.webmap.data.WebViewFilter;
 
 import java.util.Set;
 import java.util.UUID;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -69,7 +73,9 @@ public class TileManager {
                                                  WebViewFilter.Mode mode,
                                                  UUID playerUuid) {
         String cacheKey = TileCache.createKey(worldName, 0, tileX, tileZ, quality) + scopeKey(mode, playerUuid);
-        boolean allowDiskCache = ModConfig.getInstance().isWebMapDiskCacheEnabled() && mode == WebViewFilter.Mode.GLOBAL;
+        boolean diskCacheEnabled = ModConfig.getInstance().isWebMapDiskCacheEnabled();
+        boolean allowDiskCacheRead = diskCacheEnabled;
+        boolean allowDiskCacheWrite = diskCacheEnabled && mode == WebViewFilter.Mode.GLOBAL;
         byte[] memoryCached = memoryCache.get(cacheKey);
         if (memoryCached != null) {
             return CompletableFuture.completedFuture(memoryCached);
@@ -80,10 +86,13 @@ public class TileManager {
             return pending;
         }
 
-        long maxAgeMs = resolveMaxTileAgeMs(0);
-        if (allowDiskCache) {
+        if (allowDiskCacheRead) {
             byte[] diskCached = diskCache.get(worldName, quality, 0, tileX, tileZ);
-            if (diskCached != null && diskCache.getTileAgeMs(worldName, quality, 0, tileX, tileZ) < maxAgeMs) {
+            if (diskCached != null && shouldUseCachedDiskTile(worldName, quality, 0, tileX, tileZ)) {
+                if (mode == WebViewFilter.Mode.PLAYER && !isTileVisible(worldName, tileX, tileZ, mode, playerUuid)) {
+                    byte[] empty = PngEncoder.encodeEmpty(quality.tileSize());
+                    return CompletableFuture.completedFuture(empty);
+                }
                 memoryCache.put(cacheKey, diskCached);
                 return CompletableFuture.completedFuture(diskCached);
             }
@@ -93,9 +102,9 @@ public class TileManager {
         pendingRequests.put(cacheKey, future);
         future.whenComplete((data, throwable) -> {
             pendingRequests.remove(cacheKey);
-            if (throwable == null && data != null) {
+            if (throwable == null && isCacheableTile(data, quality.tileSize())) {
                 memoryCache.put(cacheKey, data);
-                if (allowDiskCache && data.length > EMPTY_TILE_THRESHOLD) {
+                if (allowDiskCacheWrite && data.length > EMPTY_TILE_THRESHOLD) {
                     diskCache.putAsync(worldName, quality, 0, tileX, tileZ, data);
                 }
             }
@@ -114,9 +123,9 @@ public class TileManager {
                                                                          WebViewFilter.Mode mode,
                                                                          UUID playerUuid) {
         String cacheKey = TileCache.createKey(worldName, 0, tileX, tileZ, quality) + scopeKey(mode, playerUuid);
-        boolean allowDiskCache = ModConfig.getInstance().isWebMapDiskCacheEnabled() && mode == WebViewFilter.Mode.GLOBAL;
-        long maxAgeMs = resolveMaxTileAgeMs(0);
-
+        boolean diskCacheEnabled = ModConfig.getInstance().isWebMapDiskCacheEnabled();
+        boolean allowDiskCacheRead = diskCacheEnabled;
+        boolean allowDiskCacheWrite = diskCacheEnabled && mode == WebViewFilter.Mode.GLOBAL;
         PngEncoder.TileData cached = pixelCache.get(cacheKey);
         if (cached != null) {
             return CompletableFuture.completedFuture(cached);
@@ -127,9 +136,12 @@ public class TileManager {
             return pending;
         }
 
-        if (allowDiskCache) {
+        if (allowDiskCacheRead) {
             byte[] diskCached = diskCache.get(worldName, quality, 0, tileX, tileZ);
-            if (diskCached != null && diskCached.length > EMPTY_TILE_THRESHOLD && diskCache.getTileAgeMs(worldName, quality, 0, tileX, tileZ) < maxAgeMs) {
+            if (diskCached != null && diskCached.length > EMPTY_TILE_THRESHOLD && shouldUseCachedDiskTile(worldName, quality, 0, tileX, tileZ)) {
+                if (mode == WebViewFilter.Mode.PLAYER && !isTileVisible(worldName, tileX, tileZ, mode, playerUuid)) {
+                    return CompletableFuture.completedFuture(new PngEncoder.TileData(PngEncoder.encodeEmpty(quality.tileSize()), new int[0], quality.tileSize()));
+                }
                 int[] pixels = PngDecoder.decode(diskCached, quality.tileSize());
                 if (pixels != null) {
                     PngEncoder.TileData data = new PngEncoder.TileData(diskCached, pixels, quality.tileSize());
@@ -150,7 +162,7 @@ public class TileManager {
                     pixelCache.put(cacheKey, data);
                 }
                 memoryCache.put(cacheKey, data.pngBytes());
-                if (allowDiskCache) {
+                if (allowDiskCacheWrite) {
                     diskCache.putAsync(worldName, quality, 0, tileX, tileZ, data.pngBytes());
                 }
             }
@@ -170,8 +182,9 @@ public class TileManager {
         }
 
         String cacheKey = TileCache.createKey(worldName, zoom, tileX, tileZ, quality) + scopeKey(mode, playerUuid);
-        boolean allowDiskCache = ModConfig.getInstance().isWebMapDiskCacheEnabled() && mode == WebViewFilter.Mode.GLOBAL;
-        long maxAgeMs = resolveMaxTileAgeMs(zoom);
+        boolean diskCacheEnabled = ModConfig.getInstance().isWebMapDiskCacheEnabled();
+        boolean allowDiskCacheRead = diskCacheEnabled && mode != WebViewFilter.Mode.PLAYER;
+        boolean allowDiskCacheWrite = diskCacheEnabled && mode == WebViewFilter.Mode.GLOBAL;
 
         PngEncoder.TileData cached = pixelCache.get(cacheKey);
         if (cached != null) {
@@ -183,9 +196,9 @@ public class TileManager {
             return pending;
         }
 
-        if (allowDiskCache) {
+        if (allowDiskCacheRead) {
             byte[] diskCached = diskCache.get(worldName, quality, zoom, tileX, tileZ);
-            if (diskCached != null && diskCache.getTileAgeMs(worldName, quality, zoom, tileX, tileZ) < maxAgeMs && diskCached.length > EMPTY_TILE_THRESHOLD) {
+            if (diskCached != null && shouldUseCachedDiskTile(worldName, quality, zoom, tileX, tileZ) && diskCached.length > EMPTY_TILE_THRESHOLD) {
                 int[] pixels = PngDecoder.decode(diskCached, quality.tileSize());
                 if (pixels != null) {
                     PngEncoder.TileData data = new PngEncoder.TileData(diskCached, pixels, quality.tileSize());
@@ -206,12 +219,12 @@ public class TileManager {
         pendingPixelRequests.put(cacheKey, future);
         future.whenComplete((data, throwable) -> {
             pendingPixelRequests.remove(cacheKey);
-            if (throwable == null && data != null) {
+            if (throwable == null && data != null && !data.isEmpty()) {
                 if (pixelCache.size() < 4096) {
                     pixelCache.put(cacheKey, data);
                 }
                 memoryCache.put(cacheKey, data.pngBytes());
-                if (allowDiskCache && data.pngBytes().length > EMPTY_TILE_THRESHOLD) {
+                if (allowDiskCacheWrite && data.pngBytes().length > EMPTY_TILE_THRESHOLD) {
                     diskCache.putAsync(worldName, quality, zoom, tileX, tileZ, data.pngBytes());
                 }
             }
@@ -227,7 +240,12 @@ public class TileManager {
                                                        WebViewFilter.Mode mode,
                                                        UUID playerUuid) {
         String cacheKey = TileCache.createKey(worldName, zoom, tileX, tileZ, quality) + scopeKey(mode, playerUuid);
-        boolean allowDiskCache = ModConfig.getInstance().isWebMapDiskCacheEnabled() && mode == WebViewFilter.Mode.GLOBAL;
+        boolean diskCacheEnabled = ModConfig.getInstance().isWebMapDiskCacheEnabled();
+        // Composite tiles on disk were rendered from GLOBAL data, so they contain imagery
+        // for all players' explored chunks. Skip disk reads in PLAYER mode to avoid showing
+        // chunks the player hasn't visited.
+        boolean allowDiskCacheRead = diskCacheEnabled && mode != WebViewFilter.Mode.PLAYER;
+        boolean allowDiskCacheWrite = diskCacheEnabled && mode == WebViewFilter.Mode.GLOBAL;
 
         byte[] memoryCached = memoryCache.get(cacheKey);
         if (memoryCached != null) {
@@ -239,19 +257,16 @@ public class TileManager {
             return pending;
         }
 
-        long maxAgeMs = resolveMaxTileAgeMs(zoom);
-        if (allowDiskCache) {
+        if (allowDiskCacheRead) {
             byte[] diskCached = diskCache.get(worldName, quality, zoom, tileX, tileZ);
-            if (diskCached != null && diskCache.getTileAgeMs(worldName, quality, zoom, tileX, tileZ) < maxAgeMs) {
+            if (diskCached != null && shouldUseCachedDiskTile(worldName, quality, zoom, tileX, tileZ)) {
                 memoryCache.put(cacheKey, diskCached);
                 return CompletableFuture.completedFuture(diskCached);
             }
         }
 
         if (isCompositeTileFullyUnexplored(worldName, zoom, tileX, tileZ, mode, playerUuid)) {
-            byte[] empty = PngEncoder.encodeEmpty(quality.tileSize());
-            memoryCache.put(cacheKey, empty);
-            return CompletableFuture.completedFuture(empty);
+            return CompletableFuture.completedFuture(PngEncoder.encodeEmpty(quality.tileSize()));
         }
 
         CompletableFuture<byte[]> future = getTileWithPixels(worldName, quality, zoom, tileX, tileZ, mode, playerUuid)
@@ -259,14 +274,18 @@ public class TileManager {
         pendingRequests.put(cacheKey, future);
         future.whenComplete((data, throwable) -> {
             pendingRequests.remove(cacheKey);
-            if (throwable == null && data != null) {
+            if (throwable == null && isCacheableTile(data, quality.tileSize())) {
                 memoryCache.put(cacheKey, data);
-                if (allowDiskCache && data.length > EMPTY_TILE_THRESHOLD) {
+                if (allowDiskCacheWrite && data.length > EMPTY_TILE_THRESHOLD) {
                     diskCache.putAsync(worldName, quality, zoom, tileX, tileZ, data);
                 }
             }
         });
         return future;
+    }
+
+    private boolean isCacheableTile(byte[] data, int tileSize) {
+        return data != null && !Arrays.equals(data, PngEncoder.encodeEmpty(tileSize));
     }
 
     private CompletableFuture<byte[]> generateTile(String worldName,
@@ -347,24 +366,61 @@ public class TileManager {
         return PngEncoder.encode(image, quality.tileSize());
     }
 
-    private long resolveMaxTileAgeMs() {
-        return resolveMaxTileAgeMs(0);
+    private boolean shouldUseCachedDiskTile(String worldName,
+                                            TileQuality quality,
+                                            int zoom,
+                                            int tileX,
+                                            int tileZ) {
+        if (zoom < 0) {
+            return true;
+        }
+
+        ModConfig config = ModConfig.getInstance();
+        int refreshRadius = config.getWebMapRefreshRadiusChunks();
+        int refreshMinutes = config.getWebMapRefreshIntervalMinutes();
+
+        if (refreshMinutes <= 0) {
+            return true;
+        }
+
+        if (!isTileWithinPlayerRefreshRadius(worldName, tileX, tileZ, refreshRadius)) {
+            return true;
+        }
+
+        long ageMs = diskCache.getTileAgeMs(worldName, quality, zoom, tileX, tileZ);
+        long refreshIntervalMs = refreshMinutes * 60_000L;
+        return ageMs < refreshIntervalMs;
     }
 
-    private long resolveMaxTileAgeMs(int zoom) {
-        if (zoom >= 0) {
-            return 15_000L;
+    private boolean isTileWithinPlayerRefreshRadius(String worldName, int tileX, int tileZ, int radiusChunks) {
+        if (radiusChunks < 0) {
+            return false;
         }
-        if (zoom == -1) {
-            return 60_000L;
+
+        World world = Universe.get().getWorld(worldName);
+        if (world == null) {
+            return false;
         }
-        if (zoom == -2) {
-            return 120_000L;
+
+        for (PlayerRef playerRef : world.getPlayerRefs()) {
+            try {
+                Transform transform = playerRef.getTransform();
+                if (transform == null) {
+                    continue;
+                }
+
+                Vector3d position = transform.getPosition();
+                int playerChunkX = (int) Math.floor(position.x) >> 5;
+                int playerChunkZ = (int) Math.floor(position.z) >> 5;
+
+                if (Math.abs(playerChunkX - tileX) <= radiusChunks && Math.abs(playerChunkZ - tileZ) <= radiusChunks) {
+                    return true;
+                }
+            } catch (Exception ignored) {
+            }
         }
-        if (zoom == -3) {
-            return 300_000L;
-        }
-        return 600_000L;
+
+        return false;
     }
 
     private boolean isTileVisible(String worldName, int tileX, int tileZ, WebViewFilter.Mode mode, UUID playerUuid) {

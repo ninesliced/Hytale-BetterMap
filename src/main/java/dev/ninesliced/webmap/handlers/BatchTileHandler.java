@@ -3,6 +3,8 @@ package dev.ninesliced.webmap.handlers;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import dev.ninesliced.webmap.auth.WebMapAccessPolicy;
+import dev.ninesliced.webmap.auth.WebMapViewer;
 import dev.ninesliced.webmap.data.WebViewFilter;
 import dev.ninesliced.webmap.tiles.PngEncoder;
 import dev.ninesliced.webmap.tiles.TileManager;
@@ -41,7 +43,7 @@ public class BatchTileHandler {
         this.defaultQuality = defaultQuality;
     }
 
-    public void handle(ChannelHandlerContext ctx, FullHttpRequest req) {
+    public void handle(ChannelHandlerContext ctx, FullHttpRequest req, WebMapViewer viewer) {
         if (req.method() != HttpMethod.POST) {
             sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED);
             return;
@@ -64,10 +66,11 @@ public class BatchTileHandler {
         TileQuality quality = requestJson.has("quality")
             ? TileQuality.parseOrDefault(requestJson.get("quality").getAsString(), defaultQuality)
             : defaultQuality;
-        WebViewFilter filter = WebViewFilter.parse(
+        WebViewFilter requested = WebViewFilter.parse(
             requestJson.has("mode") ? requestJson.get("mode").getAsString() : null,
             requestJson.has("playerUuid") ? requestJson.get("playerUuid").getAsString() : null
         );
+        WebViewFilter filter = WebMapAccessPolicy.enforceFilter(requested, viewer);
 
         JsonArray tilesArray = requestJson.getAsJsonArray("tiles");
         if (tilesArray.size() > MAX_BATCH_SIZE) {
@@ -132,6 +135,9 @@ public class BatchTileHandler {
                 httpResponse.headers()
                     .set(HttpHeaderNames.CONTENT_TYPE, "application/octet-stream")
                     .set(HttpHeaderNames.CONTENT_LENGTH, payload.readableBytes())
+                    .set(HttpHeaderNames.CACHE_CONTROL, "no-store, no-cache, must-revalidate, max-age=0")
+                    .set(HttpHeaderNames.PRAGMA, "no-cache")
+                    .set(HttpHeaderNames.EXPIRES, "0")
                     .set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_ORIGIN, "*")
                     .set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_METHODS, "POST, OPTIONS")
                     .set(HttpHeaderNames.ACCESS_CONTROL_ALLOW_HEADERS, "Content-Type")

@@ -365,6 +365,13 @@ $C.@PageOverlay {
             Style: @NavButtonStyle;
           }
 
+          TextButton #PlayerWebMapOpenBtn {
+            Anchor: (Height: 32, Top: 6);
+            Text: "OPEN WEBMAP";
+            Visible: false;
+            Style: @NavButtonStyle;
+          }
+
           TextButton #PlayerResetDefaultsBtn {
             Anchor: (Height: 32, Top: 6);
             Text: "RESET PLAYER SETTINGS";
@@ -702,6 +709,18 @@ $C.@PageOverlay {
               Anchor: (Top: 4);
               $C.@CheckBox #WebMapShowUnexplored { }
               Label { Text: "Show Unexplored Chunks (Load Full Map)"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Refresh Interval (minutes)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #WebMapRefreshInterval { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "Refresh Radius (chunks)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #WebMapRefreshRadius { Anchor: (Width: 120, Height: 28); }
             }
 
             Group {

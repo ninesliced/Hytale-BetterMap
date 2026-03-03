@@ -47,11 +47,19 @@ public class WorldDataCollector {
 
     @Nonnull
     public Map<String, Object> buildSnapshot(@Nonnull String worldName, @Nonnull WebViewFilter filter) {
+        return buildSnapshot(worldName, filter, true);
+    }
+
+    @Nonnull
+    public Map<String, Object> buildSnapshot(@Nonnull String worldName,
+                                             @Nonnull WebViewFilter filter,
+                                             boolean allowGlobalMode) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("world", worldName);
         payload.put("players", getPlayers(worldName, filter));
         payload.put("markers", getMarkers(worldName, filter));
-        payload.put("defaultMode", "global");
+        payload.put("defaultMode", allowGlobalMode ? "global" : "player");
+        payload.put("allowGlobalMode", allowGlobalMode);
         payload.put("filterMode", filter.modeId());
         payload.put("filterPlayerUuid", filter.playerUuid() == null ? "" : filter.playerUuid().toString());
         payload.put("timestamp", System.currentTimeMillis());

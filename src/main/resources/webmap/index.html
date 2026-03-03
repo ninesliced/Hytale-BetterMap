@@ -10,20 +10,35 @@
 <body>
 <div id="map"></div>
 
-<aside id="topbar">
-	<div class="control-group">
-		<label for="world-select">World</label>
-		<select id="world-select"></select>
-	</div>
-	<div class="control-group">
-		<label for="quality-select">Quality</label>
-		<select id="quality-select">
+<div id="startup-overlay" class="startup-overlay visible">
+	<div class="startup-card" id="startup-world-card">
+		<h2>Load World Data</h2>
+		<p>Select a world to preload explored chunks before opening the map.</p>
+		<label for="startup-world-select">World</label>
+		<select id="startup-world-select"></select>
+		<label for="startup-quality-select">Quality</label>
+		<select id="startup-quality-select">
 			<option value="low">Low</option>
 			<option value="medium" selected>Medium</option>
 			<option value="high">High</option>
 		</select>
+		<button id="startup-load-btn">Load Selected World</button>
 	</div>
-	<div class="control-group">
+	<div class="startup-card hidden" id="startup-progress-card">
+		<h2>Preparing WebMap</h2>
+		<p id="startup-progress-message">Initializing preload...</p>
+		<div class="startup-progress-track">
+			<div id="startup-progress-fill" class="startup-progress-fill"></div>
+		</div>
+		<div id="startup-progress-text">0 / 0 chunks loaded</div>
+		<button id="startup-stop-btn" type="button">Stop Loading</button>
+	</div>
+</div>
+
+<aside id="topbar">
+	<button id="return-home-btn" class="topbar-button" type="button">Return to Home Selection</button>
+	<button id="reload-map-btn" class="topbar-button" type="button">Reload Tiles</button>
+	<div class="control-group" id="mode-group">
 		<label for="mode-select">View Mode</label>
 		<select id="mode-select">
 			<option value="global">Global</option>
