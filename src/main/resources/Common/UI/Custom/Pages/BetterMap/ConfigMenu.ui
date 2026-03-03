@@ -457,6 +457,7 @@ $C.@PageOverlay {
               $C.@NumberField #AutoSaveInterval { Anchor: (Width: 120, Height: 28); }
             }
           }
+
           Group {
             LayoutMode: Left;
             Anchor: (Height: 32, Top: 16);
@@ -661,6 +662,66 @@ $C.@PageOverlay {
               }
             $C.@TextField #AllowedWorldList { Anchor: (Height: 28, Top: 4); }
             TextButton #AddCurrentWorldBtn { Anchor: (Height: 28, Top: 4); Text: "ADD CURRENT WORLD"; Style: @NavButtonStyle; }
+          }
+
+          Group {
+            LayoutMode: Left;
+            Anchor: (Height: 32, Top: 16);
+            Background: #3f7a8c(0.15);
+            Padding: (Left: 10);
+
+            Label {
+              Text: "WebMap Settings";
+              Style: (FontSize: 18, TextColor: #66c4de, RenderBold: true);
+            }
+          }
+
+          @SectionCard {
+            Anchor: (Top: 8);
+            Background: #1a2330(0.6);
+            OutlineColor: #3a4a60(0.5);
+
+            @CheckboxRow {
+              $C.@CheckBox #WebMapEnabled { }
+              Label { Text: "Enable WebMap HTTP Server"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @FieldRow {
+              Anchor: (Top: 4);
+              Label { Text: "WebMap Port"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              $C.@NumberField #WebMapPort { Anchor: (Width: 120, Height: 28); }
+            }
+
+            @CheckboxRow {
+              Anchor: (Top: 4);
+              $C.@CheckBox #WebMapDiskCache { }
+              Label { Text: "Persist Tile Cache on Disk"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              Anchor: (Top: 4);
+              $C.@CheckBox #WebMapShowUnexplored { }
+              Label { Text: "Show Unexplored Chunks (Load Full Map)"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            Group {
+              LayoutMode: Left;
+              Anchor: (Top: 8, Height: 30);
+
+              TextButton #WebMapActivateBtn {
+                FlexWeight: 1;
+                Text: "ACTIVATE NOW";
+                Style: @NavButtonStyle;
+              }
+
+              Group { Anchor: (Width: 8); }
+
+              TextButton #WebMapOpenBtn {
+                FlexWeight: 1;
+                Text: "OPEN LINK";
+                Style: @NavButtonStyle;
+              }
+            }
           }
 
           Group {

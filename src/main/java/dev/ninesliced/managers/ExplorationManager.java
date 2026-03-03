@@ -3,6 +3,7 @@ package dev.ninesliced.managers;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -209,6 +210,39 @@ public class ExplorationManager {
         cachedAllExploredChunks.put(worldName, allChunks);
         cachedAllExploredVersion.put(worldName, combinedVersion);
         return allChunks;
+    }
+
+    /**
+     * Gets explored chunks for a specific player in a world, combining persisted and active runtime state.
+     *
+     * @param worldName The world name.
+     * @param playerUuid The player UUID.
+     * @return A set of explored chunk indices for that player.
+     */
+    @Nonnull
+    public Set<Long> getExploredChunksForPlayer(@Nonnull String worldName, @Nonnull UUID playerUuid) {
+        Set<Long> chunks = new HashSet<>();
+
+        if (persistenceEnabled && persistence != null) {
+            chunks.addAll(persistence.loadChunks(worldName, playerUuid));
+        }
+
+        Universe universe = Universe.get();
+        if (universe != null) {
+            PlayerRef playerRef = universe.getPlayer(playerUuid);
+            if (playerRef != null) {
+                World world = universe.getWorld(worldName);
+                if (world != null && world.getPlayerRefs().contains(playerRef)) {
+                    String username = playerRef.getUsername();
+                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(username);
+                    if (data != null) {
+                        chunks.addAll(data.getExploredChunks().getExploredChunks());
+                    }
+                }
+            }
+        }
+
+        return chunks;
     }
 
     /**

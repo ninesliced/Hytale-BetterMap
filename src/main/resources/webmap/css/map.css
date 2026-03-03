@@ -1,0 +1,263 @@
+:root {
+	color-scheme: dark;
+	--bg: #111827;
+	--bg-panel: rgba(17, 24, 39, 0.92);
+	--bg-panel-strong: rgba(15, 23, 42, 0.96);
+	--line: #334155;
+	--text: #e2e8f0;
+	--muted: #94a3b8;
+	--accent: #38bdf8;
+	--accent-2: #60a5fa;
+	--danger: #fb7185;
+	--success: #4ade80;
+}
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html,
+body {
+	width: 100%;
+	height: 100%;
+	font-family: Inter, Segoe UI, Roboto, Arial, sans-serif;
+	background: var(--bg);
+	color: var(--text);
+}
+
+#map {
+	position: fixed;
+	inset: 0;
+	background: #0b1220;
+}
+
+#topbar {
+	position: fixed;
+	top: 12px;
+	left: 12px;
+	right: 320px;
+	z-index: 1500;
+	display: flex;
+	align-items: end;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.control-group {
+	background: var(--bg-panel);
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 130px;
+}
+
+#player-filter-group.hidden {
+	display: none;
+}
+
+.control-group label {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--muted);
+}
+
+.control-group select {
+	background: #0f172a;
+	border: 1px solid var(--line);
+	color: var(--text);
+	border-radius: 8px;
+	height: 34px;
+	padding: 0 10px;
+}
+
+.badge {
+	height: 42px;
+	display: inline-flex;
+	align-items: center;
+	background: var(--bg-panel);
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	padding: 0 12px;
+	font-size: 13px;
+	color: var(--text);
+}
+
+#connection-status.connecting {
+	color: #facc15;
+}
+
+#connection-status.connected {
+	color: var(--success);
+}
+
+#connection-status.disconnected {
+	color: var(--danger);
+}
+
+#sidebar {
+	position: fixed;
+	top: 12px;
+	right: 12px;
+	bottom: 12px;
+	width: 296px;
+	z-index: 1500;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.panel {
+	background: var(--bg-panel-strong);
+	border: 1px solid var(--line);
+	border-radius: 14px;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.panel header {
+	padding: 10px 12px;
+	border-bottom: 1px solid var(--line);
+}
+
+.panel h2 {
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--muted);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+#player-list,
+#marker-list {
+	list-style: none;
+	overflow-y: auto;
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+#player-list li,
+#marker-list li {
+	border: 1px solid #253347;
+	background: #0f172a;
+	border-radius: 10px;
+	padding: 8px 10px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+#player-list li:hover,
+#marker-list li:hover {
+	border-color: var(--accent-2);
+}
+
+.empty {
+	padding: 10px;
+	color: var(--muted);
+	font-size: 13px;
+}
+
+.entity-icon {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 11px;
+	font-weight: 700;
+	color: white;
+}
+
+.entity-name {
+	flex: 1;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 13px;
+}
+
+.entity-meta {
+	font-size: 11px;
+	color: var(--muted);
+}
+
+.leaflet-container {
+	background: #0b1220;
+}
+
+.leaflet-control-zoom a {
+	background: var(--bg-panel-strong) !important;
+	color: var(--text) !important;
+	border: 1px solid var(--line) !important;
+}
+
+.player-marker {
+	width: 90px;
+	height: 36px;
+	position: relative;
+}
+
+
+.player-marker .player-name {
+	position: absolute;
+	left: 10px;
+	bottom: 20px;
+	transform: translateX(-50%);
+	max-width: 120px;
+	padding: 1px 6px;
+	border-radius: 6px;
+	background: rgba(15, 23, 42, 0.88);
+	border: 1px solid rgba(148, 163, 184, 0.45);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 11px;
+	font-weight: 700;
+	color: #e2e8f0;
+	pointer-events: none;
+}
+
+.player-marker .heading {
+	position: absolute;
+	left: 10px;
+	top: 10px;
+	transform-origin: 50% 50%;
+	width: 0;
+	height: 0;
+	border-left: 7px solid transparent;
+	border-right: 7px solid transparent;
+	border-bottom: 14px solid #38bdf8;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.map-marker {
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: #f59e0b;
+	background-size: cover;
+	background-position: center;
+	border: 2px solid rgba(255, 255, 255, 0.45);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: #111827;
+	font-size: 12px;
+	font-weight: 700;
+}

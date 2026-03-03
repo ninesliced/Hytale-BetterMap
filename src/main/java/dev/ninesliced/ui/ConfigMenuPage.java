@@ -27,6 +27,7 @@ import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
 import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
+import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.ModConfig.MapQuality;
 import dev.ninesliced.configs.PlayerConfig;
@@ -43,6 +44,7 @@ import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
 import dev.ninesliced.utils.WaypointLimitUtil;
+import dev.ninesliced.webmap.WebMapService;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -206,6 +208,11 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
              ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
 
+             ui.set("#WebMapEnabled.Value", gConfig.isWebMapEnabled());
+             ui.set("#WebMapPort.Value", gConfig.getWebMapPort());
+             ui.set("#WebMapDiskCache.Value", gConfig.isWebMapDiskCacheEnabled());
+             ui.set("#WebMapShowUnexplored.Value", !gConfig.isWebMapShowOnlyExplored());
+
              applySavedPlayersDropdown(ui);
 
              bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
@@ -250,6 +257,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindChange(events, "#CaveModeLayerSize", "admin_cavemode_layer", BindingType.NUMBER);
              bindChange(events, "#CaveModeThreshold", "admin_cavemode_threshold", BindingType.NUMBER);
              bindChange(events, "#CaveModeRadius", "admin_cavemode_radius", BindingType.NUMBER);
+
+             bindChange(events, "#WebMapEnabled", "admin_webmap_enabled", BindingType.BOOLEAN);
+             bindChange(events, "#WebMapPort", "admin_webmap_port", BindingType.NUMBER);
+             bindChange(events, "#WebMapDiskCache", "admin_webmap_disk_cache", BindingType.BOOLEAN);
+             bindChange(events, "#WebMapShowUnexplored", "admin_webmap_show_unexplored", BindingType.BOOLEAN);
+             bindClick(events, "#WebMapActivateBtn", "admin_webmap_activate");
+             bindClick(events, "#WebMapOpenBtn", "admin_webmap_open");
 
              bindClick(events, "#AdminResetDefaultsBtn", "admin_reset_defaults");
              bindClick(events, "#AdminResetConfirmAllBtn", "admin_reset_confirm_all");
@@ -315,6 +329,16 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         }
         ui.set(elementId + ".Entries", entries);
         ui.set(elementId + ".Value", currentQuality != null ? currentQuality.name() : MapQuality.MEDIUM.name());
+    }
+
+    private void openWebMapForPlayer(Player player) {
+        WebMapService webMapService = BetterMap.get().getWebMapService();
+        String url = webMapService.getBaseUrl();
+        Message linkMessage = Message.raw("")
+            .insert(Message.raw("[BetterMap] ").color("#93844c").bold(true))
+            .insert(Message.raw("Open your WebMap: ").color("#bfcdd5"))
+            .insert(Message.raw(url).color("#4c9cff").link(url));
+        player.sendMessage(linkMessage);
     }
 
     private void applyPlayerSettingsToUi(UICommandBuilder ui, PlayerConfig pConfig) {
@@ -421,6 +445,11 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         ui.set("#CaveModeLayerSize.Value", gConfig.getCaveModeLayerSize());
         ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
         ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
+
+        ui.set("#WebMapEnabled.Value", gConfig.isWebMapEnabled());
+        ui.set("#WebMapPort.Value", gConfig.getWebMapPort());
+        ui.set("#WebMapDiskCache.Value", gConfig.isWebMapDiskCacheEnabled());
+        ui.set("#WebMapShowUnexplored.Value", !gConfig.isWebMapShowOnlyExplored());
     }
 
     private void updatePlayerCaveState(Player player, boolean enabled) {
@@ -925,6 +954,27 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             case "admin_exploration_reset_cancel" -> {
                 if (PermissionsUtil.isAdmin(player)) {
                     cancelExplorationReset(ui, events);
+                }
+                return;
+            }
+            case "admin_webmap_activate" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    ModConfig gConfig = ModConfig.getInstance();
+                    gConfig.setWebMapEnabled(true);
+                    BetterMap.get().getWebMapService().start();
+                    ui.set("#WebMapEnabled.Value", true);
+                    sendUpdate(ui, events, false);
+                    openWebMapForPlayer(player);
+                }
+                return;
+            }
+            case "admin_webmap_open" -> {
+                if (PermissionsUtil.isAdmin(player)) {
+                    if (!ModConfig.getInstance().isWebMapEnabled()) {
+                        player.sendMessage(Message.raw("WebMap is disabled. Activate it first.").color("#ff4a4a"));
+                    } else {
+                        openWebMapForPlayer(player);
+                    }
                 }
                 return;
             }
@@ -1499,6 +1549,41 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         radius = Math.max(1, Math.min(radius, 16));
                         gConfig.setCaveModeRadius(radius);
                         updateCaveRadiusForAllPlayers(radius);
+                    }
+                    break;
+                case "admin_webmap_enabled":
+                    if (val != null) {
+                        boolean enabled = Boolean.parseBoolean(val);
+                        gConfig.setWebMapEnabled(enabled);
+                        WebMapService service = BetterMap.get().getWebMapService();
+                        if (enabled) {
+                            service.start();
+                        } else {
+                            service.stop();
+                        }
+                    }
+                    break;
+                case "admin_webmap_port":
+                    if (val != null) {
+                        int port = Integer.parseInt(val);
+                        gConfig.setWebMapPort(port);
+                        ui.set("#WebMapPort.Value", gConfig.getWebMapPort());
+                        sendUpdate(ui, new UIEventBuilder(), false);
+                        if (BetterMap.get().getWebMapService().isRunning()) {
+                            BetterMap.get().getWebMapService().stop();
+                            BetterMap.get().getWebMapService().start();
+                        }
+                    }
+                    break;
+                case "admin_webmap_disk_cache":
+                    if (val != null) {
+                        gConfig.setWebMapDiskCacheEnabled(Boolean.parseBoolean(val));
+                    }
+                    break;
+                case "admin_webmap_show_unexplored":
+                    if (val != null) {
+                        boolean showUnexplored = Boolean.parseBoolean(val);
+                        gConfig.setWebMapShowOnlyExplored(!showUnexplored);
                     }
                     break;
             }

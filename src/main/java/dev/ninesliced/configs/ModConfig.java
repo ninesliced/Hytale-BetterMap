@@ -71,6 +71,12 @@ public class ModConfig {
     private int worldBorderOffsetX = 0;
     private int worldBorderOffsetZ = 0;
 
+    private boolean webMapEnabled = false;
+    private int webMapPort = 8123;
+    private boolean webMapDiskCacheEnabled = true;
+    private boolean webMapShowOnlyExplored = true;
+    private WebMapDataMode webMapDataMode = WebMapDataMode.GLOBAL;
+
     private transient Path configPath;
     private transient Path configDir;
     private transient MapQuality activeMapQuality;
@@ -384,6 +390,50 @@ public class ModConfig {
                         needsSave = true;
                     }
 
+                    if (jsonObject.has("webMapEnabled")) {
+                        this.webMapEnabled = loaded.webMapEnabled;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapPort")) {
+                        this.webMapPort = loaded.webMapPort;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapDiskCacheEnabled")) {
+                        this.webMapDiskCacheEnabled = loaded.webMapDiskCacheEnabled;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapShowOnlyExplored")) {
+                        this.webMapShowOnlyExplored = loaded.webMapShowOnlyExplored;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("webMapDataMode")) {
+                        if (loaded.webMapDataMode != null) {
+                            this.webMapDataMode = loaded.webMapDataMode;
+                        } else {
+                            try {
+                                String rawMode = jsonObject.get("webMapDataMode").getAsString();
+                                if ("SINGLE_PLAYER".equalsIgnoreCase(rawMode)) {
+                                    this.webMapDataMode = WebMapDataMode.PLAYER;
+                                } else {
+                                    this.webMapDataMode = WebMapDataMode.valueOf(rawMode.trim().toUpperCase());
+                                }
+                            } catch (Exception ignored) {
+                                this.webMapDataMode = WebMapDataMode.GLOBAL;
+                            }
+                            needsSave = true;
+                        }
+                    } else {
+                        needsSave = true;
+                    }
+
                     if (needsSave) {
                         save();
                     }
@@ -435,6 +485,7 @@ public class ModConfig {
         setLoggerLevel("dev.ninesliced.configs.CavePersistence", level);
         setLoggerLevel("dev.ninesliced.managers.WaypointMigrationManager", level);
         setLoggerLevel("dev.ninesliced.managers.CaveModeManager", level);
+        setLoggerLevel("dev.ninesliced.webmap", level);
     }
 
     private void setLoggerLevel(String loggerName, Level level) {
@@ -1092,6 +1143,12 @@ public class ModConfig {
         this.worldBorderOffsetX = defaults.worldBorderOffsetX;
         this.worldBorderOffsetZ = defaults.worldBorderOffsetZ;
 
+        this.webMapEnabled = defaults.webMapEnabled;
+        this.webMapPort = defaults.webMapPort;
+        this.webMapDiskCacheEnabled = defaults.webMapDiskCacheEnabled;
+        this.webMapShowOnlyExplored = defaults.webMapShowOnlyExplored;
+        this.webMapDataMode = defaults.webMapDataMode;
+
         updateLoggers();
         save();
     }
@@ -1355,6 +1412,101 @@ public class ModConfig {
     }
 
     /**
+     * Checks whether the web map server is enabled.
+     *
+     * @return True if enabled.
+     */
+    public boolean isWebMapEnabled() {
+        return webMapEnabled;
+    }
+
+    /**
+     * Enables or disables the web map server.
+     *
+     * @param webMapEnabled True to enable.
+     */
+    public void setWebMapEnabled(boolean webMapEnabled) {
+        this.webMapEnabled = webMapEnabled;
+        save();
+    }
+
+    /**
+     * Gets the web map HTTP port.
+     *
+     * @return The configured port.
+     */
+    public int getWebMapPort() {
+        return webMapPort;
+    }
+
+    /**
+     * Sets the web map HTTP port.
+     *
+     * @param webMapPort The desired port.
+     */
+    public void setWebMapPort(int webMapPort) {
+        this.webMapPort = Math.max(1024, Math.min(webMapPort, 65535));
+        save();
+    }
+
+    /**
+     * Checks whether web map tile cache should be persisted to disk.
+     *
+     * @return True if disk cache is enabled.
+     */
+    public boolean isWebMapDiskCacheEnabled() {
+        return webMapDiskCacheEnabled;
+    }
+
+    /**
+     * Enables or disables web map tile cache persistence.
+     *
+     * @param enabled True to enable on-disk tile cache.
+     */
+    public void setWebMapDiskCacheEnabled(boolean enabled) {
+        this.webMapDiskCacheEnabled = enabled;
+        save();
+    }
+
+    /**
+     * Checks whether web map should render only explored chunks.
+     *
+     * @return True to hide unexplored chunks.
+     */
+    public boolean isWebMapShowOnlyExplored() {
+        return webMapShowOnlyExplored;
+    }
+
+    /**
+     * Sets whether web map should render only explored chunks.
+     *
+     * @param showOnlyExplored True to hide unexplored chunks.
+     */
+    public void setWebMapShowOnlyExplored(boolean showOnlyExplored) {
+        this.webMapShowOnlyExplored = showOnlyExplored;
+        save();
+    }
+
+    /**
+     * Gets web map data scope mode.
+     *
+     * @return The current data mode.
+     */
+    public WebMapDataMode getWebMapDataMode() {
+        return webMapDataMode;
+    }
+
+    /**
+     * Sets web map data scope mode.
+     *
+     * @param mode The mode to apply.
+     */
+    public void setWebMapDataMode(WebMapDataMode mode) {
+        this.webMapDataMode = mode == null ? WebMapDataMode.GLOBAL : mode;
+        save();
+    }
+
+    /**
      * Enum representing different map quality settings.
      */
     public enum MapQuality {
@@ -1369,5 +1521,13 @@ public class ModConfig {
             this.scale = scale;
             this.maxChunks = maxChunks;
         }
+    }
+
+    /**
+     * Web map data scope mode.
+     */
+    public enum WebMapDataMode {
+        GLOBAL,
+        PLAYER
     }
 }

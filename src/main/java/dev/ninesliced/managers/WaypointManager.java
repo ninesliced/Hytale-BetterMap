@@ -1,5 +1,6 @@
 package dev.ninesliced.managers;
 
+import dev.ninesliced.BetterMap;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -8,8 +9,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +50,7 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.utils.ReflectionHelper;
+import dev.ninesliced.webmap.WebMapService;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -153,6 +157,7 @@ public class WaypointManager {
         }
 
         MapAnchorManager.getInstance().refreshAnchor(player);
+        notifyWebMapUpdated();
     }
 
     /**
@@ -176,6 +181,7 @@ public class WaypointManager {
         }
 
         MapAnchorManager.getInstance().refreshAnchor(player);
+        notifyWebMapUpdated();
 
         return true;
     }
@@ -249,6 +255,7 @@ public class WaypointManager {
             }
 
             MapAnchorManager.getInstance().refreshAnchor(player);
+            notifyWebMapUpdated();
 
             return true;
         }
@@ -292,6 +299,7 @@ public class WaypointManager {
             }
 
             MapAnchorManager.getInstance().refreshAnchor(player);
+            notifyWebMapUpdated();
         }
         return updated;
     }
@@ -493,6 +501,89 @@ public class WaypointManager {
 
     public static boolean isTrackedWorld(@Nullable World world) {
         return ExplorationListener.isTrackedWorld(world);
+    }
+
+    /**
+     * Gets all BetterMap waypoint markers that should be visible on the web map for a world.
+     * Includes shared markers and personal markers for online players.
+     */
+    @Nonnull
+    public static List<UserMapMarker> getMarkersForWebMap(@Nonnull World world) {
+        if (!isTrackedWorld(world)) {
+            return List.of();
+        }
+
+        Map<String, UserMapMarker> markersById = new LinkedHashMap<>();
+
+        UserMapMarkersStore sharedStore = world.getChunkStore().getStore().getResource(WorldMarkersResource.getResourceType());
+        collectWebMarkers(markersById, sharedStore, true);
+
+        for (PlayerRef playerRef : world.getPlayerRefs()) {
+            Holder<EntityStore> holder = playerRef.getHolder();
+            if (holder == null) {
+                continue;
+            }
+            Player player = holder.getComponent(Player.getComponentType());
+            if (player == null) {
+                continue;
+            }
+
+            UserMapMarkersStore personalStore = resolveStore(world, player, false);
+            collectWebMarkers(markersById, personalStore, false);
+        }
+
+        return new ArrayList<>(markersById.values());
+    }
+
+    private static void collectWebMarkers(@Nonnull Map<String, UserMapMarker> target,
+                                          @Nullable UserMapMarkersStore store,
+                                          boolean shared) {
+        if (store == null) {
+            return;
+        }
+
+        for (UserMapMarker marker : store.getUserMapMarkers()) {
+            if (marker == null || marker.getId() == null) {
+                continue;
+            }
+            String markerId = marker.getId();
+            if (shared && markerId.startsWith(PERSONAL_ID_PREFIX)) {
+                continue;
+            }
+            if (!shared && markerId.startsWith(SHARED_ID_PREFIX)) {
+                continue;
+            }
+
+            if (isTransientPlayerTrackingMarker(markerId)) {
+                continue;
+            }
+
+            target.put(markerId, marker);
+        }
+    }
+
+    private static boolean isTransientPlayerTrackingMarker(@Nonnull String markerId) {
+        String normalized = markerId.toLowerCase(Locale.ROOT);
+        return normalized.startsWith("player_")
+            || normalized.startsWith("players_")
+            || normalized.startsWith("world_player_")
+            || normalized.startsWith("radar_")
+            || normalized.contains("tracker");
+    }
+
+    private static void notifyWebMapUpdated() {
+        try {
+            BetterMap plugin = BetterMap.get();
+            if (plugin == null) {
+                return;
+            }
+            WebMapService service = plugin.getWebMapService();
+            if (service == null || !service.isRunning()) {
+                return;
+            }
+            service.pushLiveUpdate();
+        } catch (Exception ignored) {
+        }
     }
 
     private static String normalizeIcon(@Nullable String icon) {

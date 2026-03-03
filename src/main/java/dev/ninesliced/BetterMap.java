@@ -29,6 +29,7 @@ import dev.ninesliced.providers.LocationHudProvider;
 import dev.ninesliced.hstats.HStats;
 import dev.ninesliced.systems.LocationSystem;
 import dev.ninesliced.utils.WaypointLimitUtil;
+import dev.ninesliced.webmap.WebMapService;
 
 import javax.annotation.Nonnull;
 import java.nio.file.Path;
@@ -45,6 +46,7 @@ public class BetterMap extends JavaPlugin {
     private static BetterMap instance;
     private ComponentType<EntityStore, ExplorationComponent> explorationComponentType;
     private LocationHudProvider locationHudProvider;
+    private final WebMapService webMapService = new WebMapService(this);
 
     /**
      * Constructor for the BetterMap plugin.
@@ -80,6 +82,15 @@ public class BetterMap extends JavaPlugin {
      */
     public ComponentType<EntityStore, ExplorationComponent> getExplorationComponentType() {
         return explorationComponentType;
+    }
+
+    /**
+     * Gets the web map service instance.
+     *
+     * @return The active web map service.
+     */
+    public WebMapService getWebMapService() {
+        return webMapService;
     }
 
     /**
@@ -130,6 +141,13 @@ public class BetterMap extends JavaPlugin {
             }
             WaypointManager.initialize(configDir);
             LOGGER.info("Waypoint Persistence: INITIALIZED");
+
+            if (ModConfig.getInstance().isWebMapEnabled()) {
+                webMapService.start();
+                LOGGER.info("WebMap: STARTED on " + webMapService.getBaseUrl());
+            } else {
+                LOGGER.info("WebMap: DISABLED");
+            }
 
             ExplorationManager.config()
                     .updateRate(0.5f)
@@ -195,6 +213,7 @@ public class BetterMap extends JavaPlugin {
         WorldBorderManager.getInstance().cleanup();
         MapAnchorManager.getInstance().cleanup();
         ChunkStreamingManager.getInstance().cleanup();
+        webMapService.shutdown();
 
         LOGGER.info("BetterMap plugin shutdown complete.");
         super.shutdown();

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>BetterMap WebMap</title>
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+	<link rel="stylesheet" href="css/map.css">
+</head>
+<body>
+<div id="map"></div>
+
+<aside id="topbar">
+	<div class="control-group">
+		<label for="world-select">World</label>
+		<select id="world-select"></select>
+	</div>
+	<div class="control-group">
+		<label for="quality-select">Quality</label>
+		<select id="quality-select">
+			<option value="low">Low</option>
+			<option value="medium" selected>Medium</option>
+			<option value="high">High</option>
+		</select>
+	</div>
+	<div class="control-group">
+		<label for="mode-select">View Mode</label>
+		<select id="mode-select">
+			<option value="global">Global</option>
+			<option value="player">Player</option>
+		</select>
+	</div>
+	<div class="control-group" id="player-filter-group">
+		<label for="player-select">Player</label>
+		<select id="player-select"></select>
+	</div>
+	<div class="badge" id="coords-display">X: 0, Z: 0</div>
+	<div class="badge" id="player-count-display">Players: 0</div>
+	<div class="badge" id="marker-count-display">Markers: 0</div>
+	<div id="connection-status" class="badge disconnected">Disconnected</div>
+</aside>
+
+<aside id="sidebar">
+	<section class="panel">
+		<header>
+			<h2>Online Players</h2>
+		</header>
+		<ul id="player-list"></ul>
+	</section>
+	<section class="panel">
+		<header>
+			<h2>World Markers</h2>
+		</header>
+		<ul id="marker-list"></ul>
+	</section>
+</aside>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="js/map.js"></script>
+</body>
+</html>

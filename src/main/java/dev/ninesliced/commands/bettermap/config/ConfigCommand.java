@@ -53,6 +53,7 @@ public class ConfigCommand extends AbstractCommandCollection {
         this.addSubCommand(new CaveModeRadiusCommand());
         this.addSubCommand(new DiscoverSurfaceCommand());
         this.addSubCommand(new CaveFogOfWarCommand());
+        this.addSubCommand(new WebMapCommand());
     }
 
     @Override

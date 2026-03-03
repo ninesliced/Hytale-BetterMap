@@ -271,6 +271,37 @@ public class ExplorationPersistence {
     }
 
     /**
+     * Loads explored chunks for a specific player in a specific world.
+     *
+     * @param worldName The world name.
+     * @param playerUuid The player UUID.
+     * @return A set of explored chunk indices for that player.
+     */
+    @Nonnull
+    public Set<Long> loadChunks(@Nonnull String worldName, @Nonnull UUID playerUuid) {
+        Set<Long> chunks = new HashSet<>();
+        Path file = storageDir.resolve(worldName).resolve(playerUuid + ".bin");
+        if (!Files.exists(file)) {
+            return chunks;
+        }
+
+        try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
+            int version = in.readInt();
+            if (version != DATA_VERSION) {
+                return chunks;
+            }
+            int count = in.readInt();
+            for (int i = 0; i < count; i++) {
+                chunks.add(in.readLong());
+            }
+        } catch (IOException e) {
+            LOGGER.warning("Failed to load exploration chunks for player " + playerUuid + " in world " + worldName + ": " + e.getMessage());
+        }
+
+        return chunks;
+    }
+
+    /**
      * Deletes all persisted map exploration files for all worlds.
      * Cave files are preserved.
      *
