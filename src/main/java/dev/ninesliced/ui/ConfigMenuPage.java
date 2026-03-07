@@ -351,8 +351,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
     private void refreshHideState(World world) {
         if (world == null) return;
-        WorldMapHook.clearMarkerCaches(world);
-        WorldMapHook.refreshTrackers(world);
+        world.execute(() -> {
+            WorldMapHook.clearMarkerCaches(world);
+            WorldMapHook.refreshTrackers(world);
+        });
     }
 
     private void removeDeathMarkersFromClient(Player player, World world) {
@@ -766,7 +768,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
         Universe universe = Universe.get();
         if (universe != null) {
-            universe.getWorlds().values().forEach(WorldMapHook::refreshTrackers);
+            universe.getWorlds().values().forEach(w -> {
+                if (w != null) w.execute(() -> WorldMapHook.refreshTrackers(w));
+            });
         }
 
         updatePlayerCaveState(player, gConfig.isCaveModeEnabled());
@@ -1254,7 +1258,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
                         Universe universe = Universe.get();
                         if (universe != null) {
-                            universe.getWorlds().values().forEach(WorldMapHook::refreshTrackers);
+                            universe.getWorlds().values().forEach(w -> {
+                                if (w != null) w.execute(() -> WorldMapHook.refreshTrackers(w));
+                            });
                         }
                     }
                     break;

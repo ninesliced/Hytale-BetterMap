@@ -172,21 +172,27 @@ public class ExplorationListener {
             if (player != null) {
                 World world = event.getWorld();
                 String worldName = world.getName();
-                LOGGER.info("[DEBUG] Player " + player.getDisplayName() + " leaving world " + worldName + " (world shutting down)");
+                String playerName = player.getDisplayName();
+                LOGGER.info("[DEBUG] Player " + playerName + " leaving world " + worldName);
 
                 WorldMapTracker tracker = player.getWorldMapTracker();
-                LOGGER.info("[DEBUG] Unhooking tracker for " + player.getDisplayName());
+
+                WorldMapHook.cleanupCaveModeOnDrain(player, world, tracker);
+
+                LOGGER.info("[DEBUG] Unhooking tracker for " + playerName);
                 WorldMapHook.unhookPlayerMapTracker(player, tracker);
 
                 if (isTrackedWorld(world)) {
                     UUID uuid = playerRef.getUuid();
-                    ExplorationManager.getInstance().savePlayerData(player.getDisplayName(), uuid, worldName);
+                    ExplorationManager.getInstance().savePlayerData(playerName, uuid, worldName);
                 }
 
-                LOGGER.info("[DEBUG] Clearing exploration data for " + player.getDisplayName());
-                ExplorationTracker.getInstance().removePlayerData(player.getDisplayName());
+                LOGGER.info("[DEBUG] Clearing exploration data for " + playerName);
+                ExplorationTracker.getInstance().removePlayerData(playerName);
 
-                LOGGER.info("[DEBUG] Successfully handled DrainPlayerFromWorldEvent for " + player.getDisplayName());
+                cleanupCaveModeStateByName(playerName);
+
+                LOGGER.info("[DEBUG] Successfully handled DrainPlayerFromWorldEvent for " + playerName);
             } else {
                 LOGGER.warning("[DEBUG] Player was null in DrainPlayerFromWorldEvent!");
             }
@@ -256,7 +262,8 @@ public class ExplorationListener {
                 if (tracker != null) {
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
                 }
-            } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
+            } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)
+                       || ExplorationTracker.getInstance().getPlayerData(playerName) == null) {
                 LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
 
                 ExplorationTracker.getInstance().getOrCreatePlayerData(player);
@@ -391,6 +398,10 @@ public class ExplorationListener {
      */
     private static void initDynamicCaveMode(@Nonnull Player player) {
         try {
+            if (!CaveModeManager.isEffectivelyEnabledForPlayer(player)) {
+                return;
+            }
+
             CaveModeManager caveManager = CaveModeManager.getInstance();
             caveManager.getOrCreateState(player);
             LOGGER.info("Initialized dynamic cave mode for " + player.getDisplayName());

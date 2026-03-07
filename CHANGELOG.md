@@ -4,7 +4,7 @@
 
 * Added option to disable teleport on right click on map without needing to be op/in creative (require permission)
 * Added option to disable native map right-click marker creation (require permission)
-* Fix issue where map doesn't show when changing world due to file saving/loading issue
+* Fix issue where map doesn't show when changing world due to file saving/loading issue thanks to @darkace1998 
 * Fix order of waypoint in waypoint menu to be in a alphabetical order instead of random
 * Add save of y coordinate for waypoints and show it in the waypoint menu (need to recreate waypoints for it to work)
 * Add option to enable/disable editing of global waypoints in the waypoint menu if you are not the creator or an admin (also can use permission to edit global waypoints)

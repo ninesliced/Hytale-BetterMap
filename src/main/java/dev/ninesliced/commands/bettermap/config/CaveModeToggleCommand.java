@@ -6,6 +6,7 @@ import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ModConfig;
@@ -52,6 +53,9 @@ public class CaveModeToggleCommand extends AbstractCommand {
 
         var store = ref.getStore();
         World world = store.getExternalData().getWorld();
+        if (world == null) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         return CompletableFuture.runAsync(() -> {
             Player playerComponent = store.getComponent(ref, Player.getComponentType());
@@ -66,10 +70,47 @@ public class CaveModeToggleCommand extends AbstractCommand {
             config.setCaveModeEnabled(newState);
 
             CaveModeManager caveModeManager = CaveModeManager.getInstance();
-            CaveModeManager.DynamicCaveModeState state = caveModeManager.getOrCreateState(playerComponent);
-            state.setDynamicModeEnabled(newState);
-            if (!newState) {
-                state.setCurrentlyUnderground(false);
+            Universe universe = Universe.get();
+            if (universe != null) {
+                universe.getWorlds().values().forEach(activeWorld -> {
+                    if (activeWorld == null) {
+                        return;
+                    }
+
+                    activeWorld.execute(() -> {
+                        for (PlayerRef onlineRef : activeWorld.getPlayerRefs()) {
+                            Ref<EntityStore> onlineStoreRef = onlineRef.getReference();
+                            if (onlineStoreRef == null || !onlineStoreRef.isValid()) {
+                                continue;
+                            }
+
+                            Player onlinePlayer = onlineStoreRef.getStore().getComponent(onlineStoreRef, Player.getComponentType());
+                            if (onlinePlayer == null) {
+                                continue;
+                            }
+
+                            CaveModeManager.DynamicCaveModeState onlineState = caveModeManager.getState(onlinePlayer);
+                            if (onlineState != null) {
+                                onlineState.setDynamicModeEnabled(newState);
+                                if (!newState) {
+                                    onlineState.setCurrentlyUnderground(false);
+                                }
+                            }
+
+                            try {
+                                WorldMapHook.forceFullMapRefresh(onlinePlayer);
+                            } catch (Exception e) {
+                                LOGGER.warning("Failed to trigger map refresh for cave mode: " + e.getMessage());
+                            }
+                        }
+                    });
+                });
+            } else {
+                try {
+                    WorldMapHook.forceFullMapRefresh(playerComponent);
+                } catch (Exception e) {
+                    LOGGER.warning("Failed to trigger map refresh for cave mode: " + e.getMessage());
+                }
             }
 
             String status = newState ? "ENABLED" : "DISABLED";
@@ -79,15 +120,9 @@ public class CaveModeToggleCommand extends AbstractCommand {
 
             if (newState) {
                 playerRef.sendMessage(Message.raw("Map will show cave view when underground.").color(Color.GRAY));
-                playerRef.sendMessage(Message.raw("Threshold: Y=" + config.getCaveModeUndergroundThreshold() + 
-                        ", Layer: " + config.getCaveModeLayerSize() + " blocks, Radius: " + 
+                playerRef.sendMessage(Message.raw("Threshold: Y=" + config.getCaveModeUndergroundThreshold() +
+                        ", Layer: " + config.getCaveModeLayerSize() + " blocks, Radius: " +
                         config.getCaveModeRadius() + " chunks").color(Color.GRAY));
-            }
-
-            try {
-                WorldMapHook.forceFullMapRefresh(playerComponent);
-            } catch (Exception e) {
-                LOGGER.warning("Failed to trigger map refresh for cave mode: " + e.getMessage());
             }
         }, world);
     }
