@@ -17,7 +17,6 @@ import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.PlayerConnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
-import com.hypixel.hytale.server.core.permissions.PermissionsModule;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
@@ -25,9 +24,9 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 
 import dev.ninesliced.BetterMap;
+import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.utils.PermissionsUtil;
-import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.WorldMapHook;
 
 /**
@@ -36,7 +35,6 @@ import dev.ninesliced.utils.WorldMapHook;
  */
 public class MapPrivacyManager {
     private static final Logger LOGGER = Logger.getLogger(MapPrivacyManager.class.getName());
-    private static final String MAP_MARKER_TELEPORT_PERMISSION = "hytale.world_map.teleport.marker";
     private static MapPrivacyManager instance;
     private final Set<World> monitoredWorlds = Collections.newSetFromMap(new WeakHashMap<>());
     private final Map<World, Map<String, WorldMapManager.MarkerProvider>> backedUpProviders = new WeakHashMap<>();
@@ -104,7 +102,6 @@ public class MapPrivacyManager {
         boolean globalHide = globalConfig.isHidePlayersOnMap();
         boolean radarEnabled = globalConfig.isRadarEnabled();
         int radarRange = globalConfig.getRadarRange();
-        boolean allowMarkerTeleports = globalConfig.isAllowMapMarkerTeleports();
 
         try {
             for (World world : this.monitoredWorlds) {
@@ -187,7 +184,7 @@ public class MapPrivacyManager {
                                 tracker.setPlayerMapFilter(null);
                             }
 
-                            syncMarkerTeleportPermission(player, allowMarkerTeleports);
+                            syncTeleportOverrides(player);
                         }
                     } catch (Exception _) {}
                 });
@@ -203,7 +200,6 @@ public class MapPrivacyManager {
         boolean globalHide = globalConfig.isHidePlayersOnMap();
         boolean radarEnabled = globalConfig.isRadarEnabled();
         int radarRange = globalConfig.getRadarRange();
-        boolean allowMarkerTeleports = globalConfig.isAllowMapMarkerTeleports();
 
         UUID playerUuid = ((CommandSender) player).getUuid();
         PlayerConfig playerConfig = playerUuid != null
@@ -290,7 +286,7 @@ public class MapPrivacyManager {
                 tracker.setPlayerMapFilter(null);
             }
 
-            syncMarkerTeleportPermission(player, allowMarkerTeleports);
+            syncTeleportOverrides(player);
         } catch (Exception e) {
             LOGGER.severe("Error applying privacy filter: " + e.getMessage());
         }
@@ -373,31 +369,16 @@ public class MapPrivacyManager {
             && PermissionsUtil.canOverridePlayers(player);
     }
 
-    private void syncMarkerTeleportPermission(Player player, boolean allowMarkerTeleports) {
-        if (player == null) {
-            return;
-        }
-
-        PermissionsModule perms = PermissionsModule.get();
-        if (perms == null) {
-            return;
-        }
-
-        UUID uuid = ((CommandSender) player).getUuid();
-        Set<String> permissions = Collections.singleton(MAP_MARKER_TELEPORT_PERMISSION);
+    private void syncTeleportOverrides(Player player) {
+        if (player == null) return;
 
         try {
-            if (allowMarkerTeleports) {
-                perms.addUserPermission(uuid, permissions);
-            } else {
-                perms.removeUserPermission(uuid, permissions);
-            }
             World world = player.getWorld();
             if (world != null) {
                 WorldMapHook.sendMapSettingsToPlayer(player);
             }
         } catch (Exception e) {
-            LOGGER.fine("Failed to sync map marker teleport permission for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.fine("Failed to sync teleport overrides for " + player.getDisplayName() + ": " + e.getMessage());
         }
     }
 }

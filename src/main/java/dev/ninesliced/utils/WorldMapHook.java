@@ -413,7 +413,6 @@ public class WorldMapHook {
      */
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
-            // Drain any pending trackerLoaded mutations queued from the async cave processing path.
             java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
                     pendingTrackerModifications.get(player.getDisplayName());
             if (pendingMods != null) {
@@ -1463,12 +1462,23 @@ public class WorldMapHook {
             }
 
             WorldMapTracker tracker = player.getWorldMapTracker();
+
+            boolean allowCoordTp;
+            if (ModConfig.getInstance().isAllowCoordinateTeleports()) {
+                allowCoordTp = true;
+            } else {
+                allowCoordTp = PermissionsUtil.isAdmin(player)
+                        || PermissionsUtil.canTeleportToCoordinates(player);
+            }
+
             ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToMarkers", false);
-            packet.allowTeleportToCoordinates = tracker.isAllowTeleportToCoordinates();
+            ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToCoordinates", allowCoordTp);
+
+            packet.allowTeleportToCoordinates = allowCoordTp;
             packet.allowTeleportToMarkers = false;
 
             WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
-            packet.allowCreatingMapMarkers = ModConfig.getInstance().isAllowNativeMapMarkerCreation();
+            packet.allowCreatingMapMarkers = PermissionsUtil.canCreateMapMarkers(player);
             packet.allowRemovingOtherPlayersMarkers = false;
             packet.allowShowOnMapToggle = worldMapConfig.canTogglePlayersInMap();
             packet.allowCompassTrackingToggle = worldMapConfig.canTrackPlayersInCompass();

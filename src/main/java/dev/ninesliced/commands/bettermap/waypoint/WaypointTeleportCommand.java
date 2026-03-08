@@ -45,12 +45,7 @@ public class WaypointTeleportCommand extends AbstractPlayerCommand {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
 
-        if (!ModConfig.getInstance().isAllowWaypointTeleports()) {
-            context.sendMessage(Message.raw("Waypoint teleports are disabled on this server."));
-            return;
-        }
-
-        if (!PermissionsUtil.canTeleport(player)) {
+        if (!ModConfig.getInstance().isAllowWaypointTeleports() && !PermissionsUtil.canTeleportToWaypoints(player)) {
             context.sendMessage(Message.raw("You don't have permission to teleport to waypoints."));
             return;
         }

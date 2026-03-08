@@ -261,8 +261,8 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                 }
             }
             case TELEPORT -> {
-                if (!PermissionsUtil.canTeleport(player)
-                    || !ModConfig.getInstance().isAllowWaypointTeleports()) {
+                if (!ModConfig.getInstance().isAllowWaypointTeleports()
+                    && !PermissionsUtil.canTeleportToWaypoints(player)) {
                     return;
                 }
                 if (data.targetId != null && !data.targetId.isEmpty()) {

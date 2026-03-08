@@ -1,9 +1,13 @@
 package dev.ninesliced.commands.bettermap;
 
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
@@ -55,7 +59,12 @@ public class ReloadCommand extends AbstractCommand {
         if (universe != null) {
             universe.getWorlds().values().forEach(world -> world.execute(() -> {
                 WorldMapHook.updateWorldMapConfigs(world);
-                WorldMapHook.broadcastMapSettings(world);
+                for (PlayerRef pr : world.getPlayerRefs()) {
+                    Holder<EntityStore> h = pr.getHolder();
+                    if (h == null) continue;
+                    Player p = h.getComponent(Player.getComponentType());
+                    if (p != null) WorldMapHook.sendMapSettingsToPlayer(p);
+                }
                 WorldMapHook.refreshTrackers(world);
             }));
         }

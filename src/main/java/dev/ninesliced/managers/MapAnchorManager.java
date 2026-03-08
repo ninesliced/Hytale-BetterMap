@@ -175,7 +175,7 @@ public class MapAnchorManager {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
 
-            if (!PermissionsUtil.canTeleport(player) || !ModConfig.getInstance().isAllowWaypointTeleports()) {
+            if (!ModConfig.getInstance().isAllowWaypointTeleports() && !PermissionsUtil.canTeleportToWaypoints(player)) {
                 return;
             }
 
@@ -443,8 +443,8 @@ public class MapAnchorManager {
         commands.set("#WaypointCount.Text", "Waypoints (" + markers.size() + ")");
         commands.set("#EmptyLabel.Visible", false);
 
-        boolean canTeleport = PermissionsUtil.canTeleport(player)
-            && ModConfig.getInstance().isAllowWaypointTeleports();
+        boolean canTeleport = ModConfig.getInstance().isAllowWaypointTeleports()
+            || PermissionsUtil.canTeleportToWaypoints(player);
 
         int index = 0;
         for (UserMapMarker marker : markers) {
