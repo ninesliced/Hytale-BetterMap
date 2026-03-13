@@ -54,7 +54,7 @@ public class ModConfig {
     private boolean allowDeathTeleports = true;
     private boolean allowSpawnTeleports = true;
     private boolean allowPlayerTeleports = false;
-    private boolean allowCoordinateTeleports = true;
+    private boolean allowCoordinateTeleports = false;
     private boolean allowGlobalWaypointEditsForEveryone = false;
     private boolean allowMapMarkerTeleports = true;
     private boolean allowNativeMapMarkerCreation = true;
