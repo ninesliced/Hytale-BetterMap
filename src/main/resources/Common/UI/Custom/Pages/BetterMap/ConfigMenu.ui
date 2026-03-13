@@ -589,7 +589,8 @@ $C.@PageOverlay {
 
             @CheckboxRow {
               $C.@CheckBox #HStatsEnabled { }
-              Label { Text: "Enable HStats Tracking *"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              Label { Text: "Enable HStats Tracking"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              Label { Text: " *"; Style: @AsteriskLabelStyle; }
             }
           }
 
