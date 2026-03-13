@@ -32,7 +32,7 @@
             <groupId>com.hypixel.hytale</groupId>
             <artifactId>Server</artifactId>
             <!-- Replace with latest version, we provide jars for the last five releases -->
-            <version>2026.02.19-1a311a592</version>
+            <version>2026.03.12-b1f856309</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>

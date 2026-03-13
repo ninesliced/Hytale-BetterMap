@@ -133,7 +133,8 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         String markerId = marker.getId();
         boolean isShared = markerId != null && markerId.startsWith("user_shared_");
         boolean canEditShared = PermissionsUtil.canEditSharedWaypoint(player, marker);
-        boolean isOwner = marker.getCreatedByUuid() != null && marker.getCreatedByUuid().equals(player.getUuid());
+        UUID playerId = ((CommandSender) player).getUuid();
+        boolean isOwner = marker.getCreatedByUuid() != null && marker.getCreatedByUuid().equals(playerId);
 
         if (!isShared || canEditShared) {
             builder.withContextMenuItem(new ContextMenuItem("Edit", "bettermap waypoint edit " + marker.getId()));
