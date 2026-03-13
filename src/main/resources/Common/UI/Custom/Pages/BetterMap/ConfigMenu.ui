@@ -509,13 +509,50 @@ $C.@PageOverlay {
             }
 
             @CheckboxRow {
-              $C.@CheckBox #AllowWaypointContextMenuTeleport { }
-              Label { Text: "Allow Map Marker Context-Menu Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              $C.@CheckBox #AllowPoiTeleport { }
+              Label { Text: "Allow POI Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowWarpTeleport { }
+              Label { Text: "Allow Warp Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowDeathTeleport { }
+              Label { Text: "Allow Death Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowSpawnTeleport { }
+              Label { Text: "Allow Spawn Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowPlayerTeleport { }
+              Label { Text: "Allow Player Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #AllowCoordinateTeleport { }
+              Label { Text: "Allow Coordinate Teleports"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
             }
 
             @CheckboxRow {
               $C.@CheckBox #AllowNativeMapMarkerCreation { }
               Label { Text: "Allow Native Map Right-Click Marker Creation"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #DisableMarkerCreationDistance { }
+              Label { Text: "Disable Distance Restrictions for Marker Creation"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              Label { Text: " *"; Style: @AsteriskLabelStyle; }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #DisableMarkerDeletionDistance { }
+              Label { Text: "Disable Distance Restrictions for Marker Deletion"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              Label { Text: " *"; Style: @AsteriskLabelStyle; }
             }
 
             @CheckboxRow {
@@ -548,6 +585,12 @@ $C.@PageOverlay {
             @CheckboxRow {
               $C.@CheckBox #DebugMode { }
               Label { Text: "Debug Mode"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
+
+            @CheckboxRow {
+              $C.@CheckBox #HStatsEnabled { }
+              Label { Text: "Enable HStats Tracking"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+              Label { Text: " *"; Style: @AsteriskLabelStyle; }
             }
           }
 

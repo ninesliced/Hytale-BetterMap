@@ -1,39 +1,44 @@
 package dev.ninesliced;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
+import com.hypixel.hytale.server.core.io.ServerManager;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 import dev.ninesliced.commands.bettermap.BetterMapCommand;
 import dev.ninesliced.commands.waypoint.WaypointCommand;
 import dev.ninesliced.components.ExplorationComponent;
 import dev.ninesliced.configs.ModConfig;
-import dev.ninesliced.exploration.*;
+import dev.ninesliced.exploration.ExplorationPlayerSetupSystem;
+import dev.ninesliced.exploration.ExplorationTicker;
+import dev.ninesliced.handlers.BetterMapPacketHandler;
+import dev.ninesliced.hstats.HStats;
 import dev.ninesliced.listeners.ExplorationListener;
+import dev.ninesliced.managers.ChunkStreamingManager;
 import dev.ninesliced.managers.ExplorationManager;
+import dev.ninesliced.managers.MapAnchorManager;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.managers.WaypointManager;
-import dev.ninesliced.managers.ChunkStreamingManager;
 import dev.ninesliced.managers.PlayerRadarManager;
-import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.managers.UserMarkerProviderManager;
+import dev.ninesliced.managers.WarpPrivacyManager;
+import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.managers.WorldBorderManager;
-import dev.ninesliced.managers.MapAnchorManager;
 import dev.ninesliced.providers.LocationHudProvider;
-import dev.ninesliced.hstats.HStats;
 import dev.ninesliced.systems.LocationSystem;
 import dev.ninesliced.utils.WaypointLimitUtil;
-
-import javax.annotation.Nonnull;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.logging.Logger;
 
 /**
  * Main class for the BetterMap mod.
@@ -89,7 +94,6 @@ public class BetterMap extends JavaPlugin {
     @Override
     protected void setup() {
         instance = this;
-        new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.3");
         LOGGER.info("========================================");
         LOGGER.info("Setting up Persistent Map Exploration Mod");
         LOGGER.info("========================================");
@@ -104,6 +108,13 @@ public class BetterMap extends JavaPlugin {
 
             Path serverRoot = Paths.get(".").toAbsolutePath().normalize();
             ModConfig.getInstance().initialize(serverRoot);
+
+            if (ModConfig.getInstance().isHstatsEnabled()) {
+                new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.3");
+            } else {
+                LOGGER.info("HStats tracking is disabled in BetterMap config.");
+            }
+
             WaypointLimitUtil.applyOverridesToAllWorlds(
                 ModConfig.getInstance().getMaxPersonalMarkersPerPlayer(),
                 ModConfig.getInstance().getMaxSharedMarkersPerPlayer()
@@ -111,6 +122,9 @@ public class BetterMap extends JavaPlugin {
 
             PlayerConfigManager.initialize(serverRoot.resolve("mods").resolve("BetterMap"));
             LOGGER.info("Player Config Manager: INITIALIZED");
+
+            ServerManager.get().registerSubPacketHandlers(BetterMapPacketHandler::new);
+            LOGGER.info("BetterMapPacketHandler: REGISTERED");
 
             MapPrivacyManager.getInstance().initialize();
             LOGGER.info("MapPrivacyManager: INITIALIZED");

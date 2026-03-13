@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.4
+
+* Fix the black map issue due to going out of caves due to the unloading of chunks thanks to @xytronix
+* Added new options to disable/enable teleports on the right click on the map (including teleport with right click while in survival + (OP or teleport permission)) thanks to @xytronix
+* Added override to the radius limit of placing marker on the map (can now place marker anywhere on the map if enabled) thanks to @xytronix
+* Added option to disable Hstats tracking for better privacy (enabled by default)
+
 ## v1.3.3
 
 * Added option to disable teleport on right click on map without needing to be op/in creative (require permission)

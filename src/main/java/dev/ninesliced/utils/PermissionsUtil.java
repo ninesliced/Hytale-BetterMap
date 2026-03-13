@@ -6,20 +6,26 @@ import java.util.UUID;
 import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.protocol.GameMode;
+import com.hypixel.hytale.server.core.asset.type.gameplay.worldmap.UserMapMarkerConfig;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.permissions.PermissionsModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.configs.ModConfig;
-import java.util.Set;
-import java.util.UUID;
-import javax.annotation.Nonnull;
 
 public final class PermissionsUtil {
     private static final String ADMIN_PERMISSION = "bettermap.admin";
     private static final String ADMIN_COMMAND_PERMISSION = "bettermap.command.admin";
     private static final String TELEPORT_PERMISSION = "bettermap.command.teleport";
+    private static final String TELEPORT_WAYPOINT_PERMISSION = "bettermap.command.teleport.waypoint";
+    private static final String TELEPORT_MARKER_PERMISSION = "bettermap.command.teleport.marker";
+    private static final String TELEPORT_MARKER_POI_PERMISSION = "bettermap.command.teleport.marker.poi";
+    private static final String TELEPORT_MARKER_WARP_PERMISSION = "bettermap.command.teleport.marker.warp";
+    private static final String TELEPORT_MARKER_DEATH_PERMISSION = "bettermap.command.teleport.marker.death";
+    private static final String TELEPORT_MARKER_SPAWN_PERMISSION = "bettermap.command.teleport.marker.spawn";
+    private static final String TELEPORT_MARKER_PLAYER_PERMISSION = "bettermap.command.teleport.marker.player";
+    private static final String TELEPORT_COORDINATE_PERMISSION = "bettermap.command.teleport.coordinate";
     private static final String GLOBAL_WAYPOINT_PERMISSION = "bettermap.command.waypoint.global";
     private static final String EDIT_GLOBAL_WAYPOINT_PERMISSION = "bettermap.command.waypoint.editglobal";
     private static final String OVERRIDE_PLAYERS_PERMISSION = "bettermap.command.override.players";
@@ -31,6 +37,7 @@ public final class PermissionsUtil {
     private static final String OVERRIDE_DEATH_PERMISSION = "bettermap.command.override.death";
     private static final String OVERRIDE_WAYPOINTS_PERMISSION = "bettermap.command.override.waypoints";
     private static final String CONFIG_PERMISSION = "bettermap.command.config";
+    private static final String CREATE_MARKER_PERMISSION = "bettermap.command.createmarker";
 
     private PermissionsUtil() {
     }
@@ -49,6 +56,12 @@ public final class PermissionsUtil {
     }
 
     public static boolean canTeleport(@Nonnull Player player) {
+        return canTeleportToWaypoints(player)
+            || canTeleportToMarkers(player)
+            || canTeleportToCoordinates(player);
+    }
+
+    public static boolean canTeleportToWaypoints(@Nonnull Player player) {
         PermissionsModule perms = PermissionsModule.get();
         if (perms == null) {
             return false;
@@ -60,7 +73,91 @@ public final class PermissionsUtil {
             return true;
         }
 
-        return perms.hasPermission(uuid, TELEPORT_PERMISSION);
+        return perms.hasPermission(uuid, TELEPORT_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_WAYPOINT_PERMISSION);
+    }
+
+    public static boolean canTeleportToMarkers(@Nonnull Player player) {
+        PermissionsModule perms = PermissionsModule.get();
+        if (perms == null) {
+            return false;
+        }
+
+        UUID uuid = ((CommandSender) player).getUuid();
+        Set<String> groups = perms.getGroupsForUser(uuid);
+        if (groups != null && groups.contains("OP")) {
+            return true;
+        }
+
+        return perms.hasPermission(uuid, TELEPORT_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_POI_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_WARP_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_DEATH_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_SPAWN_PERMISSION);
+    }
+
+    public static boolean canTeleportToMarkerType(@Nonnull Player player, @Nonnull MarkerType type) {
+        PermissionsModule perms = PermissionsModule.get();
+        if (perms == null) {
+            return false;
+        }
+
+        UUID uuid = ((CommandSender) player).getUuid();
+        Set<String> groups = perms.getGroupsForUser(uuid);
+        if (groups != null && groups.contains("OP")) {
+            return true;
+        }
+
+        if (perms.hasPermission(uuid, TELEPORT_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)) {
+            return true;
+        }
+
+        return switch (type) {
+            case POI -> perms.hasPermission(uuid, TELEPORT_MARKER_POI_PERMISSION);
+            case WARP -> perms.hasPermission(uuid, TELEPORT_MARKER_WARP_PERMISSION);
+            case DEATH -> perms.hasPermission(uuid, TELEPORT_MARKER_DEATH_PERMISSION);
+            case SPAWN -> perms.hasPermission(uuid, TELEPORT_MARKER_SPAWN_PERMISSION);
+            case PLAYER -> perms.hasPermission(uuid, TELEPORT_MARKER_PLAYER_PERMISSION);
+        };
+    }
+
+    public static boolean canTeleportToPlayers(@Nonnull Player player) {
+        PermissionsModule perms = PermissionsModule.get();
+        if (perms == null) {
+            return false;
+        }
+
+        UUID uuid = ((CommandSender) player).getUuid();
+        Set<String> groups = perms.getGroupsForUser(uuid);
+        if (groups != null && groups.contains("OP")) {
+            return true;
+        }
+
+        return perms.hasPermission(uuid, TELEPORT_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_MARKER_PLAYER_PERMISSION);
+    }
+
+    public enum MarkerType {
+        POI, WARP, DEATH, SPAWN, PLAYER
+    }
+
+    public static boolean canTeleportToCoordinates(@Nonnull Player player) {
+        PermissionsModule perms = PermissionsModule.get();
+        if (perms == null) {
+            return false;
+        }
+
+        UUID uuid = ((CommandSender) player).getUuid();
+        Set<String> groups = perms.getGroupsForUser(uuid);
+        if (groups != null && groups.contains("OP")) {
+            return true;
+        }
+
+        return perms.hasPermission(uuid, TELEPORT_PERMISSION)
+            || perms.hasPermission(uuid, TELEPORT_COORDINATE_PERMISSION);
     }
 
     public static boolean hasNativeCreativeOpMarkerTeleport(@Nonnull Player player) {
@@ -126,6 +223,13 @@ public final class PermissionsUtil {
 
     public static boolean canEditSharedWaypointByPermission(@Nonnull Player player) {
         return hasPermission(player, EDIT_GLOBAL_WAYPOINT_PERMISSION);
+    }
+
+    public static boolean canCreateMapMarkers(@Nonnull Player player) {
+        if (ModConfig.getInstance().isAllowNativeMapMarkerCreation()) {
+            return true;
+        }
+        return isAdmin(player) || hasPermission(player, CREATE_MARKER_PERMISSION);
     }
 
     public static boolean canAccessConfig(@Nonnull Player player) {
