@@ -37,6 +37,7 @@ public class ModConfig {
     private float minScale = 10.0f;
     private float maxScale = 256.0f;
     private boolean debug = false;
+    private boolean hstatsEnabled = true;
     private boolean locationEnabled = false;
     private String locationHudPosition = "top_right";
     private boolean shareAllExploration = false;
@@ -181,6 +182,12 @@ public class ModConfig {
 
                     if (jsonObject.has("debug")) {
                         this.debug = loaded.debug;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("hstatsEnabled")) {
+                        this.hstatsEnabled = loaded.hstatsEnabled;
                     } else {
                         needsSave = true;
                     }
@@ -665,6 +672,15 @@ public class ModConfig {
     public void setDebug(boolean debug) {
         this.debug = debug;
         updateLoggers();
+        save();
+    }
+
+    public boolean isHstatsEnabled() {
+        return hstatsEnabled;
+    }
+
+    public void setHstatsEnabled(boolean hstatsEnabled) {
+        this.hstatsEnabled = hstatsEnabled;
         save();
     }
 
@@ -1160,6 +1176,7 @@ public class ModConfig {
         this.minScale = defaults.minScale;
         this.maxScale = defaults.maxScale;
         this.debug = defaults.debug;
+        this.hstatsEnabled = defaults.hstatsEnabled;
         this.locationEnabled = defaults.locationEnabled;
         this.locationHudPosition = defaults.locationHudPosition;
         this.shareAllExploration = defaults.shareAllExploration;

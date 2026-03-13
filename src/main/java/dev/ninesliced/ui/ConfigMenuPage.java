@@ -179,6 +179,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
              ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
              ui.set("#DebugMode.Value", gConfig.isDebug());
+             ui.set("#HStatsEnabled.Value", gConfig.isHstatsEnabled());
              ui.set("#LocationHudEnabled.Value", gConfig.isLocationEnabled());
              applyLocationPositionDropdown(ui, gConfig.getLocationHudPosition(), "#AdminLocationPosition");
              ui.set("#RadarEnabled.Value", gConfig.isRadarEnabled());
@@ -234,6 +235,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindChange(events, "#AllowGlobalWaypointEdits", "admin_global_waypoint_edits", BindingType.BOOLEAN);
              bindChange(events, "#ShareAllExploration", "admin_share_exp", BindingType.BOOLEAN);
              bindChange(events, "#DebugMode", "admin_debug", BindingType.BOOLEAN);
+             bindChange(events, "#HStatsEnabled", "admin_hstats_enabled", BindingType.BOOLEAN);
              bindChange(events, "#LocationHudEnabled", "admin_location_enabled", BindingType.BOOLEAN);
              bindChange(events, "#AdminLocationPosition", "admin_location_pos", BindingType.STRING);
 
@@ -431,6 +433,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
         ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
         ui.set("#DebugMode.Value", gConfig.isDebug());
+        ui.set("#HStatsEnabled.Value", gConfig.isHstatsEnabled());
         ui.set("#LocationHudEnabled.Value", gConfig.isLocationEnabled());
         applyLocationPositionDropdown(ui, gConfig.getLocationHudPosition(), "#AdminLocationPosition");
         ui.set("#RadarEnabled.Value", gConfig.isRadarEnabled());
@@ -1345,6 +1348,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     break;
                 case "admin_debug":
                      if (val != null) gConfig.setDebug(Boolean.parseBoolean(val));
+                    break;
+                case "admin_hstats_enabled":
+                    if (val != null) {
+                        gConfig.setHstatsEnabled(Boolean.parseBoolean(val));
+                        restartRequired = true;
+                    }
                     break;
                 case "admin_location_enabled":
                     if (val != null) gConfig.setLocationEnabled(Boolean.parseBoolean(val));

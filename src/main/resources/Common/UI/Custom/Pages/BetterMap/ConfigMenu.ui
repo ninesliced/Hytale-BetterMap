@@ -586,6 +586,11 @@ $C.@PageOverlay {
               $C.@CheckBox #DebugMode { }
               Label { Text: "Debug Mode"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
             }
+
+            @CheckboxRow {
+              $C.@CheckBox #HStatsEnabled { }
+              Label { Text: "Enable HStats Tracking *"; Style: @CheckboxLabelStyle; Anchor: (Left: 10); }
+            }
           }
 
           Group {
