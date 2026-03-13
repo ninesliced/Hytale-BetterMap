@@ -16,6 +16,7 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.PlayerRadarManager.RadarData;
+import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 
 import java.util.HashMap;
@@ -44,16 +45,25 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             UUID viewerUuid = ((CommandSender) viewingPlayer).getUuid();
 
             ModConfig globalConfig = ModConfig.getInstance();
-            boolean hasGlobalOverride = PermissionsUtil.canOverridePlayers(viewingPlayer);
-            if (!globalConfig.isRadarEnabled() || (globalConfig.isHidePlayersOnMap() && !hasGlobalOverride)) {
+            if (!globalConfig.isRadarEnabled()) {
                 return;
             }
 
-            if (viewerUuid != null) {
-                PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid);
-                if (playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+            PlayerConfig playerConfig = viewerUuid != null
+                ? PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid)
+                : null;
+
+            if (globalConfig.isHidePlayersOnMap()) {
+                boolean canBypass = playerConfig != null
+                    && playerConfig.isOverrideGlobalPlayersHide()
+                    && PermissionsUtil.canOverridePlayers(viewingPlayer);
+                if (!canBypass) {
                     return;
                 }
+            }
+
+            if (playerConfig != null && playerConfig.isHidePlayersOnMap()) {
+                return;
             }
 
             List<RadarData> radarDataList = PlayerRadarManager.getInstance().getRadarData(world.getName());
@@ -117,6 +127,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
                     String markerName = otherData.name + " (" + distance + "m)";
 
                     MapMarker marker = createMarker(markerId, markerName, otherData);
+                    MarkerTeleportUtil.injectTeleportContextMenu(marker, viewingPlayer, PermissionsUtil.MarkerType.PLAYER);
                     collector.add(marker);
                 } catch (Exception e) {}
             }

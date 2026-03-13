@@ -35,7 +35,9 @@ public class ShareAllExplorationCommand extends AbstractCommand {
 
         Universe universe = Universe.get();
         if (universe != null) {
-            universe.getWorlds().values().forEach(WorldMapHook::refreshTrackers);
+            universe.getWorlds().values().forEach(w -> {
+                if (w != null) w.execute(() -> WorldMapHook.refreshTrackers(w));
+            });
         }
 
         return CompletableFuture.completedFuture(null);

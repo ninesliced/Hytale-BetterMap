@@ -3,7 +3,6 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.protocol.FormattedMessage;
-import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
@@ -16,6 +15,7 @@ import com.hypixel.hytale.server.core.util.PositionUtil;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import java.util.List;
@@ -97,19 +97,6 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
 
             Vector3d position = spawnTransform.getPosition();
 
-            boolean showTeleport = globalConfig.isAllowMapMarkerTeleports()
-                && (globalConfig.isAllowContextMenuWaypointTeleports() || PermissionsUtil.isAdmin(player))
-                && PermissionsUtil.canTeleport(player);
-            ContextMenuItem[] contextMenuItems = null;
-            if (showTeleport) {
-                int x = (int) Math.round(position.x);
-                int y = (int) Math.round(position.y);
-                int z = (int) Math.round(position.z);
-                contextMenuItems = new ContextMenuItem[]{
-                    new ContextMenuItem("Teleport", "bettermap waypoint markertp " + x + " " + y + " " + z)
-                };
-            }
-
             FormattedMessage displayName = new FormattedMessage();
             displayName.rawText = "Spawn";
 
@@ -118,9 +105,10 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
                 displayName,
                 "Spawn.png",
                 PositionUtil.toTransformPacket(new Transform(position)),
-                contextMenuItems,
+                null,
                 null
             );
+            MarkerTeleportUtil.injectTeleportContextMenu(marker, player, PermissionsUtil.MarkerType.SPAWN);
             collector.add(marker);
         } catch (Exception e) {
             LOGGER.warning("Error in SpawnPrivacyProvider.update: " + e.getMessage());

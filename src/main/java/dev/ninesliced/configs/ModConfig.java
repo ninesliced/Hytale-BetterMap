@@ -1,7 +1,5 @@
 package dev.ninesliced.configs;
 
-import com.google.gson.*;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -15,6 +13,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 /**
  * Configuration manager for the BetterMap mod.
@@ -44,7 +48,12 @@ public class ModConfig {
     private boolean hideOtherWarpsOnMap = false;
     private boolean hideUnexploredWarpsOnMap = true;
     private boolean allowWaypointTeleports = true;
-    private boolean allowContextMenuWaypointTeleports = true;
+    private boolean allowPoiTeleports = true;
+    private boolean allowWarpTeleports = true;
+    private boolean allowDeathTeleports = true;
+    private boolean allowSpawnTeleports = true;
+    private boolean allowPlayerTeleports = false;
+    private boolean allowCoordinateTeleports = true;
     private boolean allowGlobalWaypointEditsForEveryone = false;
     private boolean allowMapMarkerTeleports = true;
     private boolean allowNativeMapMarkerCreation = true;
@@ -70,6 +79,9 @@ public class ModConfig {
     private int worldBorderRadius = 5000;
     private int worldBorderOffsetX = 0;
     private int worldBorderOffsetZ = 0;
+
+    private boolean disableDistanceRestrictionsForMarkerCreation = false;
+    private boolean disableDistanceRestrictionsForMarkerDeletion = false;
 
     private transient Path configPath;
     private transient Path configDir;
@@ -239,8 +251,35 @@ public class ModConfig {
                         needsSave = true;
                     }
 
-                    if (jsonObject.has("allowContextMenuWaypointTeleports")) {
-                        this.allowContextMenuWaypointTeleports = loaded.allowContextMenuWaypointTeleports;
+                    if (jsonObject.has("allowPoiTeleports")) {
+                        this.allowPoiTeleports = loaded.allowPoiTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+                    if (jsonObject.has("allowWarpTeleports")) {
+                        this.allowWarpTeleports = loaded.allowWarpTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+                    if (jsonObject.has("allowDeathTeleports")) {
+                        this.allowDeathTeleports = loaded.allowDeathTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+                    if (jsonObject.has("allowSpawnTeleports")) {
+                        this.allowSpawnTeleports = loaded.allowSpawnTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowPlayerTeleports")) {
+                        this.allowPlayerTeleports = loaded.allowPlayerTeleports;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("allowCoordinateTeleports")) {
+                        this.allowCoordinateTeleports = loaded.allowCoordinateTeleports;
                     } else {
                         needsSave = true;
                     }
@@ -380,6 +419,18 @@ public class ModConfig {
 
                     if (jsonObject.has("worldBorderOffsetZ")) {
                         this.worldBorderOffsetZ = loaded.worldBorderOffsetZ;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("disableDistanceRestrictionsForMarkerCreation")) {
+                        this.disableDistanceRestrictionsForMarkerCreation = loaded.disableDistanceRestrictionsForMarkerCreation;
+                    } else {
+                        needsSave = true;
+                    }
+
+                    if (jsonObject.has("disableDistanceRestrictionsForMarkerDeletion")) {
+                        this.disableDistanceRestrictionsForMarkerDeletion = loaded.disableDistanceRestrictionsForMarkerDeletion;
                     } else {
                         needsSave = true;
                     }
@@ -763,38 +814,56 @@ public class ModConfig {
     }
 
     /**
-     * Checks if waypoint teleports are allowed.
+     * Checks if waypoint teleports are granted to all players by default.
      *
-     * @return True if waypoint teleports are allowed.
+     * @return True if waypoint teleports are allowed for all players.
      */
     public boolean isAllowWaypointTeleports() {
         return allowWaypointTeleports;
     }
 
-    /**
-     * Checks if teleporting via marker context menus is allowed.
-     *
-     * @return True if context-menu waypoint teleports are allowed.
-     */
-    public boolean isAllowContextMenuWaypointTeleports() {
-        return allowContextMenuWaypointTeleports;
+    public boolean isAllowPoiTeleports() {
+        return allowPoiTeleports;
     }
 
-    /**
-     * Checks if editing/deleting shared waypoints is globally allowed for all players.
-     * Marker creators can always edit their own shared waypoints regardless of this setting.
-     *
-     * @return True if all players can edit/delete shared waypoints.
-     */
+    public boolean isAllowWarpTeleports() {
+        return allowWarpTeleports;
+    }
+
+    public boolean isAllowDeathTeleports() {
+        return allowDeathTeleports;
+    }
+
+    public boolean isAllowSpawnTeleports() {
+        return allowSpawnTeleports;
+    }
+
+    public boolean isAllowTeleportForMarkerType(dev.ninesliced.utils.PermissionsUtil.MarkerType markerType) {
+        return switch (markerType) {
+            case POI -> allowPoiTeleports;
+            case WARP -> allowWarpTeleports;
+            case DEATH -> allowDeathTeleports;
+            case SPAWN -> allowSpawnTeleports;
+            case PLAYER -> allowPlayerTeleports;
+        };
+    }
+
+    public boolean isAnyMarkerTeleportEnabled() {
+        return allowPoiTeleports || allowWarpTeleports || allowDeathTeleports || allowSpawnTeleports;
+    }
+
+    public boolean isAllowPlayerTeleports() {
+        return allowPlayerTeleports;
+    }
+
+    public boolean isAllowCoordinateTeleports() {
+        return allowCoordinateTeleports;
+    }
+
     public boolean isAllowGlobalWaypointEditsForEveryone() {
         return allowGlobalWaypointEditsForEveryone;
     }
 
-    /**
-     * Checks if map marker teleports (POIs/warps) are allowed.
-     *
-     * @return True if map marker teleports are allowed.
-     */
     public boolean isAllowMapMarkerTeleports() {
         return allowMapMarkerTeleports;
     }
@@ -879,22 +948,55 @@ public class ModConfig {
     }
 
     /**
-     * Sets whether waypoint teleports are allowed.
+     * Sets whether waypoint teleports are granted to all players by default.
      *
-     * @param allowWaypointTeleports True to allow waypoint teleports.
+     * @param allowWaypointTeleports True to grant waypoint teleports to all players.
      */
     public void setAllowWaypointTeleports(boolean allowWaypointTeleports) {
         this.allowWaypointTeleports = allowWaypointTeleports;
         save();
     }
 
+    public void setAllowPoiTeleports(boolean allowPoiTeleports) {
+        this.allowPoiTeleports = allowPoiTeleports;
+        save();
+    }
+
+    public void setAllowWarpTeleports(boolean allowWarpTeleports) {
+        this.allowWarpTeleports = allowWarpTeleports;
+        save();
+    }
+
+    public void setAllowDeathTeleports(boolean allowDeathTeleports) {
+        this.allowDeathTeleports = allowDeathTeleports;
+        save();
+    }
+
+    public void setAllowSpawnTeleports(boolean allowSpawnTeleports) {
+        this.allowSpawnTeleports = allowSpawnTeleports;
+        save();
+    }
+
+    public void setAllMarkerTeleports(boolean state) {
+        this.allowPoiTeleports = state;
+        this.allowWarpTeleports = state;
+        this.allowDeathTeleports = state;
+        this.allowSpawnTeleports = state;
+        save();
+    }
+
     /**
-     * Sets whether waypoint teleports via context menu are allowed.
+     * Sets whether coordinate teleports (click-on-map) are granted to all players by default.
      *
-     * @param allowContextMenuWaypointTeleports True to allow context-menu teleports.
+     * @param allowCoordinateTeleports True to grant coordinate teleports to all players.
      */
-    public void setAllowContextMenuWaypointTeleports(boolean allowContextMenuWaypointTeleports) {
-        this.allowContextMenuWaypointTeleports = allowContextMenuWaypointTeleports;
+    public void setAllowPlayerTeleports(boolean allowPlayerTeleports) {
+        this.allowPlayerTeleports = allowPlayerTeleports;
+        save();
+    }
+
+    public void setAllowCoordinateTeleports(boolean allowCoordinateTeleports) {
+        this.allowCoordinateTeleports = allowCoordinateTeleports;
         save();
     }
 
@@ -1068,7 +1170,12 @@ public class ModConfig {
         this.hideOtherWarpsOnMap = defaults.hideOtherWarpsOnMap;
         this.hideUnexploredWarpsOnMap = defaults.hideUnexploredWarpsOnMap;
         this.allowWaypointTeleports = defaults.allowWaypointTeleports;
-        this.allowContextMenuWaypointTeleports = defaults.allowContextMenuWaypointTeleports;
+        this.allowPoiTeleports = defaults.allowPoiTeleports;
+        this.allowWarpTeleports = defaults.allowWarpTeleports;
+        this.allowDeathTeleports = defaults.allowDeathTeleports;
+        this.allowSpawnTeleports = defaults.allowSpawnTeleports;
+        this.allowPlayerTeleports = defaults.allowPlayerTeleports;
+        this.allowCoordinateTeleports = defaults.allowCoordinateTeleports;
         this.allowGlobalWaypointEditsForEveryone = defaults.allowGlobalWaypointEditsForEveryone;
         this.allowMapMarkerTeleports = defaults.allowMapMarkerTeleports;
         this.allowNativeMapMarkerCreation = defaults.allowNativeMapMarkerCreation;
@@ -1091,6 +1198,9 @@ public class ModConfig {
         this.worldBorderRadius = defaults.worldBorderRadius;
         this.worldBorderOffsetX = defaults.worldBorderOffsetX;
         this.worldBorderOffsetZ = defaults.worldBorderOffsetZ;
+
+        this.disableDistanceRestrictionsForMarkerCreation = defaults.disableDistanceRestrictionsForMarkerCreation;
+        this.disableDistanceRestrictionsForMarkerDeletion = defaults.disableDistanceRestrictionsForMarkerDeletion;
 
         updateLoggers();
         save();
@@ -1351,6 +1461,45 @@ public class ModConfig {
      */
     public void setWorldBorderOffsetZ(int worldBorderOffsetZ) {
         this.worldBorderOffsetZ = worldBorderOffsetZ;
+        save();
+    }
+
+    /**
+     * Checks if the distance restriction override for marker creation is enabled.
+     *
+     * @return override enabled
+     */
+    public boolean isDisableDistanceRestrictionsForMarkerCreation() {
+        return disableDistanceRestrictionsForMarkerCreation;
+    }
+
+    /**
+     * Sets whether the distance restriction override for marker creation is enabled.
+     *
+     * @param disableDistanceRestrictionsForMarkerCreation override enabled
+     */
+    public void setDisableDistanceRestrictionsForMarkerCreation(boolean disableDistanceRestrictionsForMarkerCreation) {
+        this.disableDistanceRestrictionsForMarkerCreation = disableDistanceRestrictionsForMarkerCreation;
+        save();
+    }
+
+    /**
+     * Checks if the distance restriction override for marker deletion is enabled.
+     *
+     * @return override enabled
+     */
+    public boolean isDisableDistanceRestrictionsForMarkerDeletion() {
+        return disableDistanceRestrictionsForMarkerDeletion;
+    }
+
+    /**
+     * Sets whether the distance restriction override for marker deletion is enabled.
+     * Requires a server restart to take effect.
+     *
+     * @param disableDistanceRestrictionsForMarkerDeletion override enabled
+     */
+    public void setDisableDistanceRestrictionsForMarkerDeletion(boolean disableDistanceRestrictionsForMarkerDeletion) {
+        this.disableDistanceRestrictionsForMarkerDeletion = disableDistanceRestrictionsForMarkerDeletion;
         save();
     }
 

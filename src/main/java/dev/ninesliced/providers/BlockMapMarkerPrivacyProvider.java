@@ -4,7 +4,6 @@ import com.hypixel.hytale.protocol.Direction;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
-import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
@@ -18,6 +17,7 @@ import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
+import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
@@ -103,11 +103,6 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 }
             }
 
-            boolean showTeleport = viewer != null
-                && globalConfig.isAllowMapMarkerTeleports()
-                && (globalConfig.isAllowContextMenuWaypointTeleports() || PermissionsUtil.isAdmin(viewer))
-                && PermissionsUtil.canTeleport(viewer);
-
             for (BlockMapMarkersResource.BlockMapMarkerData markerData : markers.values()) {
                 String name = markerData.getName();
                 String icon = markerData.getIcon();
@@ -131,24 +126,15 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 FormattedMessage displayName = new FormattedMessage();
                 displayName.rawText = name;
 
-                ContextMenuItem[] contextMenuItems = null;
-                if (showTeleport) {
-                    int x = pos.getX();
-                    int y = pos.getY();
-                    int z = pos.getZ();
-                    contextMenuItems = new ContextMenuItem[]{
-                        new ContextMenuItem("Teleport", "bettermap waypoint markertp " + x + " " + y + " " + z)
-                    };
-                }
-
                 MapMarker marker = new MapMarker(
                     markerData.getMarkerId(),
                     displayName,
                     icon,
                     transform,
-                    contextMenuItems,
+                    null,
                     null
                 );
+                MarkerTeleportUtil.injectTeleportContextMenu(marker, viewer, PermissionsUtil.MarkerType.POI);
                 collector.add(marker);
             }
         } catch (Exception e) {

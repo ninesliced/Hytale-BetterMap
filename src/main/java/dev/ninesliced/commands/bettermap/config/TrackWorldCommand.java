@@ -7,7 +7,10 @@ import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
 import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -65,6 +68,17 @@ public class TrackWorldCommand extends AbstractCommand {
         if (added) {
             context.sendMessage(Message.raw("World '" + worldName + "' added to tracked worlds.").color(Color.GREEN));
             context.sendMessage(Message.raw("Changes saved to config.").color(Color.GRAY));
+
+            Universe universe = Universe.get();
+            if (universe != null) {
+                World targetWorld = universe.getWorld(worldName);
+                if (targetWorld != null) {
+                    targetWorld.execute(() -> {
+                        WorldMapHook.broadcastMapSettings(targetWorld);
+                        WorldMapHook.refreshTrackers(targetWorld);
+                    });
+                }
+            }
         } else {
             context.sendMessage(Message.raw("World '" + worldName + "' is already tracked.").color(Color.YELLOW));
         }

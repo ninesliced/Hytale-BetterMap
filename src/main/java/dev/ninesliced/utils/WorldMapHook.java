@@ -10,20 +10,22 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.iterator.CircleSpiralIterator;
 import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.protocol.Packet;
 import com.hypixel.hytale.protocol.ToClientPacket;
 import com.hypixel.hytale.protocol.packets.worldmap.MapChunk;
 import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMapSettings;
+import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -33,10 +35,6 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
-import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
@@ -48,12 +46,6 @@ import dev.ninesliced.managers.MapExpansionManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.providers.CaveModeImageBuilder;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
@@ -205,6 +197,49 @@ public class WorldMapHook {
         caveModeLastSharedCount.remove(playerName);
         caveModeLastShareEnabled.remove(playerName);
         pendingTrackerModifications.remove(playerName);
+    }
+
+    public static void cleanupCaveModeOnDrain(@Nonnull Player player, @Nonnull World world,
+                                               @Nonnull WorldMapTracker tracker) {
+        String playerName = player.getDisplayName();
+
+        CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
+        if (state != null) {
+            Set<Long> loadedCave = state.getLoadedCaveChunks();
+            if (!loadedCave.isEmpty()) {
+                try {
+                    Object loadedObj = ReflectionHelper.getFieldValueRecursive(tracker, "loaded");
+                    if (loadedObj instanceof Set) {
+                        @SuppressWarnings("unchecked")
+                        Set<Long> trackerLoaded = (Set<Long>) loadedObj;
+                        for (Long caveIdx : loadedCave) {
+                            trackerLoaded.remove(caveIdx);
+                        }
+                        LOGGER.info("[CAVE DRAIN] Removed " + loadedCave.size() +
+                                   " cave chunk indices from tracker.loaded for " + playerName);
+                    }
+                } catch (Exception e) {
+                    LOGGER.fine("[CAVE DRAIN] Could not clean tracker.loaded: " + e.getMessage());
+                }
+            }
+
+            state.setCaveProcessingInProgress(false);
+            state.clearLoadedCaveChunks();
+        }
+
+        for (Long pendingIdx : new java.util.ArrayList<>(
+                caveModePendingChunks.getOrDefault(playerName, java.util.Collections.emptySet()))) {
+            CompletableFuture<CaveModeImageBuilder> future = pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
+            if (future != null && !future.isDone()) {
+                future.cancel(false);
+            }
+        }
+
+        pendingTrackerModifications.remove(playerName);
+
+        removeCaveModePlayer(playerName);
+
+        LOGGER.info("[CAVE DRAIN] Cleaned up cave mode state for " + playerName);
     }
 
     /**
@@ -378,7 +413,6 @@ public class WorldMapHook {
      */
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
-            // Drain any pending trackerLoaded mutations queued from the async cave processing path.
             java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
                     pendingTrackerModifications.get(player.getDisplayName());
             if (pendingMods != null) {
@@ -410,28 +444,29 @@ public class WorldMapHook {
             int playerChunkZ = ChunkUtil.blockToChunkCoord(z);
             boolean hasMoved = explorationData.hasMovedToNewChunk(playerChunkX, playerChunkZ);
 
-            Ref<EntityStore> playerRef = player.getReference();
-            TransformComponent transform = (playerRef != null && playerRef.isValid())
-                ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
-                : null;
-            int playerY = transform != null ? (int) transform.getPosition().y : 100;
-            boolean hasCeiling = checkForCeiling(world, player, x, playerY, z);
-
             CaveModeManager caveManager = CaveModeManager.getInstance();
-
             boolean caveModeGloballyEnabled = ModConfig.getInstance().isCaveModeEnabled();
+            boolean caveModeEnabledForPlayer = caveModeGloballyEnabled
+                && CaveModeManager.isEffectivelyEnabledForPlayer(player);
 
             boolean stateChanged = false;
             boolean isUnderground = false;
 
-            if (caveModeGloballyEnabled) {
+            if (caveModeEnabledForPlayer) {
+                Ref<EntityStore> playerRef = player.getReference();
+                TransformComponent transform = (playerRef != null && playerRef.isValid())
+                    ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
+                    : null;
+                int playerY = transform != null ? (int) transform.getPosition().y : 100;
+                boolean hasCeiling = checkForCeiling(world, player, x, playerY, z);
+
                 stateChanged = caveManager.updateUndergroundState(player, playerY, hasCeiling);
                 isUnderground = caveManager.isPlayerUnderground(player);
             }
 
             boolean discoverSurfaceUnderground = ModConfig.getInstance().isDiscoverSurfaceUnderground();
 
-            if (hasMoved && (!caveModeGloballyEnabled || !isUnderground || discoverSurfaceUnderground)) {
+            if (hasMoved && (!caveModeEnabledForPlayer || !isUnderground || discoverSurfaceUnderground)) {
                 int explorationRadius = ModConfig.getInstance().getExplorationRadius();
                 int beforeCount = explorationData.getExploredChunks().getExploredCount();
                 explorationData.getMapExpansion().updateBoundaries(playerChunkX, playerChunkZ, explorationRadius);
@@ -443,7 +478,7 @@ public class WorldMapHook {
                 }
             }
 
-            if (caveModeGloballyEnabled) {
+            if (caveModeEnabledForPlayer) {
                 if (stateChanged && world != null) {
                     CaveModeManager.DynamicCaveModeState state = caveManager.getState(player);
                     boolean fogOfWar = ModConfig.getInstance().isCaveFogOfWar();
@@ -1427,12 +1462,23 @@ public class WorldMapHook {
             }
 
             WorldMapTracker tracker = player.getWorldMapTracker();
+
+            boolean allowCoordTp;
+            if (ModConfig.getInstance().isAllowCoordinateTeleports()) {
+                allowCoordTp = true;
+            } else {
+                allowCoordTp = PermissionsUtil.isAdmin(player)
+                        || PermissionsUtil.canTeleportToCoordinates(player);
+            }
+
             ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToMarkers", false);
-            packet.allowTeleportToCoordinates = tracker.isAllowTeleportToCoordinates();
+            ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToCoordinates", allowCoordTp);
+
+            packet.allowTeleportToCoordinates = allowCoordTp;
             packet.allowTeleportToMarkers = false;
 
             WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
-            packet.allowCreatingMapMarkers = ModConfig.getInstance().isAllowNativeMapMarkerCreation();
+            packet.allowCreatingMapMarkers = PermissionsUtil.canCreateMapMarkers(player);
             packet.allowRemovingOtherPlayersMarkers = false;
             packet.allowShowOnMapToggle = worldMapConfig.canTogglePlayersInMap();
             packet.allowCompassTrackingToggle = worldMapConfig.canTrackPlayersInCompass();
@@ -1452,6 +1498,8 @@ public class WorldMapHook {
      * @param world The world.
      */
     public static void refreshTrackers(@Nonnull World world) {
+        boolean isTracked = ModConfig.getInstance().isTrackedWorld(world.getName());
+
         for (PlayerRef playerRef : world.getPlayerRefs()) {
             Holder<EntityStore> holder = playerRef.getHolder();
             if (holder == null) continue;
@@ -1459,14 +1507,33 @@ public class WorldMapHook {
             if (player == null) continue;
 
             try {
+                WorldMapTracker tracker = player.getWorldMapTracker();
+                if (tracker == null) continue;
+
+                Object spiralIterator = ReflectionHelper.getFieldValueRecursive(tracker, "spiralIterator");
+                boolean isHooked = spiralIterator instanceof RestrictedSpiralIterator;
+
+                if (isTracked && !isHooked) {
+                    ExplorationTracker.getInstance().getOrCreatePlayerData(player);
+                    ExplorationManager.getInstance().loadPlayerData(player, world.getName());
+                    hookPlayerMapTracker(player, tracker);
+                    hookWorldMapResolution(world);
+                } else if (!isTracked && isHooked) {
+                    cleanupCaveModeOnDrain(player, world, tracker);
+                    restoreVanillaMapTracker(player, tracker);
+                    ExplorationTracker.getInstance().removePlayerData(player.getDisplayName());
+                    ChunkStreamingManager.getInstance().removeState(player.getDisplayName());
+                    continue;
+                }
+
                 Ref<EntityStore> ref = playerRef.getReference();
                 if (ref != null && ref.isValid()) {
                     TransformComponent tc = ref.getStore().getComponent(ref, TransformComponent.getComponentType());
 
                     if (tc != null) {
                         var pos = tc.getPosition();
-                        forceTrackerUpdate(player, player.getWorldMapTracker(), pos.x, pos.z);
-                        updateExplorationState(player, player.getWorldMapTracker(), pos.x, pos.z);
+                        forceTrackerUpdate(player, tracker, pos.x, pos.z);
+                        updateExplorationState(player, tracker, pos.x, pos.z);
                     }
                 }
             } catch (Exception e) {
@@ -1942,8 +2009,15 @@ public class WorldMapHook {
                         }
 
                         if (!toRemovePackets.isEmpty()) {
-                            UpdateWorldMap packet = new UpdateWorldMap(toRemovePackets.toArray(new MapChunk[0]), null, null);
-                            sendPacket(tracker.getPlayer(), packet);
+                            Player p = tracker.getPlayer();
+                            World w = p != null ? p.getWorld() : null;
+                            if (w != null) {
+                                final List<MapChunk> packets = new ArrayList<>(toRemovePackets);
+                                w.execute(() -> {
+                                    UpdateWorldMap pkt = new UpdateWorldMap(packets.toArray(new MapChunk[0]), null, null);
+                                    sendPacket(p, pkt);
+                                });
+                            }
                         }
                     }
                 }

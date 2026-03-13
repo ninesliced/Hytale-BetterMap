@@ -45,12 +45,8 @@ public class WaypointMarkerTeleportCommand extends AbstractPlayerCommand {
         }
 
         ModConfig config = ModConfig.getInstance();
-        boolean isPrivileged = PermissionsUtil.isAdmin(player);
-        boolean allowMarkerTeleports = config.isAllowMapMarkerTeleports();
-        boolean allowContextMenuTeleports = config.isAllowContextMenuWaypointTeleports() || isPrivileged;
-
-        if (!allowMarkerTeleports || !allowContextMenuTeleports) {
-            context.sendMessage(Message.raw("Map marker context-menu teleports are disabled."));
+        if (!config.isAllowMapMarkerTeleports()) {
+            context.sendMessage(Message.raw("Map marker teleports are disabled."));
             return;
         }
 

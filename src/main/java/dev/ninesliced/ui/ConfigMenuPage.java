@@ -1,49 +1,5 @@
 package dev.ninesliced.ui;
 
-import com.hypixel.hytale.codec.Codec;
-import com.hypixel.hytale.codec.KeyedCodec;
-import com.hypixel.hytale.codec.builder.BuilderCodec;
-import com.hypixel.hytale.component.Holder;
-import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
-import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
-import com.hypixel.hytale.protocol.packets.interface_.Page;
-import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
-import com.hypixel.hytale.server.core.Message;
-import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerDeathPositionData;
-import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
-import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.Universe;
-import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
-import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
-import com.hypixel.hytale.server.core.ui.builder.EventData;
-import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
-import com.hypixel.hytale.server.core.ui.LocalizableString;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
-import com.hypixel.hytale.server.core.util.NotificationUtil;
-import dev.ninesliced.configs.ModConfig;
-import dev.ninesliced.configs.ModConfig.MapQuality;
-import dev.ninesliced.configs.PlayerConfig;
-import dev.ninesliced.hud.HudPosition;
-import dev.ninesliced.integration.ExtendedTeleportIntegration;
-import dev.ninesliced.managers.MapPrivacyManager;
-import dev.ninesliced.managers.PoiPrivacyManager;
-import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.managers.UserMarkerProviderManager;
-import dev.ninesliced.managers.WarpPrivacyManager;
-import dev.ninesliced.managers.WorldBorderManager;
-import dev.ninesliced.managers.CaveModeManager;
-import dev.ninesliced.managers.ExplorationManager;
-import dev.ninesliced.utils.PermissionsUtil;
-import dev.ninesliced.utils.WorldMapHook;
-import dev.ninesliced.utils.WaypointLimitUtil;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -52,9 +8,54 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 import javax.annotation.Nonnull;
+
+import com.hypixel.hytale.codec.Codec;
+import com.hypixel.hytale.codec.KeyedCodec;
+import com.hypixel.hytale.codec.builder.BuilderCodec;
+import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
+import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
+import com.hypixel.hytale.protocol.packets.interface_.Page;
+import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
+import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
+import com.hypixel.hytale.server.core.entity.entities.Player;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerDeathPositionData;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
+import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
+import com.hypixel.hytale.server.core.inventory.ItemStack;
+import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
+import com.hypixel.hytale.server.core.ui.LocalizableString;
+import com.hypixel.hytale.server.core.ui.builder.EventData;
+import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
+import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.Universe;
+import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.util.NotificationUtil;
+
+import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.configs.ModConfig.MapQuality;
+import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.hud.HudPosition;
+import dev.ninesliced.integration.ExtendedTeleportIntegration;
+import dev.ninesliced.managers.CaveModeManager;
+import dev.ninesliced.managers.ExplorationManager;
+import dev.ninesliced.managers.MapPrivacyManager;
+import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.managers.PoiPrivacyManager;
+import dev.ninesliced.managers.UserMarkerProviderManager;
+import dev.ninesliced.managers.WarpPrivacyManager;
+import dev.ninesliced.managers.WorldBorderManager;
+import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.utils.WaypointLimitUtil;
+import dev.ninesliced.utils.WorldMapHook;
 
 public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.ConfigEventData> {
 
@@ -168,7 +169,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#AdminMaxScale.Value", (int) gConfig.getMaxScale());
 
              ui.set("#AllowWaypointTeleport.Value", gConfig.isAllowWaypointTeleports());
-             ui.set("#AllowWaypointContextMenuTeleport.Value", gConfig.isAllowContextMenuWaypointTeleports());
+             ui.set("#AllowPoiTeleport.Value", gConfig.isAllowPoiTeleports());
+             ui.set("#AllowWarpTeleport.Value", gConfig.isAllowWarpTeleports());
+             ui.set("#AllowDeathTeleport.Value", gConfig.isAllowDeathTeleports());
+             ui.set("#AllowSpawnTeleport.Value", gConfig.isAllowSpawnTeleports());
+             ui.set("#AllowPlayerTeleport.Value", gConfig.isAllowPlayerTeleports());
+             ui.set("#AllowCoordinateTeleport.Value", gConfig.isAllowCoordinateTeleports());
              ui.set("#AllowNativeMapMarkerCreation.Value", gConfig.isAllowNativeMapMarkerCreation());
              ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
              ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
@@ -206,6 +212,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
              ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
 
+             ui.set("#DisableMarkerCreationDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerCreation());
+             ui.set("#DisableMarkerDeletionDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerDeletion());
+
              applySavedPlayersDropdown(ui);
 
              bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
@@ -215,7 +224,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindChange(events, "#AdminMaxScale", "admin_max_scale", BindingType.NUMBER);
 
              bindChange(events, "#AllowWaypointTeleport", "admin_wp_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowWaypointContextMenuTeleport", "admin_wp_context_menu_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowPoiTeleport", "admin_poi_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowWarpTeleport", "admin_warp_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowDeathTeleport", "admin_death_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowSpawnTeleport", "admin_spawn_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowPlayerTeleport", "admin_player_teleport", BindingType.BOOLEAN);
+             bindChange(events, "#AllowCoordinateTeleport", "admin_coord_teleport", BindingType.BOOLEAN);
              bindChange(events, "#AllowNativeMapMarkerCreation", "admin_native_marker_creation", BindingType.BOOLEAN);
              bindChange(events, "#AllowGlobalWaypointEdits", "admin_global_waypoint_edits", BindingType.BOOLEAN);
              bindChange(events, "#ShareAllExploration", "admin_share_exp", BindingType.BOOLEAN);
@@ -250,6 +264,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
              bindChange(events, "#CaveModeLayerSize", "admin_cavemode_layer", BindingType.NUMBER);
              bindChange(events, "#CaveModeThreshold", "admin_cavemode_threshold", BindingType.NUMBER);
              bindChange(events, "#CaveModeRadius", "admin_cavemode_radius", BindingType.NUMBER);
+
+             bindChange(events, "#DisableMarkerCreationDistance", "admin_disable_marker_creation_distance", BindingType.BOOLEAN);
+             bindChange(events, "#DisableMarkerDeletionDistance", "admin_disable_marker_deletion_distance", BindingType.BOOLEAN);
 
              bindClick(events, "#AdminResetDefaultsBtn", "admin_reset_defaults");
              bindClick(events, "#AdminResetConfirmAllBtn", "admin_reset_confirm_all");
@@ -351,8 +368,22 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
     private void refreshHideState(World world) {
         if (world == null) return;
-        WorldMapHook.clearMarkerCaches(world);
-        WorldMapHook.refreshTrackers(world);
+        world.execute(() -> {
+            WorldMapHook.clearMarkerCaches(world);
+            WorldMapHook.refreshTrackers(world);
+        });
+    }
+
+    private static void refreshAllMarkers() {
+        Universe universe = Universe.get();
+        if (universe == null) return;
+        universe.getWorlds().values().forEach(w -> {
+            if (w == null) return;
+            w.execute(() -> {
+                WorldMapHook.clearMarkerCaches(w);
+                WorldMapHook.refreshTrackers(w);
+            });
+        });
     }
 
     private void removeDeathMarkersFromClient(Player player, World world) {
@@ -390,7 +421,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         ui.set("#AdminMaxScale.Value", (int) gConfig.getMaxScale());
 
         ui.set("#AllowWaypointTeleport.Value", gConfig.isAllowWaypointTeleports());
-        ui.set("#AllowWaypointContextMenuTeleport.Value", gConfig.isAllowContextMenuWaypointTeleports());
+        ui.set("#AllowPoiTeleport.Value", gConfig.isAllowPoiTeleports());
+        ui.set("#AllowWarpTeleport.Value", gConfig.isAllowWarpTeleports());
+        ui.set("#AllowDeathTeleport.Value", gConfig.isAllowDeathTeleports());
+        ui.set("#AllowSpawnTeleport.Value", gConfig.isAllowSpawnTeleports());
+        ui.set("#AllowPlayerTeleport.Value", gConfig.isAllowPlayerTeleports());
+        ui.set("#AllowCoordinateTeleport.Value", gConfig.isAllowCoordinateTeleports());
         ui.set("#AllowNativeMapMarkerCreation.Value", gConfig.isAllowNativeMapMarkerCreation());
         ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
         ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
@@ -421,6 +457,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         ui.set("#CaveModeLayerSize.Value", gConfig.getCaveModeLayerSize());
         ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
         ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
+
+        ui.set("#DisableMarkerCreationDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerCreation());
+        ui.set("#DisableMarkerDeletionDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerDeletion());
     }
 
     private void updatePlayerCaveState(Player player, boolean enabled) {
@@ -766,7 +805,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
         Universe universe = Universe.get();
         if (universe != null) {
-            universe.getWorlds().values().forEach(WorldMapHook::refreshTrackers);
+            universe.getWorlds().values().forEach(w -> {
+                if (w != null) w.execute(() -> WorldMapHook.refreshTrackers(w));
+            });
         }
 
         updatePlayerCaveState(player, gConfig.isCaveModeEnabled());
@@ -1191,19 +1232,56 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                      }
                     break;
                 case "admin_wp_teleport":
-                    if (val != null) gConfig.setAllowWaypointTeleports(Boolean.parseBoolean(val));
-                    break;
-                case "admin_wp_context_menu_teleport":
                     if (val != null) {
-                        gConfig.setAllowContextMenuWaypointTeleports(Boolean.parseBoolean(val));
+                        gConfig.setAllowWaypointTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_poi_teleport":
+                    if (val != null) {
+                        gConfig.setAllowPoiTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_warp_teleport":
+                    if (val != null) {
+                        gConfig.setAllowWarpTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_death_teleport":
+                    if (val != null) {
+                        gConfig.setAllowDeathTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_spawn_teleport":
+                    if (val != null) {
+                        gConfig.setAllowSpawnTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_player_teleport":
+                    if (val != null) {
+                        gConfig.setAllowPlayerTeleports(Boolean.parseBoolean(val));
+                        refreshAllMarkers();
+                    }
+                    break;
+                case "admin_coord_teleport":
+                    if (val != null) {
+                        gConfig.setAllowCoordinateTeleports(Boolean.parseBoolean(val));
 
                         Universe universe = Universe.get();
                         if (universe != null) {
                             universe.getWorlds().values().forEach(w -> {
                                 if (w == null) return;
                                 w.execute(() -> {
-                                    WorldMapHook.clearMarkerCaches(w);
-                                    WorldMapHook.refreshTrackers(w);
+                                    for (PlayerRef pRef3 : w.getPlayerRefs()) {
+                                        Ref<EntityStore> pStoreRef3 = pRef3.getReference();
+                                        if (pStoreRef3 == null || !pStoreRef3.isValid()) continue;
+                                        Player p3 = pStoreRef3.getStore().getComponent(pStoreRef3, Player.getComponentType());
+                                        if (p3 != null) WorldMapHook.sendMapSettingsToPlayer(p3);
+                                    }
                                 });
                             });
                         }
@@ -1219,7 +1297,12 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                                 if (w == null) return;
                                 w.execute(() -> {
                                     WorldMapHook.updateWorldMapConfigs(w);
-                                    WorldMapHook.broadcastMapSettings(w);
+                                    for (PlayerRef pRef2 : w.getPlayerRefs()) {
+                                        Ref<EntityStore> pStoreRef2 = pRef2.getReference();
+                                        if (pStoreRef2 == null || !pStoreRef2.isValid()) continue;
+                                        Player p2 = pStoreRef2.getStore().getComponent(pStoreRef2, Player.getComponentType());
+                                        if (p2 != null) WorldMapHook.sendMapSettingsToPlayer(p2);
+                                    }
                                     WorldMapHook.clearMarkerCaches(w);
                                     WorldMapHook.refreshTrackers(w);
                                 });
@@ -1254,7 +1337,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
                         Universe universe = Universe.get();
                         if (universe != null) {
-                            universe.getWorlds().values().forEach(WorldMapHook::refreshTrackers);
+                            universe.getWorlds().values().forEach(w -> {
+                                if (w != null) w.execute(() -> WorldMapHook.refreshTrackers(w));
+                            });
                         }
                     }
                     break;
@@ -1499,6 +1584,18 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         radius = Math.max(1, Math.min(radius, 16));
                         gConfig.setCaveModeRadius(radius);
                         updateCaveRadiusForAllPlayers(radius);
+                    }
+                    break;
+                case "admin_disable_marker_creation_distance":
+                    if (val != null) {
+                        gConfig.setDisableDistanceRestrictionsForMarkerCreation(Boolean.parseBoolean(val));
+                        restartRequired = true;
+                    }
+                    break;
+                case "admin_disable_marker_deletion_distance":
+                    if (val != null) {
+                        gConfig.setDisableDistanceRestrictionsForMarkerDeletion(Boolean.parseBoolean(val));
+                        restartRequired = true;
                     }
                     break;
             }

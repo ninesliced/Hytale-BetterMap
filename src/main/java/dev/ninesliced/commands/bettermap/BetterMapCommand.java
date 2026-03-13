@@ -10,19 +10,27 @@ import javax.annotation.Nullable;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
-
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import dev.ninesliced.commands.*;
+
+import dev.ninesliced.commands.PlayerHiddenPoiCommand;
+import dev.ninesliced.commands.PlayerHideAllPoiCommand;
+import dev.ninesliced.commands.PlayerHideAllWarpsCommand;
+import dev.ninesliced.commands.PlayerHideDeathCommand;
+import dev.ninesliced.commands.PlayerHideGlobalWaypointsCommand;
+import dev.ninesliced.commands.PlayerHideOtherWarpsCommand;
+import dev.ninesliced.commands.PlayerHidePersonalWaypointsCommand;
+import dev.ninesliced.commands.PlayerHidePlayersCommand;
+import dev.ninesliced.commands.PlayerHideSpawnCommand;
+import dev.ninesliced.commands.PlayerResetPrivacyCommand;
 import dev.ninesliced.commands.bettermap.config.ConfigCommand;
 import dev.ninesliced.commands.bettermap.waypoint.WaypointCommand;
 import dev.ninesliced.configs.ModConfig;
-import dev.ninesliced.ui.ConfigMenuPage;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
+import dev.ninesliced.ui.ConfigMenuPage;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 
 /**
  * Main command for the BetterMap mod.
@@ -58,6 +66,7 @@ public class BetterMapCommand extends AbstractCommand {
         this.addSubCommand(new PlayerLocationPositionCommand());
         this.addSubCommand(new PlayerCaveModeCommand());
         this.addSubCommand(new WaypointCommand());
+        this.addSubCommand(new MarkerTeleportContextCommand());
     }
 
     @Override
@@ -117,7 +126,11 @@ public class BetterMapCommand extends AbstractCommand {
             context.sendMessage(Message.raw("Hide Other Warps: ").color(Color.YELLOW).insert(Message.raw(config.isHideOtherWarpsOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));
             context.sendMessage(Message.raw("Hide Unexplored Warps: ").color(Color.YELLOW).insert(Message.raw(config.isHideUnexploredWarpsOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));
             context.sendMessage(Message.raw("Waypoint Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowWaypointTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
-            context.sendMessage(Message.raw("Marker Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowMapMarkerTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
+            context.sendMessage(Message.raw("POI Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowPoiTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
+            context.sendMessage(Message.raw("Warp Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowWarpTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
+            context.sendMessage(Message.raw("Death Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowDeathTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
+            context.sendMessage(Message.raw("Spawn Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowSpawnTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
+            context.sendMessage(Message.raw("Coordinate Teleport: ").color(Color.YELLOW).insert(Message.raw(config.isAllowCoordinateTeleports() ? "Enabled" : "Disabled").color(Color.WHITE)));
             context.sendMessage(Message.raw("Hide All POIs: ").color(Color.YELLOW).insert(Message.raw(config.isHideAllPoiOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));
             context.sendMessage(Message.raw("Hide Unexplored POIs: ").color(Color.YELLOW).insert(Message.raw(config.isHideUnexploredPoiOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));
             context.sendMessage(Message.raw("Hide Spawn: ").color(Color.YELLOW).insert(Message.raw(config.isHideSpawnOnMap() ? "Enabled" : "Disabled").color(Color.WHITE)));

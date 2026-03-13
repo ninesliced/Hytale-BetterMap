@@ -1,8 +1,16 @@
 package dev.ninesliced.listeners;
 
+import java.awt.Color;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
+import javax.annotation.Nonnull;
+
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
@@ -15,14 +23,16 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 import dev.ninesliced.configs.ModConfig;
-import dev.ninesliced.exploration.*;
+import dev.ninesliced.exploration.ExplorationTicker;
+import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.managers.CaveModeManager;
 import dev.ninesliced.managers.ChunkStreamingManager;
 import dev.ninesliced.managers.ExplorationManager;
+import dev.ninesliced.managers.MapAnchorManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PlayerRadarManager;
-import dev.ninesliced.managers.MapAnchorManager;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.managers.WaypointMigrationManager;
 import dev.ninesliced.managers.WorldBorderManager;
@@ -30,13 +40,6 @@ import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
-import com.hypixel.hytale.server.core.Message;
-import java.awt.Color;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nonnull;
-import java.util.UUID;
-import java.util.logging.Logger;
 
 /**
  * Listener class for handling player connection and world transitions events.
@@ -172,21 +175,27 @@ public class ExplorationListener {
             if (player != null) {
                 World world = event.getWorld();
                 String worldName = world.getName();
-                LOGGER.info("[DEBUG] Player " + player.getDisplayName() + " leaving world " + worldName + " (world shutting down)");
+                String playerName = player.getDisplayName();
+                LOGGER.info("[DEBUG] Player " + playerName + " leaving world " + worldName);
 
                 WorldMapTracker tracker = player.getWorldMapTracker();
-                LOGGER.info("[DEBUG] Unhooking tracker for " + player.getDisplayName());
+
+                WorldMapHook.cleanupCaveModeOnDrain(player, world, tracker);
+
+                LOGGER.info("[DEBUG] Unhooking tracker for " + playerName);
                 WorldMapHook.unhookPlayerMapTracker(player, tracker);
 
                 if (isTrackedWorld(world)) {
                     UUID uuid = playerRef.getUuid();
-                    ExplorationManager.getInstance().savePlayerData(player.getDisplayName(), uuid, worldName);
+                    ExplorationManager.getInstance().savePlayerData(playerName, uuid, worldName);
                 }
 
-                LOGGER.info("[DEBUG] Clearing exploration data for " + player.getDisplayName());
-                ExplorationTracker.getInstance().removePlayerData(player.getDisplayName());
+                LOGGER.info("[DEBUG] Clearing exploration data for " + playerName);
+                ExplorationTracker.getInstance().removePlayerData(playerName);
 
-                LOGGER.info("[DEBUG] Successfully handled DrainPlayerFromWorldEvent for " + player.getDisplayName());
+                cleanupCaveModeStateByName(playerName);
+
+                LOGGER.info("[DEBUG] Successfully handled DrainPlayerFromWorldEvent for " + playerName);
             } else {
                 LOGGER.warning("[DEBUG] Player was null in DrainPlayerFromWorldEvent!");
             }
@@ -227,6 +236,20 @@ public class ExplorationListener {
                 config.getMaxSharedMarkersPerPlayer()
             );
 
+            WorldMapTracker earlyTracker = player.getWorldMapTracker();
+            if (earlyTracker != null) {
+                try {
+                    ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToMarkers", false);
+
+                    boolean allowCoordTp = config.isAllowCoordinateTeleports()
+                        || PermissionsUtil.canTeleportToCoordinates(player);
+                    ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToCoordinates", allowCoordTp);
+
+                } catch (Exception e) {
+                    LOGGER.fine("Failed to set early tracker fields: " + e.getMessage());
+                }
+            }
+
             LOGGER.info("[DEBUG] Player " + playerName + " joining world: " + newWorldName + " (previous: " + oldWorldName + ")");
 
             if (oldWorldName != null && !oldWorldName.equals(newWorldName)) {
@@ -256,7 +279,8 @@ public class ExplorationListener {
                 if (tracker != null) {
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
                 }
-            } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)) {
+            } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)
+                       || ExplorationTracker.getInstance().getPlayerData(playerName) == null) {
                 LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
 
                 ExplorationTracker.getInstance().getOrCreatePlayerData(player);
@@ -391,6 +415,10 @@ public class ExplorationListener {
      */
     private static void initDynamicCaveMode(@Nonnull Player player) {
         try {
+            if (!CaveModeManager.isEffectivelyEnabledForPlayer(player)) {
+                return;
+            }
+
             CaveModeManager caveManager = CaveModeManager.getInstance();
             caveManager.getOrCreateState(player);
             LOGGER.info("Initialized dynamic cave mode for " + player.getDisplayName());

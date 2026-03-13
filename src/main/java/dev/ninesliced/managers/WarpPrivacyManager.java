@@ -159,7 +159,7 @@ public class WarpPrivacyManager {
         return config.isHideAllWarpsOnMap()
             || config.isHideOtherWarpsOnMap()
             || config.isHideUnexploredWarpsOnMap()
-            || config.isAllowMapMarkerTeleports()
+            || config.isAllowWarpTeleports()
             || hasPlayerFilters;
     }
 }

@@ -7,7 +7,6 @@ import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.FormattedMessage;
-import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -24,6 +23,7 @@ import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.managers.ExplorationManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
+import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import java.util.Locale;
@@ -66,11 +66,6 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             String viewerName = resolveViewerName(viewer);
 
             ModConfig globalConfig = ModConfig.getInstance();
-            boolean isPrivileged = viewer != null && PermissionsUtil.isAdmin(viewer);
-            boolean showTeleport = viewer != null
-                && globalConfig.isAllowMapMarkerTeleports()
-                && (globalConfig.isAllowContextMenuWaypointTeleports() || isPrivileged)
-                && PermissionsUtil.canTeleport(viewer);
             boolean canOverrideWarps = viewer != null && PermissionsUtil.canOverrideWarps(viewer);
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredWarps(viewer);
             PlayerConfig playerConfig = null;
@@ -152,7 +147,8 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
                 String markerId = buildMarkerId(warp);
                 String markerName = buildMarkerName(warp);
 
-                MapMarker marker = createMarker(markerId, markerName, warp, yaw, showTeleport);
+                MapMarker marker = createMarker(markerId, markerName, warp, yaw);
+                MarkerTeleportUtil.injectTeleportContextMenu(marker, viewer, PermissionsUtil.MarkerType.WARP);
                 collector.add(marker);
             }
 
@@ -272,7 +268,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         return id != null ? MARKER_LABEL_PREFIX + id : MARKER_LABEL_PREFIX + "Unknown";
     }
 
-    private static MapMarker createMarker(String id, String name, Warp warp, float yaw, boolean showTeleport) {
+    private static MapMarker createMarker(String id, String name, Warp warp, float yaw) {
         Transform transform = warp.getTransform();
         com.hypixel.hytale.protocol.Transform packetTransform = PositionUtil.toTransformPacket(
             new com.hypixel.hytale.math.vector.Transform(
@@ -284,16 +280,6 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         FormattedMessage displayName = new FormattedMessage();
         displayName.rawText = name;
 
-        ContextMenuItem[] contextMenuItems = null;
-        if (showTeleport) {
-            int x = (int) Math.round(transform.getPosition().x);
-            int y = (int) Math.round(transform.getPosition().y);
-            int z = (int) Math.round(transform.getPosition().z);
-            contextMenuItems = new ContextMenuItem[]{
-                new ContextMenuItem("Teleport", "bettermap waypoint markertp " + x + " " + y + " " + z)
-            };
-        }
-
-        return new MapMarker(id, displayName, MARKER_ICON, packetTransform, contextMenuItems, null);
+        return new MapMarker(id, displayName, displayName.rawText, MARKER_ICON, packetTransform, null, null);
     }
 }

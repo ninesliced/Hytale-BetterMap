@@ -1,31 +1,38 @@
 package dev.ninesliced.commands.bettermap.config;
 
+import java.awt.Color;
+import java.util.concurrent.CompletableFuture;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
+import com.hypixel.hytale.server.core.command.system.arguments.types.ArgTypes;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
-import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.WorldMapHook;
-import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
-import org.checkerframework.checker.nullness.compatqual.NullableDecl;
-
-import java.awt.*;
-import java.util.concurrent.CompletableFuture;
 
 /**
- * Command to toggle map marker teleports (POIs/warps) on the world map.
+ * Command to toggle map marker teleports.
+ * Usage: /bettermap config markerteleport [poi|warp|death|spawn|all]
+ * Without argument, toggles all marker teleports at once.
  */
 public class MarkerTeleportCommand extends AbstractCommand {
 
+    private final OptionalArg<String> typeArg = this.withOptionalArg("type", "Type: poi, warp, death, spawn, or all", ArgTypes.STRING);
+
     public MarkerTeleportCommand() {
-        super("markerteleport", "Toggle map marker teleports (POIs/warps)");
+        super("markerteleport", "Toggle map marker teleports [poi|warp|death|spawn|all]");
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
         this.addAliases("markertp");
     }
@@ -35,9 +42,9 @@ public class MarkerTeleportCommand extends AbstractCommand {
         return false;
     }
 
-    @NullableDecl
+    @Nullable
     @Override
-    protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {
+    protected CompletableFuture<Void> execute(@Nonnull CommandContext commandContext) {
         if (!commandContext.isPlayer()) {
             commandContext.sendMessage(Message.raw("This command can only be used by a player.").color(Color.RED));
             return CompletableFuture.completedFuture(null);
@@ -51,6 +58,9 @@ public class MarkerTeleportCommand extends AbstractCommand {
         var store = ref.getStore();
         World world = store.getExternalData().getWorld();
 
+        String typeInput = commandContext.get(this.typeArg);
+        String type = (typeInput == null || typeInput.isEmpty()) ? "all" : typeInput.toLowerCase();
+
         return CompletableFuture.runAsync(() -> {
             Player playerComponent = store.getComponent(ref, Player.getComponentType());
             PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
@@ -60,8 +70,40 @@ public class MarkerTeleportCommand extends AbstractCommand {
             }
 
             ModConfig config = ModConfig.getInstance();
-            boolean newState = !config.isAllowMapMarkerTeleports();
-            config.setAllowMapMarkerTeleports(newState);
+            boolean newState;
+            String label;
+
+            switch (type) {
+                case "poi" -> {
+                    newState = !config.isAllowPoiTeleports();
+                    config.setAllowPoiTeleports(newState);
+                    label = "POI Teleports";
+                }
+                case "warp" -> {
+                    newState = !config.isAllowWarpTeleports();
+                    config.setAllowWarpTeleports(newState);
+                    label = "Warp Teleports";
+                }
+                case "death" -> {
+                    newState = !config.isAllowDeathTeleports();
+                    config.setAllowDeathTeleports(newState);
+                    label = "Death Teleports";
+                }
+                case "spawn" -> {
+                    newState = !config.isAllowSpawnTeleports();
+                    config.setAllowSpawnTeleports(newState);
+                    label = "Spawn Teleports";
+                }
+                case "all" -> {
+                    newState = !config.isAnyMarkerTeleportEnabled();
+                    config.setAllMarkerTeleports(newState);
+                    label = "All Marker Teleports";
+                }
+                default -> {
+                    playerRef.sendMessage(Message.raw("Unknown type: " + type + ". Use: poi, warp, death, spawn, or all.").color(Color.RED));
+                    return;
+                }
+            }
 
             MapPrivacyManager.getInstance().updatePrivacyState();
 
@@ -81,12 +123,7 @@ public class MarkerTeleportCommand extends AbstractCommand {
             String status = newState ? "ENABLED" : "DISABLED";
             Color color = newState ? Color.GREEN : Color.RED;
 
-            playerRef.sendMessage(Message.raw("Map Marker Teleports " + status).color(color));
-            if (newState) {
-                playerRef.sendMessage(Message.raw("POI/warp teleports from the map are now allowed.").color(Color.GRAY));
-            } else {
-                playerRef.sendMessage(Message.raw("POI/warp teleports from the map are now blocked.").color(Color.GRAY));
-            }
+            playerRef.sendMessage(Message.raw(label + " " + status).color(color));
         }, world);
     }
 }
