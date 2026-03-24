@@ -8,17 +8,6 @@
 
 <a href="https://zap-hosting.com/ninesliced?voucher=ninesliced"><img src="https://media.forgecdn.net/attachments/1538/710/zap-hosting-collaboration-banner-png.png" alt="ZAP-Hosting Gameserver and Webhosting"></a>
 
----
-
-## License
-
-**ALL RIGHTS RESERVED.**
-
-ASK US BEFORE IF YOU WANT TO PUBLISH A FORKED VERSION OF THIS PLUGIN.
-YOU CAN FORK IT AS YOU WANT FOR A PRIVATE USE, OR CONTRIBUTE TO THE ORIGINAL PROJECT.
-
----
-
 ## What is this?
 
 By default, the Hytale in-game map is fleeting. It only displays a small circular area around the player, and as soon as you walk away, the map "forgets" where you have been.
