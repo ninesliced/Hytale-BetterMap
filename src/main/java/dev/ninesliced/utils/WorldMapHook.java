@@ -682,7 +682,7 @@ public class WorldMapHook {
                     pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
 
                     CaveModeImageBuilder builder = future.getNow(null);
-                    if (builder != null && builder.getImage() != null && builder.getImage().data != null) {
+                    if (builder != null && MapImageCompat.hasPixelData(builder.getImage())) {
                         int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(pendingIdx);
                         int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(pendingIdx);
                         chunksToSend.add(new MapChunk(mx, mz, builder.getImage()));
@@ -810,7 +810,7 @@ public class WorldMapHook {
 
                     if (future.isDone()) {
                         CaveModeImageBuilder builder = future.getNow(null);
-                        if (builder != null && builder.getImage() != null && builder.getImage().data != null) {
+                        if (builder != null && MapImageCompat.hasPixelData(builder.getImage())) {
                             int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunkIdx);
                             int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunkIdx);
                             chunksToSend.add(new MapChunk(mx, mz, builder.getImage()));
@@ -841,7 +841,7 @@ public class WorldMapHook {
 
                     if (future.isDone() && immediateLoads < maxImmediateLoads) {
                         CaveModeImageBuilder builder = future.getNow(null);
-                        if (builder != null && builder.getImage() != null && builder.getImage().data != null) {
+                        if (builder != null && MapImageCompat.hasPixelData(builder.getImage())) {
                             int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunkIdx);
                             int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunkIdx);
                             chunksToSend.add(new MapChunk(mx, mz, builder.getImage()));
@@ -1310,7 +1310,7 @@ public class WorldMapHook {
                     CaveModeImageBuilder builder = future.getNow(null);
                     if (builder != null) {
                         MapImage image = builder.getImage();
-                        if (image != null && image.data != null) {
+                        if (MapImageCompat.hasPixelData(image)) {
                             int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(pendingIdx);
                             int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(pendingIdx);
                             chunksToSend.add(new MapChunk(mx, mz, image));
@@ -1340,7 +1340,7 @@ public class WorldMapHook {
                     CaveModeImageBuilder builder = future.getNow(null);
                     if (builder != null) {
                         MapImage image = builder.getImage();
-                        if (image != null && image.data != null) {
+                        if (MapImageCompat.hasPixelData(image)) {
                             int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunkIdx);
                             int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunkIdx);
                             chunksToSend.add(new MapChunk(mx, mz, image));

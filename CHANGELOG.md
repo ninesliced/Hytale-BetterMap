@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.3.5
+
+* Update Api changes for the new release of hytale (2026.02.26-7681d338c) to fix the map becoming black
+
 ## v1.3.4
 
 * Fix the black map issue due to going out of caves due to the unloading of chunks thanks to @xytronix

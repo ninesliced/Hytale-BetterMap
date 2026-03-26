@@ -150,6 +150,6 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
         FormattedMessage displayName = new FormattedMessage();
         displayName.rawText = name;
 
-        return new MapMarker(id, displayName, displayName.rawText, MARKER_ICON, transform, null, null);
+        return new MapMarker(id, displayName, MARKER_ICON, transform, null, null);
     }
 }

@@ -115,7 +115,6 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
         return new MapMarker(
             id,
             displayName,
-            displayName.rawText,
             MARKER_ICON,
             PositionUtil.toTransformPacket(deathPosition.getTransform()),
             null,

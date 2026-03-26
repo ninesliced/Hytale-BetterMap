@@ -103,7 +103,6 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
             MapMarker marker = new MapMarker(
                 "Spawn",
                 displayName,
-                displayName.rawText,
                 "Spawn.png",
                 PositionUtil.toTransformPacket(new Transform(position)),
                 null,

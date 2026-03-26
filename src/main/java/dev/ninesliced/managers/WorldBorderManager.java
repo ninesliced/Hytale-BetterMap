@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.MapImageCompat;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WorldBorderRenderer;
 
@@ -222,8 +223,10 @@ public class WorldBorderManager {
             Object mapImageObj = imageField.get(imageEntry);
 
             if (mapImageObj instanceof MapImage mapImage) {
-                if (mapImage.data != null && mapImage.width > 0 && mapImage.height > 0) {
-                    WorldBorderRenderer.renderBorderOnData(mapImage.data, mapImage.width, mapImage.height, chunkX, chunkZ);
+                int[] pixels = MapImageCompat.unpackPixels(mapImage);
+                if (pixels != null && mapImage.width > 0 && mapImage.height > 0) {
+                    WorldBorderRenderer.renderBorderOnData(pixels, mapImage.width, mapImage.height, chunkX, chunkZ);
+                    MapImageCompat.repackPixels(mapImage, pixels);
                     processed.add(chunkIndex);
                     toResend.add(new MapChunk(chunkX, chunkZ, mapImage));
                 }

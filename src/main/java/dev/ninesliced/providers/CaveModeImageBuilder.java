@@ -11,6 +11,7 @@ import com.hypixel.hytale.server.core.universe.world.chunk.ChunkColumn;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.FluidSection;
 import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
+import dev.ninesliced.utils.MapImageCompat;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -56,7 +57,8 @@ public class CaveModeImageBuilder {
     private final long index;
     private final World world;
     @Nonnull
-    private final MapImage image;
+    private MapImage image;
+    private final int[] rawPixels;
     private final int sampleWidth;
     private final int sampleHeight;
     private final int blockStepX;
@@ -79,7 +81,8 @@ public class CaveModeImageBuilder {
     public CaveModeImageBuilder(long index, int imageWidth, int imageHeight, World world, int yLevel, int range) {
         this.index = index;
         this.world = world;
-        this.image = new MapImage(imageWidth, imageHeight, new int[imageWidth * imageHeight]);
+        this.image = new MapImage(imageWidth, imageHeight, null, (byte) 0, null);
+        this.rawPixels = new int[imageWidth * imageHeight];
         this.sampleWidth = Math.min(32, imageWidth);
         this.sampleHeight = Math.min(32, imageHeight);
         this.blockStepX = Math.max(1, 32 / imageWidth);
@@ -138,9 +141,11 @@ public class CaveModeImageBuilder {
     @Nonnull
     private CaveModeImageBuilder generateCaveImage() {
         if (worldChunk == null) {
-            for (int i = 0; i < image.data.length; i++) {
-                image.data[i] = COLOR_UNEXPLORED;
+            for (int i = 0; i < rawPixels.length; i++) {
+                rawPixels[i] = COLOR_UNEXPLORED;
             }
+
+            this.image = MapImageCompat.fromRawPixels(image.width, image.height, rawPixels);
             return this;
         }
         
@@ -188,6 +193,7 @@ public class CaveModeImageBuilder {
             }
         }
         
+        this.image = MapImageCompat.fromRawPixels(image.width, image.height, rawPixels);
         return this;
     }
     
@@ -334,14 +340,14 @@ public class CaveModeImageBuilder {
                 renderHighestNonAir(col);
                 applyLightContrast(col.lightLevel, 0.66f, 1.08f);
                 applyStructureContrast(sampleX, sampleZ, col, 0.16f);
-                image.data[imageZ * image.width + imageX] = outColor.pack();
+                rawPixels[imageZ * image.width + imageX] = outColor.pack();
                 return;
             }
 
             renderFluid(col.primaryFluidId, col.fluidY, col.caveHeight, col.fluidDepth);
             applyLightContrast(col.lightLevel, 0.76f, 1.10f);
             applyStructureContrast(sampleX, sampleZ, col, 0.18f);
-            image.data[imageZ * image.width + imageX] = outColor.pack();
+            rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
         
@@ -349,7 +355,7 @@ public class CaveModeImageBuilder {
             renderWall(col.targetBlockId, col.openness);
             applyLightContrast(col.lightLevel, 0.60f, 1.14f);
             applyStructureContrast(sampleX, sampleZ, col, 0.30f);
-            image.data[imageZ * image.width + imageX] = outColor.pack();
+            rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
         
@@ -357,7 +363,7 @@ public class CaveModeImageBuilder {
             renderCaveBySize(col, minFloorY, heightRange, maxCaveHeight);
             applyLightContrast(col.lightLevel, 0.58f, 1.24f);
             applyStructureContrast(sampleX, sampleZ, col, 0.38f);
-            image.data[imageZ * image.width + imageX] = outColor.pack();
+            rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
         
@@ -365,11 +371,11 @@ public class CaveModeImageBuilder {
             renderPartialCave(col, maxCaveHeight);
             applyLightContrast(col.lightLevel, 0.62f, 1.14f);
             applyStructureContrast(sampleX, sampleZ, col, 0.20f);
-            image.data[imageZ * image.width + imageX] = outColor.pack();
+            rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
         
-        image.data[imageZ * image.width + imageX] = COLOR_WALL_SOLID;
+        rawPixels[imageZ * image.width + imageX] = COLOR_WALL_SOLID;
     }
     
     /**

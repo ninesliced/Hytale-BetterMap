@@ -129,7 +129,6 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 MapMarker marker = new MapMarker(
                     markerData.getMarkerId(),
                     displayName,
-                    displayName.rawText,
                     icon,
                     transform,
                     null,

@@ -6,7 +6,7 @@
 
     <groupId>dev.ninesliced</groupId>
     <artifactId>BetterMap</artifactId>
-    <version>1.3.4</version>
+    <version>1.3.5</version>
 
     <properties>
         <maven.compiler.source>25</maven.compiler.source>
@@ -32,24 +32,9 @@
             <groupId>com.hypixel.hytale</groupId>
             <artifactId>Server</artifactId>
             <!-- Replace with latest version, we provide jars for the last five releases -->
-            <version>2026.02.19-1a311a592</version>
+            <version>2026.03.26-89796e57b</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-                <version>3.2.1</version>
-                <configuration>
-                    <java>
-                        <eclipse/>
-                    </java>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>
