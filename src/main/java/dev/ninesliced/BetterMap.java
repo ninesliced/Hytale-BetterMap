@@ -110,7 +110,7 @@ public class BetterMap extends JavaPlugin {
             ModConfig.getInstance().initialize(serverRoot);
 
             if (ModConfig.getInstance().isHstatsEnabled()) {
-                new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.4-pre-release-2026.03.12-b1f856309");
+                new HStats("80d0e1dd-0f46-4c12-8f71-f9cae6e9f0f4", "1.3.5-pre-release-2026.03.26-92489d5e7");
             } else {
                 LOGGER.info("HStats tracking is disabled in BetterMap config.");
             }
