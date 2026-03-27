@@ -1,7 +1,6 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
@@ -24,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.logging.Logger;
+import org.joml.Vector3d;
 
 /**
  * Provides player markers on the world map, allowing players to see other players'
@@ -143,7 +143,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
         com.hypixel.hytale.protocol.Transform transform = PositionUtil.toTransformPacket(
             new com.hypixel.hytale.math.vector.Transform(
                 data.position,
-                data.rotation != null ? data.rotation : Vector3f.ZERO
+                data.rotation != null ? data.rotation : new Rotation3f(0.0F, 0.0F, 0.0F)
             )
         );
 

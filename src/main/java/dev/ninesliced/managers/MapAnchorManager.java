@@ -4,8 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.UpdateAnchorUI;
@@ -42,6 +41,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.joml.Vector3d;
 
 /**
  * Manages the BetterMap anchor UI injected into the world map's "MapServerContent" anchor point.
@@ -211,7 +211,7 @@ public class MapAnchorManager {
             }
 
             TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+            Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
             Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
             Teleport teleport = new Teleport(destination, currentRotation);
 

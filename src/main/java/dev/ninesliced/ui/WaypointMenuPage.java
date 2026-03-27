@@ -25,14 +25,14 @@ import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
+import org.joml.Vector3d;
 
 public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.WaypointGuiData> {
 
@@ -299,7 +299,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                         }
 
                         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-                        Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+                        Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
                         Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
                         Teleport teleport = new Teleport(destination, currentRotation);
 

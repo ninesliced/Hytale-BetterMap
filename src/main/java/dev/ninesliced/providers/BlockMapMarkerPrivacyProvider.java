@@ -113,14 +113,14 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
 
                 if (hideUnexplored) {
                     var pos = markerData.getPosition();
-                    if (!isExplored(pos.getX(), pos.getZ(), explorationData, sharedExploredChunks)) {
+                    if (!isExplored(pos.x(), pos.z(), explorationData, sharedExploredChunks)) {
                         continue;
                     }
                 }
 
                 var pos = markerData.getPosition();
                 Transform transform = new Transform();
-                transform.position = new Position(pos.getX() + 0.5f, pos.getY(), pos.getZ() + 0.5f);
+                transform.position = new Position(pos.x() + 0.5f, pos.y(), pos.z() + 0.5f);
                 transform.orientation = new Direction(0, 0, 0);
 
                 FormattedMessage displayName = new FormattedMessage();

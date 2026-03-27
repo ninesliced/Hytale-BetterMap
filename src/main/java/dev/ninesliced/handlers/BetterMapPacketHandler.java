@@ -7,9 +7,8 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Transform;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.player.RemoveMapMarker;
 import com.hypixel.hytale.protocol.packets.worldmap.CreateUserMarker;
@@ -40,6 +39,7 @@ import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
+import org.joml.Vector3d;
 
 /**
  * Overrides native packet handlers that have hardcoded Adventure mode checks.
@@ -143,11 +143,11 @@ public class BetterMapPacketHandler implements SubPacketHandler {
         if (marker != null) {
             Transform transform = PositionUtil.toTransform(marker.transform);
             if (MapMarkerUtils.isUserMarker(marker)) {
-                int blockX = (int) transform.getPosition().getX();
-                int blockZ = (int) transform.getPosition().getZ();
+                int blockX = (int) transform.getPosition().x;
+                int blockZ = (int) transform.getPosition().z;
                 WorldChunk chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(blockX, blockZ));
                 int height = chunk == null ? 319 : chunk.getHeight(blockX, blockZ);
-                transform.getPosition().setY((double) height);
+                transform.getPosition().y = height;
             }
             Teleport teleportComponent = Teleport.createForPlayer(transform);
             world.getEntityStore().getStore().addComponent(
@@ -182,7 +182,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
                     (double) (blockChunkComponent.getHeight(packet.x, packet.y) + 2),
                     (double) packet.y);
             Teleport teleportComponent = Teleport.createForPlayer(
-                    (World) null, position, new Vector3f(0.0F, 0.0F, 0.0F));
+                    (World) null, position, new Rotation3f(0.0F, 0.0F, 0.0F));
             world.getEntityStore().getStore().addComponent(
                     playerRef.getReference(), Teleport.getComponentType(), teleportComponent);
         }, world);
@@ -241,8 +241,6 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Store<EntityStore> store) {
         Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
         assert playerComponent != null;
-
-        playerComponent.getWorldMapTracker().setClientHasWorldMapVisible(packet.visible);
 
         if (packet.visible) {
             WorldMapHook.sendMapSettingsToPlayer(playerComponent);
