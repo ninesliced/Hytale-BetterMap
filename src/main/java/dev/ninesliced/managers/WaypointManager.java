@@ -15,9 +15,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -42,11 +44,13 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.utils.ReflectionHelper;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -55,6 +59,7 @@ import java.util.UUID;
 import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Manages user map markers through Hytale's built-in UserMapMarkersStore system.
@@ -139,8 +144,8 @@ public class WaypointManager {
         marker.setIcon(normalizeIcon(icon));
         marker.setPosition(x, z);
         marker.setColorTint(tint != null ? tint : new Color((byte) 0, (byte) 0, (byte) 0));
-        marker.withCreatedByName(player.getDisplayName());
-        UUID ownerUuid = ((CommandSender) player).getUuid();
+        marker.withCreatedByName(PlayerRefUtil.getUsername(player));
+        UUID ownerUuid = player.getUuid();
         marker.withCreatedByUuid(ownerUuid);
 
         store.addUserMapMarker(marker);
@@ -386,7 +391,7 @@ public class WaypointManager {
             return WaypointYPersistence.getInstance().getGlobalY(world.getName(), markerId);
         }
 
-        UUID playerUuid = ((CommandSender) player).getUuid();
+        UUID playerUuid = player.getUuid();
         if (playerUuid == null) {
             return null;
         }
@@ -422,7 +427,7 @@ public class WaypointManager {
         if (owner != null) {
             return owner;
         }
-        return ((CommandSender) actingPlayer).getUuid();
+        return actingPlayer.getUuid();
     }
 
     private static double getCurrentPlayerY(@Nonnull Player player, double fallback) {

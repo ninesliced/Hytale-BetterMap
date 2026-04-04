@@ -1,4 +1,5 @@
 package dev.ninesliced.commands;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import java.awt.Color;
 import java.util.ArrayList;
@@ -46,8 +47,8 @@ public class PlayerHideDeathCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        Player player = (Player) context.sender();
-        UUID uuid = ((CommandSender) player).getUuid();
+        Player player = PlayerRefUtil.fromContext(context);
+        UUID uuid = player.getUuid();
         World world = player.getWorld();
         PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
 

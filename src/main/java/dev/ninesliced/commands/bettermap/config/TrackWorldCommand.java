@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.PlayerRefUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -49,10 +50,9 @@ public class TrackWorldCommand extends AbstractCommand {
 
         if (worldName == null || worldName.isEmpty()) {
             if (context.isPlayer()) {
-                CommandSender sender = context.sender();
-                if (sender instanceof Player) {
-                    assert ((Player) sender).getWorld() != null;
-                    worldName = ((Player) sender).getWorld().getName();
+                Player player = PlayerRefUtil.fromContext(context);
+                if (player != null && player.getWorld() != null) {
+                    worldName = player.getWorld().getName();
                 } else {
                     context.sendMessage(Message.raw("This command must be run by a player or specify a world name.").color(Color.RED));
                     return CompletableFuture.completedFuture(null);

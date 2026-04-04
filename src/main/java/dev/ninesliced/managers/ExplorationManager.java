@@ -7,6 +7,7 @@ import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
@@ -18,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Singleton manager responsible for the lifecycle of the exploration system.
@@ -436,9 +438,9 @@ public class ExplorationManager {
     public void registerPlayer(@Nonnull Player player) {
         try {
             ExplorationTracker.getInstance().getOrCreatePlayerData(player);
-            LOGGER.fine("Registered player for exploration tracking: " + player.getDisplayName());
+            LOGGER.fine("Registered player for exploration tracking: " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to register player " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to register player " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -450,9 +452,9 @@ public class ExplorationManager {
     public void unregisterPlayer(@Nonnull Player player) {
         try {
             ExplorationTracker.getInstance().removePlayerData(player);
-            LOGGER.fine("Unregistered player from exploration tracking: " + player.getDisplayName());
+            LOGGER.fine("Unregistered player from exploration tracking: " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to unregister player " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to unregister player " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 

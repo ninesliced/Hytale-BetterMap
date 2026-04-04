@@ -42,7 +42,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
     @Override
     public void update(World world, Player viewingPlayer, MarkersCollector collector) {
         try {
-            UUID viewerUuid = ((CommandSender) viewingPlayer).getUuid();
+            UUID viewerUuid = viewingPlayer.getUuid();
 
             ModConfig globalConfig = ModConfig.getInstance();
             if (!globalConfig.isRadarEnabled()) {

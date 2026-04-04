@@ -4,8 +4,10 @@ import java.awt.Color;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -23,6 +25,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.ExplorationTicker;
@@ -40,6 +43,7 @@ import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Listener class for handling player connection and world transitions events.
@@ -58,10 +62,10 @@ public class ExplorationListener {
     public static void onPlayerReady(@Nonnull PlayerReadyEvent event) {
         try {
             Player player = event.getPlayer();
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
 
             if (player.getReference() != null && player.getReference().isValid()) {
-                UUID uuid = ((CommandSender) player).getUuid();
+                UUID uuid = player.getUuid();
                 PlayerConfigManager.getInstance().loadPlayerConfig(uuid);
             }
 
@@ -86,7 +90,7 @@ public class ExplorationListener {
                 LOGGER.info("First launch detected. Added " + worldName + " to tracked worlds.");ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
                     try {
                         if (player.getReference() != null && player.getReference().isValid()) {
-                            player.sendMessage(Message.raw("WARNING: BetterMap - Just added this world as tracked but you need to restart the server to apply the changes.").color(Color.RED));
+                            PlayerRefUtil.resolve(player).sendMessage(Message.raw("WARNING: BetterMap - Just added this world as tracked but you need to restart the server to apply the changes.").color(Color.RED));
                         }
                     } catch (Exception e) {
                         LOGGER.warning("Failed to send warning message: " + e.getMessage());
@@ -138,8 +142,8 @@ public class ExplorationListener {
                     ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
                         try {
                             if (player.getReference() != null && player.getReference().isValid()) {
-                                player.sendMessage(Message.raw("WARNING: BetterMap - usage in this world is not tracked.").color(Color.RED));
-                                player.sendMessage(Message.raw("Use '/bettermap config track' to track this world.").color(Color.RED));
+                                PlayerRefUtil.resolve(player).sendMessage(Message.raw("WARNING: BetterMap - usage in this world is not tracked.").color(Color.RED));
+                                PlayerRefUtil.resolve(player).sendMessage(Message.raw("Use '/bettermap config track' to track this world.").color(Color.RED));
                             }
                         } catch (Exception e) {
                             LOGGER.warning("Failed to send warning message: " + e.getMessage());
@@ -175,7 +179,7 @@ public class ExplorationListener {
             if (player != null) {
                 World world = event.getWorld();
                 String worldName = world.getName();
-                String playerName = player.getDisplayName();
+                String playerName = PlayerRefUtil.getUsername(player);
                 LOGGER.info("[DEBUG] Player " + playerName + " leaving world " + worldName);
 
                 WorldMapTracker tracker = player.getWorldMapTracker();
@@ -221,7 +225,7 @@ public class ExplorationListener {
 
             if (player == null) return;
 
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             World newWorld = event.getWorld();
             if (newWorld == null) return;
 
@@ -421,9 +425,9 @@ public class ExplorationListener {
 
             CaveModeManager caveManager = CaveModeManager.getInstance();
             caveManager.getOrCreateState(player);
-            LOGGER.info("Initialized dynamic cave mode for " + player.getDisplayName());
+            LOGGER.info("Initialized dynamic cave mode for " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to initialize dynamic cave mode for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to initialize dynamic cave mode for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -433,7 +437,7 @@ public class ExplorationListener {
      * @param player The player.
      */
     private static void cleanupCaveModeState(@Nonnull Player player) {
-        cleanupCaveModeStateByName(player.getDisplayName());
+        cleanupCaveModeStateByName(PlayerRefUtil.getUsername(player));
     }
 
     /**

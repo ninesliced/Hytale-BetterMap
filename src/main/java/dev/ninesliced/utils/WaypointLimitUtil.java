@@ -9,11 +9,13 @@ import com.hypixel.hytale.server.core.asset.type.gameplay.worldmap.UserMapMarker
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Utility for working with Hytale's user marker limits.
@@ -54,8 +56,8 @@ public final class WaypointLimitUtil {
             return -1;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
-        String displayName = player.getDisplayName();
+        UUID uuid = player.getUuid();
+        String displayName = PlayerRefUtil.getUsername(player);
         int count = 0;
 
         for (UserMapMarker marker : sharedStore.getUserMapMarkers()) {

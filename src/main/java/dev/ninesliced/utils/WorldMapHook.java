@@ -12,9 +12,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -35,6 +37,7 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
@@ -46,6 +49,7 @@ import dev.ninesliced.managers.MapExpansionManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.providers.CaveModeImageBuilder;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
@@ -201,7 +205,7 @@ public class WorldMapHook {
 
     public static void cleanupCaveModeOnDrain(@Nonnull Player player, @Nonnull World world,
                                                @Nonnull WorldMapTracker tracker) {
-        String playerName = player.getDisplayName();
+        String playerName = PlayerRefUtil.getUsername(player);
 
         CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
         if (state != null) {
@@ -262,9 +266,9 @@ public class WorldMapHook {
 
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", customIterator);
 
-            LOGGER.info("Hooked map tracker for player: " + player.getDisplayName());
+            LOGGER.info("Hooked map tracker for player: " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to hook WorldMapTracker for player " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to hook WorldMapTracker for player " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -321,11 +325,11 @@ public class WorldMapHook {
                 ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 999.0f);
             } catch (Exception ignored) {}
 
-            ChunkStreamingManager.getInstance().removeState(player.getDisplayName());
+            ChunkStreamingManager.getInstance().removeState(PlayerRefUtil.getUsername(player));
 
-            LOGGER.info("Unhooked map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
+            LOGGER.info("Unhooked map tracker for player: " + PlayerRefUtil.getUsername(player) + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
-            LOGGER.warning("Error unhooking tracker for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Error unhooking tracker for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -362,9 +366,9 @@ public class WorldMapHook {
 
             ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 0.0f);
 
-            LOGGER.info("Restored vanilla map tracker for player: " + player.getDisplayName() + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
+            LOGGER.info("Restored vanilla map tracker for player: " + PlayerRefUtil.getUsername(player) + " at map chunk (" + mapChunkX + ", " + mapChunkZ + ")");
         } catch (Exception e) {
-            LOGGER.warning("Failed to restore vanilla tracker for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to restore vanilla tracker for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -414,7 +418,7 @@ public class WorldMapHook {
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
             java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
-                    pendingTrackerModifications.get(player.getDisplayName());
+                    pendingTrackerModifications.get(PlayerRefUtil.getUsername(player));
             if (pendingMods != null) {
                 Runnable mod;
                 while ((mod = pendingMods.poll()) != null) {
@@ -430,7 +434,7 @@ public class WorldMapHook {
             if (explorationData == null) {
                 explorationData = explorationTracker.getOrCreatePlayerData(player);
                 if (explorationData == null) {
-                    LOGGER.warning("[DEBUG] Could not create exploration data for " + player.getDisplayName());
+                    LOGGER.warning("[DEBUG] Could not create exploration data for " + PlayerRefUtil.getUsername(player));
                     return;
                 }
             }
@@ -484,7 +488,7 @@ public class WorldMapHook {
                     boolean fogOfWar = ModConfig.getInstance().isCaveFogOfWar();
 
                     if (isUnderground) {
-                        LOGGER.info("[DYNAMIC CAVE] Activating cave overlay for " + player.getDisplayName() +
+                        LOGGER.info("[DYNAMIC CAVE] Activating cave overlay for " + PlayerRefUtil.getUsername(player) +
                                    " at layer " + state.getCurrentLayer() + "-" + (state.getCurrentLayer() + state.getLayerSize()));
 
                         if (fogOfWar) {
@@ -493,7 +497,7 @@ public class WorldMapHook {
                         }
 
                     } else {
-                        LOGGER.info("[DYNAMIC CAVE] Deactivating cave overlay for " + player.getDisplayName());
+                        LOGGER.info("[DYNAMIC CAVE] Deactivating cave overlay for " + PlayerRefUtil.getUsername(player));
 
                         if (fogOfWar) {
                             LOGGER.info("[DYNAMIC CAVE] Fog of war enabled - refreshing map for cave exit");
@@ -515,7 +519,7 @@ public class WorldMapHook {
 
                     state.setNeedsLayerRefresh(true);
 
-                    String playerName = player.getDisplayName();
+                    String playerName = PlayerRefUtil.getUsername(player);
                     for (Long pendingIdx : new ArrayList<>(state.getPendingCaveChunks())) {
                         pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
                     }
@@ -648,7 +652,7 @@ public class WorldMapHook {
                 sharedExplored.addAll(exploredCaveChunks);
             }
 
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             Set<Long> failedChunks = getCaveModeFailedChunks(playerName);
             List<MapChunk> chunksToSend = new ArrayList<>();
             Set<Long> trackerToAdd = new HashSet<>();
@@ -890,7 +894,7 @@ public class WorldMapHook {
 
             // Queue trackerLoaded mutations to be applied on the WorldMap thread.
             if (trackerLoaded != null && (!finalTrackerToRemove.isEmpty() || !finalTrackerToAdd.isEmpty())) {
-                final String pName = player.getDisplayName();
+                final String pName = PlayerRefUtil.getUsername(player);
                 final Set<Long> frozenCaveChunks = new HashSet<>(loadedCaveChunks);
                 pendingTrackerModifications
                         .computeIfAbsent(pName, k -> new java.util.concurrent.ConcurrentLinkedQueue<>())
@@ -966,7 +970,7 @@ public class WorldMapHook {
             if (state == null) return;
 
             Set<Long> loadedCaveChunks = new HashSet<>(state.getLoadedCaveChunks());
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
 
             for (Long pendingIdx : state.getPendingCaveChunks()) {
                 pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
@@ -1044,7 +1048,7 @@ public class WorldMapHook {
             List<Long> targetChunks = ((RestrictedSpiralIterator) spiralIterator).getTargetMapChunks();
             Set<Long> targetSet = new HashSet<>(targetChunks);
             
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             ChunkStreamingManager streamingManager = ChunkStreamingManager.getInstance();
 
             ChunkStreamingManager.ChunkDelta delta = streamingManager.computeDelta(
@@ -1105,7 +1109,7 @@ public class WorldMapHook {
             if (playerRef == null) return;
             playerRef.getPacketHandler().write(packet);
         } catch (Exception e) {
-            LOGGER.warning("Failed to send world map packet to " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to send world map packet to " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -1145,10 +1149,10 @@ public class WorldMapHook {
             boolean fogOfWar = ModConfig.getInstance().isCaveFogOfWar();
             boolean caveModeEnabled = ModConfig.getInstance().isCaveModeEnabled();
 
-            LOGGER.info("[MAP REFRESH] Starting full map refresh for " + player.getDisplayName() +
+            LOGGER.info("[MAP REFRESH] Starting full map refresh for " + PlayerRefUtil.getUsername(player) +
                        " (underground: " + isUnderground + ", fogOfWar: " + fogOfWar + ")");
 
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             clearCaveModeLoadedChunks(playerName);
 
             CaveModeManager.DynamicCaveModeState state = caveManager.getState(player);
@@ -1208,9 +1212,9 @@ public class WorldMapHook {
                 LOGGER.info("[MAP REFRESH] Re-initialized map at chunk " + chunkX + ", " + chunkZ);
             }
 
-            LOGGER.info("[MAP REFRESH] Completed for " + player.getDisplayName());
+            LOGGER.info("[MAP REFRESH] Completed for " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to force full map refresh for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to force full map refresh for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -1246,7 +1250,7 @@ public class WorldMapHook {
             @SuppressWarnings("unchecked")
             final Set<Long> loaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new HashSet<>();
 
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             Set<Long> caveModeLoaded = getCaveModeLoadedChunks(playerName);
             Set<Long> caveModeFailed = getCaveModeFailedChunks(playerName);
             Set<Long> caveModeTarget = getCaveModeTargetChunks(playerName);
@@ -1454,7 +1458,7 @@ public class WorldMapHook {
 
             UpdateWorldMapSettings packet = basePacket.clone();
 
-            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
 
             if (playerConfig != null) {
                 packet.minScale = playerConfig.getMinScale();
@@ -1485,7 +1489,7 @@ public class WorldMapHook {
 
             sendPacket(player, packet);
 
-            LOGGER.fine("Sent custom map settings to " + player.getDisplayName());
+            LOGGER.fine("Sent custom map settings to " + PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
             LOGGER.warning("Failed to send map settings to player: " + e.getMessage());
         }
@@ -1521,8 +1525,8 @@ public class WorldMapHook {
                 } else if (!isTracked && isHooked) {
                     cleanupCaveModeOnDrain(player, world, tracker);
                     restoreVanillaMapTracker(player, tracker);
-                    ExplorationTracker.getInstance().removePlayerData(player.getDisplayName());
-                    ChunkStreamingManager.getInstance().removeState(player.getDisplayName());
+                    ExplorationTracker.getInstance().removePlayerData(PlayerRefUtil.getUsername(player));
+                    ChunkStreamingManager.getInstance().removeState(PlayerRefUtil.getUsername(player));
                     continue;
                 }
 
@@ -1537,7 +1541,7 @@ public class WorldMapHook {
                     }
                 }
             } catch (Exception e) {
-                LOGGER.warning("Failed to refresh tracker for " + player.getDisplayName() + ": " + e.getMessage());
+                LOGGER.warning("Failed to refresh tracker for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
             }
         }
     }
@@ -1552,7 +1556,7 @@ public class WorldMapHook {
             try {
                 clearMarkerCaches(player.getWorldMapTracker());
             } catch (Exception e) {
-                LOGGER.fine("Failed to clear marker cache for " + player.getDisplayName() + ": " + e.getMessage());
+                LOGGER.fine("Failed to clear marker cache for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
             }
         }
     }
@@ -1561,7 +1565,7 @@ public class WorldMapHook {
         try {
             clearMarkerCaches(player.getWorldMapTracker());
         } catch (Exception e) {
-            LOGGER.fine("Failed to clear marker cache for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.fine("Failed to clear marker cache for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 

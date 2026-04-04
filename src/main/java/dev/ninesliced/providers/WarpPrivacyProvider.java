@@ -33,6 +33,7 @@ import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.joml.Vector3d;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Provides warp markers on the world map while optionally hiding other players' warps.
@@ -70,7 +71,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredWarps(viewer);
             PlayerConfig playerConfig = null;
             if (viewer != null) {
-                UUID playerUuid = ((CommandSender) viewer).getUuid();
+                UUID playerUuid = viewer.getUuid();
                 if (playerUuid != null) {
                     playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
                 }
@@ -172,7 +173,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             return false;
         }
 
-        UUID viewerUuid = ((CommandSender) viewer).getUuid();
+        UUID viewerUuid = viewer.getUuid();
 
         if (creator.equalsIgnoreCase("*Teleporter")) {
             ExtendedTeleportIntegration integration = ExtendedTeleportIntegration.getInstance();
@@ -192,7 +193,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             return true;
         }
 
-        String displayName = viewer.getDisplayName();
+        String displayName = PlayerRefUtil.getUsername(viewer);
         String normalizedDisplay = normalizeName(displayName);
         if (!normalizedDisplay.isEmpty() && normalizedCreator.equals(normalizedDisplay)) {
             return true;
@@ -229,7 +230,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         } catch (Exception ignored) {
         }
 
-        return viewer.getDisplayName();
+        return PlayerRefUtil.getUsername(viewer);
     }
 
     private static boolean isWarpExplored(Transform transform,

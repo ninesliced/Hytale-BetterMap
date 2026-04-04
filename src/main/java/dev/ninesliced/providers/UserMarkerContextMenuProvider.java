@@ -58,7 +58,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         boolean canEditAnyShared = PermissionsUtil.canEditSharedWaypointByPermission(player)
             || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
 
-        UUID playerId = ((CommandSender) player).getUuid();
+        UUID playerId = player.getUuid();
         PlayerConfig playerConfig = playerId != null ? PlayerConfigManager.getInstance().getPlayerConfig(playerId) : null;
 
         boolean hidePersonalWaypoints = playerConfig != null && playerConfig.isHidePersonalWaypointsOnMap();
@@ -133,7 +133,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         String markerId = marker.getId();
         boolean isShared = markerId != null && markerId.startsWith("user_shared_");
         boolean canEditShared = PermissionsUtil.canEditSharedWaypoint(player, marker);
-        UUID playerId = ((CommandSender) player).getUuid();
+        UUID playerId = player.getUuid();
         boolean isOwner = marker.getCreatedByUuid() != null && marker.getCreatedByUuid().equals(playerId);
 
         if (!isShared || canEditShared) {

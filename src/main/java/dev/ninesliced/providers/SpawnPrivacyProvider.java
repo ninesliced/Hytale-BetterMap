@@ -35,7 +35,7 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            UUID playerUuid = ((CommandSender) player).getUuid();
+            UUID playerUuid = player.getUuid();
             PlayerConfig playerConfig = null;
             if (playerUuid != null) {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);

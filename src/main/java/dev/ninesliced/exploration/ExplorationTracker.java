@@ -3,12 +3,14 @@ package dev.ninesliced.exploration;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.components.ExplorationComponent;
 import dev.ninesliced.managers.MapExpansionManager;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Central tracker for all active players' exploration data.
@@ -51,7 +53,7 @@ public class ExplorationTracker {
      */
     @Nonnull
     public PlayerExplorationData getOrCreatePlayerData(@Nonnull Player player, @Nullable ExplorationComponent component) {
-        String playerName = player.getDisplayName();
+        String playerName = PlayerRefUtil.getUsername(player);
         return playerExplorationData.compute(playerName, (k, v) -> {
             if (v == null) {
                 return new PlayerExplorationData(component);
@@ -67,7 +69,7 @@ public class ExplorationTracker {
      * @return The data, or null if not found.
      */
     public PlayerExplorationData getPlayerData(@Nonnull Player player) {
-        return getPlayerData(player.getDisplayName());
+        return getPlayerData(PlayerRefUtil.getUsername(player));
     }
 
     /**
@@ -86,7 +88,7 @@ public class ExplorationTracker {
      * @param player The player to remove.
      */
     public void removePlayerData(@Nonnull Player player) {
-        removePlayerData(player.getDisplayName());
+        removePlayerData(PlayerRefUtil.getUsername(player));
     }
 
     /**

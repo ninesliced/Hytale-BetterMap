@@ -1,4 +1,5 @@
 package dev.ninesliced.commands.bettermap;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import java.awt.Color;
 import java.util.concurrent.CompletableFuture;
@@ -105,7 +106,7 @@ public class BetterMapCommand extends AbstractCommand {
 
         ModConfig config = ModConfig.getInstance();
 
-        Player player = context.isPlayer() ? (Player) context.sender() : null;
+        Player player = context.isPlayer() ? PlayerRefUtil.fromContext(context) : null;
         boolean isAdmin = player != null && PermissionsUtil.isAdmin(player);
 
         boolean canAccessConfig = player == null || isAdmin || PermissionsUtil.canAccessConfig(player);
@@ -144,7 +145,7 @@ public class BetterMapCommand extends AbstractCommand {
         context.sendMessage(Message.raw("NOTE: The server must be restarted for map quality/max chunks changes to take effect."));}
 
         if (player != null) {
-            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+            PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
             if (playerConfig != null) {
                 boolean hasAnyOverride = isAdmin
                     || PermissionsUtil.canOverridePoi(player)

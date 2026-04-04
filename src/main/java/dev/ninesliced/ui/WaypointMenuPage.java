@@ -34,6 +34,7 @@ import java.util.Locale;
 import javax.annotation.Nonnull;
 import org.joml.Vector3d;
 
+import dev.ninesliced.utils.PlayerRefUtil;
 public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.WaypointGuiData> {
 
     private static final String WAYPOINT_LIST_PATH = "#WaypointListContainer";
@@ -238,7 +239,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                     if (WaypointManager.isSharedId(data.targetId)) {
                         UserMapMarker marker = WaypointManager.getMarker(player, data.targetId);
                         if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
-                            player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
+                            PlayerRefUtil.resolve(player).sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
                             return;
                         }
                     }
@@ -253,7 +254,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                     if (WaypointManager.isSharedId(data.targetId)) {
                         UserMapMarker marker = WaypointManager.getMarker(player, data.targetId);
                         if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
-                            player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
+                            PlayerRefUtil.resolve(player).sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
                             return;
                         }
                     }

@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Manages DYNAMIC cave mode state for players.
@@ -85,7 +87,7 @@ public class CaveModeManager {
         if (!isConfigEnabled()) {
             return false;
         }
-        PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+        PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
         if (playerConfig != null) {
             return playerConfig.isCaveModeEnabled();
         }
@@ -97,7 +99,7 @@ public class CaveModeManager {
      */
     @Nullable
     public DynamicCaveModeState getState(@Nonnull Player player) {
-        return playerStates.get(player.getDisplayName());
+        return playerStates.get(PlayerRefUtil.getUsername(player));
     }
     
     /**
@@ -114,7 +116,7 @@ public class CaveModeManager {
      */
     @Nonnull
     public DynamicCaveModeState getOrCreateState(@Nonnull Player player) {
-        return playerStates.computeIfAbsent(player.getDisplayName(), k -> {
+        return playerStates.computeIfAbsent(PlayerRefUtil.getUsername(player), k -> {
             DynamicCaveModeState state = new DynamicCaveModeState();
 
             state.setDynamicModeEnabled(isEffectivelyEnabledForPlayer(player));
@@ -184,7 +186,7 @@ public class CaveModeManager {
             if (oldLayer != newLayer && wasUnderground) {
                 state.setPreviousLayer(oldLayer);
                 state.setLayerChanged(true);
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
                            " changed layer from " + oldLayer + " to " + newLayer);
             } else {
                 state.setLayerChanged(false);
@@ -199,10 +201,10 @@ public class CaveModeManager {
         
         if (undergroundStateChanged) {
             if (isUnderground) {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
                            " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + layerSize) + ")");
             } else {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
+                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
                            " returned to surface from Y=" + playerY);
             }
         }
@@ -273,7 +275,7 @@ public class CaveModeManager {
      * Removes a player from the manager (on disconnect).
      */
     public void removePlayer(@Nonnull Player player) {
-        playerStates.remove(player.getDisplayName());
+        playerStates.remove(PlayerRefUtil.getUsername(player));
     }
     
     /**
@@ -287,7 +289,7 @@ public class CaveModeManager {
      * Clears cave exploration/runtime overlay state for a player.
      */
     public void clearCaveExploration(@Nonnull Player player) {
-        clearCaveExploration(player.getDisplayName());
+        clearCaveExploration(PlayerRefUtil.getUsername(player));
     }
 
     /**

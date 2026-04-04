@@ -10,11 +10,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.ui.ConfigMenuPage;
 import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.awt.*;
 import java.util.concurrent.CompletableFuture;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Command to open the BetterMap admin config page directly.
@@ -58,7 +60,7 @@ public class AdminCommand extends AbstractCommand {
             }
 
             if (!PermissionsUtil.isAdmin(player)) {
-                player.sendMessage(Message.raw("You must be an admin to use this command.").color(Color.RED));
+                PlayerRefUtil.resolve(player).sendMessage(Message.raw("You must be an admin to use this command.").color(Color.RED));
                 return;
             }
 

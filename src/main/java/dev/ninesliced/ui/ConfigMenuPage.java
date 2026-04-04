@@ -10,8 +10,10 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
@@ -39,6 +41,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.ModConfig.MapQuality;
@@ -57,6 +60,7 @@ import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
+import dev.ninesliced.utils.PlayerRefUtil;
 public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.ConfigEventData> {
 
     private static final Logger LOGGER = Logger.getLogger(ConfigMenuPage.class.getName());
@@ -101,7 +105,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
         boolean isAdmin = PermissionsUtil.isAdmin(player);
 
-        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
         ui.set("#PlayerMinScale.Value", pConfig.getMinScale());
         ui.set("#PlayerMaxScale.Value", pConfig.getMaxScale());
         
@@ -507,7 +511,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         if (p == null) continue;
 
                         try {
-                            WorldMapHook.clearCaveModeLoadedChunks(p.getDisplayName());
+                            WorldMapHook.clearCaveModeLoadedChunks(PlayerRefUtil.getUsername(p));
                             WorldMapHook.forceFullMapRefresh(p);
                         } catch (Exception e) {
                             LOGGER.warning("Failed to refresh player map after exploration reset: " + e.getMessage());
@@ -517,7 +521,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             });
         }
 
-        actor.sendMessage(
+        PlayerRefUtil.resolve(actor).sendMessage(
             Message.raw("[BetterMap] ").color("#93844c").bold(true)
                 .insert(Message.raw("Reset map exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
                     .color("#bfcdd5"))
@@ -541,7 +545,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
                         try {
                             CaveModeManager.getInstance().clearCaveExploration(p);
-                            WorldMapHook.clearCaveModeLoadedChunks(p.getDisplayName());
+                            WorldMapHook.clearCaveModeLoadedChunks(PlayerRefUtil.getUsername(p));
                             WorldMapHook.forceFullMapRefresh(p);
                         } catch (Exception e) {
                             LOGGER.warning("Failed to refresh player map after cave reset: " + e.getMessage());
@@ -551,7 +555,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             });
         }
 
-        actor.sendMessage(
+        PlayerRefUtil.resolve(actor).sendMessage(
             Message.raw("[BetterMap] ").color("#93844c").bold(true)
                 .insert(Message.raw("Reset cave exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
                     .color("#bfcdd5"))
@@ -631,14 +635,14 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 if (pStoreRef != null && pStoreRef.isValid()) {
                     Player target = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
                     if (target != null) {
-                        WorldMapHook.clearCaveModeLoadedChunks(target.getDisplayName());
+                        WorldMapHook.clearCaveModeLoadedChunks(PlayerRefUtil.getUsername(target));
                         WorldMapHook.forceFullMapRefresh(target);
                     }
                 }
             }
         }
 
-        actor.sendMessage(
+        PlayerRefUtil.resolve(actor).sendMessage(
             Message.raw("[BetterMap] ").color("#93844c").bold(true)
                 .insert(Message.raw("Reset surface exploration for " + label + ". Cleared " + deletedMapFiles + " map file(s).")
                     .color("#bfcdd5"))
@@ -658,14 +662,14 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     Player target = pStoreRef.getStore().getComponent(pStoreRef, Player.getComponentType());
                     if (target != null) {
                         CaveModeManager.getInstance().clearCaveExploration(target);
-                        WorldMapHook.clearCaveModeLoadedChunks(target.getDisplayName());
+                        WorldMapHook.clearCaveModeLoadedChunks(PlayerRefUtil.getUsername(target));
                         WorldMapHook.forceFullMapRefresh(target);
                     }
                 }
             }
         }
 
-        actor.sendMessage(
+        PlayerRefUtil.resolve(actor).sendMessage(
             Message.raw("[BetterMap] ").color("#93844c").bold(true)
                 .insert(Message.raw("Reset cave exploration for " + label + ". Cleared " + deletedCaveFiles + " cave file(s).")
                     .color("#bfcdd5"))
@@ -725,7 +729,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             resetAllMapExploration(player);
         } else if (action == ExplorationResetType.PLAYER_SURFACE || action == ExplorationResetType.PLAYER_CAVE) {
             if (pendingUuid == null || pendingUuid.isBlank()) {
-                player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                PlayerRefUtil.resolve(player).sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
                 return;
             }
 
@@ -738,7 +742,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     resetSelectedPlayerCaveExploration(player, playerUuid, label);
                 }
             } catch (IllegalArgumentException e) {
-                player.sendMessage(Message.raw("Invalid player selection.").color("#ff4a4a"));
+                PlayerRefUtil.resolve(player).sendMessage(Message.raw("Invalid player selection.").color("#ff4a4a"));
             }
         }
     }
@@ -769,9 +773,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     }
 
     private void handlePlayerReset(UICommandBuilder ui, UIEventBuilder events, Player player) {
-        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
         pConfig.resetToDefaults();
-        PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+        PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
 
         applyPlayerSettingsToUi(ui, pConfig);
         sendUpdate(ui, events, false);
@@ -836,7 +840,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             .insert(Message.raw("[BetterMap] ").color("#93844c").bold(true))
             .insert(Message.raw("Click here to get a discount on your game server: ").color("#bfcdd5"))
             .insert(Message.raw(url).color("#4c9cff").link(url));
-        player.sendMessage(linkMessage);
+        PlayerRefUtil.resolve(player).sendMessage(linkMessage);
     }
 
     @Override
@@ -943,7 +947,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             case "admin_reset_selected_player_surface_exploration" -> {
                 if (PermissionsUtil.isAdmin(player)) {
                     if (selectedExplorationPlayerUuid == null || selectedExplorationPlayerUuid.isBlank()) {
-                        player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                        PlayerRefUtil.resolve(player).sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
                         return;
                     }
                     showExplorationResetConfirm(ui, events, ExplorationResetType.PLAYER_SURFACE);
@@ -953,7 +957,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             case "admin_reset_selected_player_cave_exploration" -> {
                 if (PermissionsUtil.isAdmin(player)) {
                     if (selectedExplorationPlayerUuid == null || selectedExplorationPlayerUuid.isBlank()) {
-                        player.sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
+                        PlayerRefUtil.resolve(player).sendMessage(Message.raw("No saved player selected.").color("#ff4a4a"));
                         return;
                     }
                     showExplorationResetConfirm(ui, events, ExplorationResetType.PLAYER_CAVE);
@@ -1006,7 +1010,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     }
 
     private void handlePlayerUpdate(ConfigEventData data, Player player) {
-        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
+        PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(player.getUuid());
         String val = data.getEffectiveValue();
         World world = player.getWorld();
         try {
@@ -1014,13 +1018,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             switch (data.action) {
                 case "player_min_scale":
                     pConfig.setMinScale(Float.parseFloat(val));
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     if (world != null)
                         world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                     break;
                 case "player_max_scale":
                     pConfig.setMaxScale(Float.parseFloat(val));
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     if (world != null)
                         world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                     break;
@@ -1030,14 +1034,14 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     }
                     boolean locationEnabled = Boolean.parseBoolean(val);
                     pConfig.setLocationEnabled(locationEnabled);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     break;
                 case "player_location_pos":
                     if (!ModConfig.getInstance().isLocationEnabled()) {
                         break;
                     }
                     pConfig.setLocationHudPosition(val.trim().toLowerCase());
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     break;
                 case "player_cavemode":
                     if (!ModConfig.getInstance().isCaveModeEnabled()) {
@@ -1045,7 +1049,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     }
                     boolean enabled = Boolean.parseBoolean(val);
                     pConfig.setCaveModeEnabled(enabled);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
                     if (state != null) {
                         state.setDynamicModeEnabled(enabled);
@@ -1065,7 +1069,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalPlayersHide(newPlayersVisible);
                     pConfig.setHidePlayersOnMap(!newPlayersVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     MapPrivacyManager.getInstance().updatePrivacyState();
                     refreshHideState(world);
                     break;
@@ -1077,7 +1081,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalAllWarpsHide(newAllWarpsVisible);
                     pConfig.setHideAllWarpsOnMap(!newAllWarpsVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     WarpPrivacyManager.getInstance().updatePrivacyState();
                     refreshHideState(world);
                     break;
@@ -1093,7 +1097,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalOtherWarpsHide(newOtherWarpsVisible);
                     pConfig.setHideOtherWarpsOnMap(!newOtherWarpsVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     WarpPrivacyManager.getInstance().updatePrivacyState();
                     refreshHideState(world);
                     break;
@@ -1105,7 +1109,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalPoiHide(newPoisVisible);
                     pConfig.setHideAllPoiOnMap(!newPoisVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     PoiPrivacyManager.getInstance().updatePrivacyStateSync(world);
                     refreshHideState(world);
                     break;
@@ -1117,7 +1121,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalSpawnHide(newSpawnVisible);
                     pConfig.setHideSpawnOnMap(!newSpawnVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     PoiPrivacyManager.getInstance().updatePrivacyStateSync(world);
                     refreshHideState(world);
                     break;
@@ -1129,7 +1133,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalDeathHide(newDeathVisible);
                     pConfig.setHideDeathMarkerOnMap(!newDeathVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     if (!newDeathVisible) {
                         removeDeathMarkersFromClient(player, world);
                     }
@@ -1144,7 +1148,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     );
                     pConfig.setOverrideGlobalWaypointHide(newGlobalWaypointsVisible);
                     pConfig.setHideGlobalWaypointsOnMap(!newGlobalWaypointsVisible);
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     UserMarkerProviderManager.getInstance().onWorldLoad(world);
                     MapPrivacyManager.getInstance().updatePrivacyState();
                     refreshHideState(world);
@@ -1152,13 +1156,13 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_personal_waypoints":
                     if (world == null) break;
                     pConfig.setHidePersonalWaypointsOnMap(!pConfig.isHidePersonalWaypointsOnMap());
-                    PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+                    PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
                     UserMarkerProviderManager.getInstance().onWorldLoad(world);
                     MapPrivacyManager.getInstance().updatePrivacyState();
                     refreshHideState(world);
                     break;
             }
-            PlayerConfigManager.getInstance().savePlayerConfig(((CommandSender) player).getUuid());
+            PlayerConfigManager.getInstance().savePlayerConfig(player.getUuid());
         } catch (NumberFormatException _) {}
     }
 
