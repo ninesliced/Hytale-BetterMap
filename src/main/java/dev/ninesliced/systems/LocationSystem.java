@@ -60,7 +60,7 @@ public class LocationSystem extends EntityTickingSystem<EntityStore> {
      */
     @Override
     public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
-                    @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+                     @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         Holder<EntityStore> holder = EntityUtils.toHolder(index, archetypeChunk);
         Player player = holder.getComponent(Player.getComponentType());
         PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());

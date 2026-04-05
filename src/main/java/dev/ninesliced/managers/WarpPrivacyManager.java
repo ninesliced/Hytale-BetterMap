@@ -8,6 +8,7 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.providers.WarpPrivacyProvider;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -55,7 +56,7 @@ public class WarpPrivacyManager {
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             if (PlayerConfigManager.getInstance() != null) {
                 PlayerConfigManager.getInstance().getPlayerConfig(
-                    ((com.hypixel.hytale.server.core.command.system.CommandSender) event.getPlayer()).getUuid()
+                        ((com.hypixel.hytale.server.core.command.system.CommandSender) event.getPlayer()).getUuid()
                 );
             }
             World world = event.getPlayer().getWorld();
@@ -157,9 +158,9 @@ public class WarpPrivacyManager {
         boolean hasPlayerFilters = playerConfigManager != null && playerConfigManager.hasWarpPrivacyOverrides();
 
         return config.isHideAllWarpsOnMap()
-            || config.isHideOtherWarpsOnMap()
-            || config.isHideUnexploredWarpsOnMap()
-            || config.isAllowWarpTeleports()
-            || hasPlayerFilters;
+                || config.isHideOtherWarpsOnMap()
+                || config.isHideUnexploredWarpsOnMap()
+                || config.isAllowWarpTeleports()
+                || hasPlayerFilters;
     }
 }

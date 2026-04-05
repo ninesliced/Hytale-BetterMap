@@ -1,13 +1,9 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
-import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.protocol.packets.worldmap.PlacedByMarkerComponent;
-import com.hypixel.hytale.protocol.packets.worldmap.TintComponent;
-import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
+import com.hypixel.hytale.math.vector.Transform;
+import com.hypixel.hytale.protocol.packets.worldmap.*;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -16,13 +12,13 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
-import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerBuilder;
+import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCollector;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
-import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
@@ -41,22 +37,22 @@ import java.util.logging.Logger;
  * to add BetterMap-specific context menu options.
  */
 public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProvider {
-    
+
     public static final UserMarkerContextMenuProvider INSTANCE = new UserMarkerContextMenuProvider();
     private static final Logger LOGGER = Logger.getLogger(UserMarkerContextMenuProvider.class.getName());
     private static final Map<UUID, Boolean> TELEPORT_MENU_STATE = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> SHARED_EDIT_MENU_STATE = new ConcurrentHashMap<>();
-    
+
     private UserMarkerContextMenuProvider() {
     }
-    
+
     @Override
     public void update(@Nonnull World world, @Nonnull Player player, @Nonnull MarkersCollector collector) {
         boolean allowWaypointTeleport = ModConfig.getInstance().isAllowWaypointTeleports();
         boolean hasTeleportPermission = PermissionsUtil.canTeleport(player);
         boolean showTeleport = allowWaypointTeleport || hasTeleportPermission;
         boolean canEditAnyShared = PermissionsUtil.canEditSharedWaypointByPermission(player)
-            || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
+                || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
 
         UUID playerId = ((CommandSender) player).getUuid();
         PlayerConfig playerConfig = playerId != null ? PlayerConfigManager.getInstance().getPlayerConfig(playerId) : null;
@@ -91,7 +87,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
                 collector.add(buildMarkerWithContextMenu(world, player, marker, showTeleport));
             }
         }
-        
+
         if (!hideGlobalWaypoints) {
             WorldMarkersResource worldMarkersResource = world.getChunkStore().getStore().getResource(WorldMarkersResource.getResourceType());
             for (UserMapMarker marker : worldMarkersResource.getUserMapMarkers()) {
@@ -99,33 +95,33 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
             }
         }
     }
-    
+
     /**
      * Builds a MapMarker with context menu options (Edit).
      */
     private MapMarker buildMarkerWithContextMenu(@Nonnull World world, @Nonnull Player player, @Nonnull UserMapMarker marker, boolean showTeleport) {
         double markerY = WaypointManager.getMarkerYOrDefault(world, player, marker.getId(), 100.0);
         MapMarkerBuilder builder = new MapMarkerBuilder(
-            marker.getId(),
-            marker.getIcon(),
-            new Transform(marker.getX(), markerY, marker.getZ())
+                marker.getId(),
+                marker.getIcon(),
+                new Transform(marker.getX(), markerY, marker.getZ())
         );
-        
+
         if (marker.getName() != null) {
             builder.withCustomName(marker.getName());
         }
-        
+
         if (marker.getColorTint() != null) {
             builder.withComponent(new TintComponent(marker.getColorTint()));
         }
-        
+
         if (marker.getCreatedByName() != null) {
             builder.withComponent(new PlacedByMarkerComponent(
-                Message.raw(marker.getCreatedByName()).getFormattedMessage(),
-                marker.getCreatedByUuid()
+                    Message.raw(marker.getCreatedByName()).getFormattedMessage(),
+                    marker.getCreatedByUuid()
             ));
         }
-        
+
         if (showTeleport) {
             builder.withContextMenuItem(new ContextMenuItem("Teleport", "bettermap waypoint teleport " + marker.getId()));
         }
@@ -143,7 +139,7 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
         if ((isShared && canEditShared) && !isOwner) {
             builder.withContextMenuItem(new ContextMenuItem("Remove Marker", "bettermap waypoint delete " + marker.getId()));
         }
-        
+
         return builder.build();
     }
 
@@ -168,9 +164,9 @@ public class UserMarkerContextMenuProvider implements WorldMapManager.MarkerProv
             if (playerRef == null) return;
 
             playerRef.getPacketHandler().writeNoCache(new UpdateWorldMap(
-                null,
-                null,
-                ids
+                    null,
+                    null,
+                    ids
             ));
 
             ReflectionHelper.setFieldValueRecursive(markerTracker, "smallMovementsTimer", 0.0f);

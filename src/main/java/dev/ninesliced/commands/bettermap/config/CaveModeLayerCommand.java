@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  */
 public class CaveModeLayerCommand extends AbstractCommand {
     private static final Logger LOGGER = Logger.getLogger(CaveModeLayerCommand.class.getName());
-    
+
     private final OptionalArg<Integer> layerSizeArg = this.withOptionalArg("size", "Layer size (1-20)", ArgTypes.INTEGER);
 
     public CaveModeLayerCommand() {

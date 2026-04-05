@@ -1,14 +1,5 @@
 package dev.ninesliced.commands;
 
-import java.awt.Color;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.server.core.Message;
@@ -21,11 +12,18 @@ import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldDat
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class PlayerHideDeathCommand extends AbstractCommand {
 
@@ -58,8 +56,8 @@ public class PlayerHideDeathCommand extends AbstractCommand {
 
         return CompletableFuture.runAsync(() -> {
             boolean newWantsVisible = determineNewVisibilityState(
-                config.isOverrideGlobalDeathHide() && !config.isHideDeathMarkerOnMap(),
-                config.isHideDeathMarkerOnMap()
+                    config.isOverrideGlobalDeathHide() && !config.isHideDeathMarkerOnMap(),
+                    config.isHideDeathMarkerOnMap()
             );
 
             config.setOverrideGlobalDeathHide(newWantsVisible);
@@ -83,10 +81,7 @@ public class PlayerHideDeathCommand extends AbstractCommand {
     private boolean determineNewVisibilityState(boolean currentlyWantsVisible, boolean currentlyWantsHidden) {
         if (currentlyWantsVisible) {
             return false;
-        } else if (currentlyWantsHidden) {
-            return true;
-        }
-        return false;
+        } else return currentlyWantsHidden;
     }
 
     private void removeDeathMarkersFromClient(Player player, World world) {
@@ -122,9 +117,9 @@ public class PlayerHideDeathCommand extends AbstractCommand {
             }
 
             UpdateWorldMap packet = new UpdateWorldMap(
-                null,
-                null,
-                markerIdsToRemove.toArray(new String[0])
+                    null,
+                    null,
+                    markerIdsToRemove.toArray(new String[0])
             );
             playerRef.getPacketHandler().write(packet);
         } catch (Exception e) {

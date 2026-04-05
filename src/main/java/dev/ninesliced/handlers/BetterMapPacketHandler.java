@@ -1,9 +1,5 @@
 package dev.ninesliced.handlers;
 
-import java.util.UUID;
-
-import javax.annotation.Nonnull;
-
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -12,11 +8,7 @@ import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.player.RemoveMapMarker;
-import com.hypixel.hytale.protocol.packets.worldmap.CreateUserMarker;
-import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
-import com.hypixel.hytale.protocol.packets.worldmap.TeleportToWorldMapMarker;
-import com.hypixel.hytale.protocol.packets.worldmap.TeleportToWorldMapPosition;
-import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMapVisible;
+import com.hypixel.hytale.protocol.packets.worldmap.*;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -35,15 +27,17 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserM
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.utils.MapMarkerUtils;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
 import com.hypixel.hytale.server.core.util.PositionUtil;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
+import javax.annotation.Nonnull;
+import java.util.UUID;
+
 /**
  * Overrides native packet handlers that have hardcoded Adventure mode checks.
- *
+ * <p>
  * Packet 119 (RemoveMapMarker): skips native distance check, keeps ownership +
  * BetterMap permission check.
  * Packet 244 (TeleportToWorldMapMarker): uses PermissionsUtil instead of native
@@ -78,7 +72,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
-        Player player = (Player) store.getComponent(ref, Player.getComponentType());
+        Player player = store.getComponent(ref, Player.getComponentType());
         assert player != null;
 
         PlayerWorldData perWorldData = player.getPlayerConfigData().getPerWorldData(world.getName());
@@ -95,7 +89,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             marker = personal;
             markerStore = perWorldData;
         } else {
-            WorldMarkersResource shared = (WorldMarkersResource) world.getChunkStore()
+            WorldMarkersResource shared = world.getChunkStore()
                     .getStore().getResource(WorldMarkersResource.getResourceType());
             UserMapMarker sharedMarker = shared.getUserMapMarker(packet.markerId);
             if (sharedMarker == null) {
@@ -129,7 +123,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
-        Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+        Player playerComponent = store.getComponent(ref, Player.getComponentType());
         assert playerComponent != null;
 
         if (!ModConfig.getInstance().isAllowMapMarkerTeleports()
@@ -139,7 +133,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
         }
 
         WorldMapTracker worldMapTracker = playerComponent.getWorldMapTracker();
-        MapMarker marker = (MapMarker) worldMapTracker.getSentMarkers().get(packet.id);
+        MapMarker marker = worldMapTracker.getSentMarkers().get(packet.id);
         if (marker != null) {
             Transform transform = PositionUtil.toTransform(marker.transform);
             if (MapMarkerUtils.isUserMarker(marker)) {
@@ -147,7 +141,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
                 int blockZ = (int) transform.getPosition().getZ();
                 WorldChunk chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(blockX, blockZ));
                 int height = chunk == null ? 319 : chunk.getHeight(blockX, blockZ);
-                transform.getPosition().setY((double) height);
+                transform.getPosition().setY(height);
             }
             Teleport teleportComponent = Teleport.createForPlayer(transform);
             world.getEntityStore().getStore().addComponent(
@@ -161,7 +155,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
-        Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+        Player playerComponent = store.getComponent(ref, Player.getComponentType());
         assert playerComponent != null;
 
         if (!ModConfig.getInstance().isAllowCoordinateTeleports()
@@ -173,16 +167,16 @@ public class BetterMapPacketHandler implements SubPacketHandler {
         world.getChunkStore().getChunkReferenceAsync(
                 ChunkUtil.indexChunkFromBlock(packet.x, packet.y)
         ).thenAcceptAsync((chunkRef) -> {
-            BlockChunk blockChunkComponent = (BlockChunk) world.getChunkStore()
+            BlockChunk blockChunkComponent = world.getChunkStore()
                     .getStore().getComponent(chunkRef, BlockChunk.getComponentType());
             assert blockChunkComponent != null;
 
             Vector3d position = new Vector3d(
-                    (double) packet.x,
-                    (double) (blockChunkComponent.getHeight(packet.x, packet.y) + 2),
-                    (double) packet.y);
+                    packet.x,
+                    blockChunkComponent.getHeight(packet.x, packet.y) + 2,
+                    packet.y);
             Teleport teleportComponent = Teleport.createForPlayer(
-                    (World) null, position, new Vector3f(0.0F, 0.0F, 0.0F));
+                    null, position, new Vector3f(0.0F, 0.0F, 0.0F));
             world.getEntityStore().getStore().addComponent(
                     playerRef.getReference(), Teleport.getComponentType(), teleportComponent);
         }, world);
@@ -194,7 +188,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
-        Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+        Player playerComponent = store.getComponent(ref, Player.getComponentType());
         assert playerComponent != null;
 
         if (!PermissionsUtil.canCreateMapMarkers(playerComponent)) {
@@ -215,7 +209,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
 
         UserMapMarkersStore markerStore;
         if (packet.shared) {
-            markerStore = (UserMapMarkersStore) world.getChunkStore().getStore()
+            markerStore = world.getChunkStore().getStore()
                     .getResource(WorldMarkersResource.getResourceType());
         } else {
             markerStore = playerComponent.getPlayerConfigData().getPerWorldData(world.getName());
@@ -239,7 +233,7 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             @Nonnull Ref<EntityStore> ref,
             @Nonnull World world,
             @Nonnull Store<EntityStore> store) {
-        Player playerComponent = (Player) store.getComponent(ref, Player.getComponentType());
+        Player playerComponent = store.getComponent(ref, Player.getComponentType());
         assert playerComponent != null;
 
         playerComponent.getWorldMapTracker().setClientHasWorldMapVisible(packet.visible);

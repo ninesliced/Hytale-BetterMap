@@ -2,9 +2,6 @@ package dev.ninesliced.commands.bettermap.waypoint;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.Color;
-import com.hypixel.hytale.protocol.Transform;
-import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -20,10 +17,10 @@ import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
 
 public class WaypointAddCommand extends AbstractPlayerCommand {
     private final OptionalArg<String> nameArg = this.withOptionalArg("name", "Name of the waypoint", ArgTypes.STRING);

@@ -5,6 +5,7 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -16,33 +17,32 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
-import dev.ninesliced.BetterMap;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Locale;
 import java.util.logging.Logger;
-import javax.annotation.Nullable;
-import javax.annotation.Nonnull;
 
 public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.EditData> {
 
     private static final String[] AVAILABLE_ICONS = {
-        "UserA.png", "UserB.png", "UserC.png", "UserD.png", "UserE.png", "UserF.png"
+            "UserA.png", "UserB.png", "UserC.png", "UserD.png", "UserE.png", "UserF.png"
     };
 
     private static final Color[] AVAILABLE_TINTS = {
-        new Color((byte) -1, (byte) -1, (byte) -1),   // White #FFFFFF
-        new Color((byte) -1, (byte) 68, (byte) 68),   // Red #FF4444
-        new Color((byte) 1, (byte) -20, (byte) 126),   // Green #01EC7E
-        new Color((byte) 68, (byte) 68, (byte) -1),   // Blue #4444FF
-        new Color((byte) -1, (byte) -1, (byte) 68),   // Yellow #FFFF44
-        new Color((byte) -1, (byte) 68, (byte) -1),   // Magenta #FF44FF
-        new Color((byte) 68, (byte) -1, (byte) -1),   // Cyan #44FFFF
-        new Color((byte) -1, (byte) -120, (byte) 0),  // Orange #FF8800
+            new Color((byte) -1, (byte) -1, (byte) -1),   // White #FFFFFF
+            new Color((byte) -1, (byte) 68, (byte) 68),   // Red #FF4444
+            new Color((byte) 1, (byte) -20, (byte) 126),   // Green #01EC7E
+            new Color((byte) 68, (byte) 68, (byte) -1),   // Blue #4444FF
+            new Color((byte) -1, (byte) -1, (byte) 68),   // Yellow #FFFF44
+            new Color((byte) -1, (byte) 68, (byte) -1),   // Magenta #FF44FF
+            new Color((byte) 68, (byte) -1, (byte) -1),   // Cyan #44FFFF
+            new Color((byte) -1, (byte) -120, (byte) 0),  // Orange #FF8800
     };
 
     @Nullable
@@ -69,10 +69,10 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
     @Override
     public void build(@Nonnull Ref<EntityStore> ref, @Nonnull UICommandBuilder ui, @Nonnull UIEventBuilder events, @Nonnull Store<EntityStore> store) {
         ui.append("Pages/BetterMap/WaypointEdit.ui");
-        
+
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
-        
+
         if (!initialized) {
             if (targetId != null) {
                 UserMapMarker marker = WaypointManager.getMarker(player, targetId);
@@ -82,8 +82,8 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
                     this.inputZ = String.format(Locale.ROOT, "%.2f", marker.getZ());
                     World world = player.getWorld();
                     this.inputY = world != null
-                        ? WaypointManager.getMarkerYOrDefault(world, player, marker.getId(), this.inputY)
-                        : this.inputY;
+                            ? WaypointManager.getMarkerYOrDefault(world, player, marker.getId(), this.inputY)
+                            : this.inputY;
                     this.shared = WaypointManager.isSharedId(targetId);
 
                     String markerIcon = marker.getIcon();
@@ -92,9 +92,9 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
                     this.selectedTintIndex = getTintIndex(markerTint);
 
                     LOGGER.info("[WaypointEdit] Loading marker: id=" + targetId +
-                        ", icon=" + markerIcon + ", iconIndex=" + this.selectedIconIndex +
-                        ", tint=" + (markerTint != null ? String.format("#%02X%02X%02X", markerTint.red & 0xFF, markerTint.green & 0xFF, markerTint.blue & 0xFF) : "null") +
-                        ", tintIndex=" + this.selectedTintIndex);
+                            ", icon=" + markerIcon + ", iconIndex=" + this.selectedIconIndex +
+                            ", tint=" + (markerTint != null ? String.format("#%02X%02X%02X", markerTint.red & 0xFF, markerTint.green & 0xFF, markerTint.blue & 0xFF) : "null") +
+                            ", tintIndex=" + this.selectedTintIndex);
                 } else {
                     LOGGER.warning("[WaypointEdit] Marker not found for id: " + targetId);
                 }
@@ -149,43 +149,43 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         ui.set("#ErrorLabel.Text", errorMessage != null ? errorMessage : "");
         ui.set("#ErrorLabel.Visible", errorMessage != null && !errorMessage.isBlank());
 
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#NameInput",  
-            new EventData().put(EditData.KEY_NAME_INPUT, "#NameInput.Value"), false);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#NameInput",
+                new EventData().put(EditData.KEY_NAME_INPUT, "#NameInput.Value"), false);
 
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputX", 
-            new EventData().put(EditData.KEY_INPUT_X, "#InputX.Value"), false);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputX",
+                new EventData().put(EditData.KEY_INPUT_X, "#InputX.Value"), false);
 
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputY", 
-            new EventData().put(EditData.KEY_INPUT_Y, "#InputY.Value"), false);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputY",
+                new EventData().put(EditData.KEY_INPUT_Y, "#InputY.Value"), false);
 
-        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputZ", 
-            new EventData().put(EditData.KEY_INPUT_Z, "#InputZ.Value"), false);
+        events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#InputZ",
+                new EventData().put(EditData.KEY_INPUT_Z, "#InputZ.Value"), false);
 
         events.addEventBinding(CustomUIEventBindingType.Activating, "#CurrentLocationBtn",
-            new EventData().put(EditData.KEY_ACTION, Action.CURRENT_LOCATION.name()), false);
+                new EventData().put(EditData.KEY_ACTION, Action.CURRENT_LOCATION.name()), false);
 
         for (int i = 0; i < AVAILABLE_ICONS.length; i++) {
             events.addEventBinding(CustomUIEventBindingType.Activating, "#Icon" + i,
-                new EventData().put(EditData.KEY_ACTION, "SELECT_ICON_" + i), false);
+                    new EventData().put(EditData.KEY_ACTION, "SELECT_ICON_" + i), false);
         }
 
         for (int i = 0; i < AVAILABLE_TINTS.length; i++) {
             events.addEventBinding(CustomUIEventBindingType.Activating, "#Color" + i,
-                new EventData().put(EditData.KEY_ACTION, "SELECT_COLOR_" + i), false);
+                    new EventData().put(EditData.KEY_ACTION, "SELECT_COLOR_" + i), false);
         }
 
         events.addEventBinding(CustomUIEventBindingType.Activating, "#BackButton",
-            new EventData().put(EditData.KEY_ACTION, Action.BACK.name()), false);
+                new EventData().put(EditData.KEY_ACTION, Action.BACK.name()), false);
 
         events.addEventBinding(CustomUIEventBindingType.Activating, "#SaveButton",
-            new EventData().put(EditData.KEY_ACTION, Action.SAVE.name()), false);
-            
-        events.addEventBinding(CustomUIEventBindingType.Activating, "#CancelButton", 
-            new EventData().put(EditData.KEY_ACTION, Action.CANCEL.name()), false);
+                new EventData().put(EditData.KEY_ACTION, Action.SAVE.name()), false);
+
+        events.addEventBinding(CustomUIEventBindingType.Activating, "#CancelButton",
+                new EventData().put(EditData.KEY_ACTION, Action.CANCEL.name()), false);
 
         if (canShared) {
             events.addEventBinding(CustomUIEventBindingType.ValueChanged, "#GlobalCheckbox",
-                new EventData().put(EditData.KEY_GLOBAL, "#GlobalCheckbox.Value"), false);
+                    new EventData().put(EditData.KEY_GLOBAL, "#GlobalCheckbox.Value"), false);
         }
     }
 
@@ -193,7 +193,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
     public void handleDataEvent(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull EditData data) {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
-        
+
         if (data.nameInput != null) this.nameInput = data.nameInput;
         if (data.inputX != null) this.inputX = data.inputX;
         if (data.inputY != null) {
@@ -206,7 +206,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         if (data.global != null) this.shared = data.global;
 
         if (data.action == null) {
-            return; 
+            return;
         }
 
         Action action;
@@ -222,7 +222,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
             targetMarker = WaypointManager.getMarker(player, targetId);
         }
         if (targetMarker != null && WaypointManager.isSharedId(targetMarker.getId())
-            && !PermissionsUtil.canEditSharedWaypoint(player, targetMarker)) {
+                && !PermissionsUtil.canEditSharedWaypoint(player, targetMarker)) {
             player.sendMessage(com.hypixel.hytale.server.core.Message.raw("You do not have permission to edit shared waypoints."));
             player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(this.playerRef));
             return;
@@ -274,7 +274,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
             case SAVE:
                 String newName = this.nameInput.trim();
                 if (newName.isEmpty()) newName = generateDefaultName(player, targetId == null);
-                
+
                 float x = 0, z = 0;
                 try {
                     x = Float.parseFloat(this.inputX);
@@ -316,7 +316,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
                     }
                     WaypointManager.addMarker(player, newName, selectedIcon, x, z, y, selectedTint, wantsShared);
                 }
-                
+
                 WaypointMenuPage menuPage = new WaypointMenuPage(this.playerRef);
                 player.getPageManager().openCustomPage(ref, store, menuPage);
                 break;
@@ -368,6 +368,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
 
     /**
      * Convert RGB to HSL color space.
+     *
      * @return float array [hue (0-1), saturation (0-1), lightness (0-1)]
      */
     private float[] rgbToHsl(int r, int g, int b) {
@@ -397,7 +398,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
             h /= 6.0f;
         }
 
-        return new float[] { h, s, l };
+        return new float[]{h, s, l};
     }
 
     private void refreshIconAndTint(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
@@ -464,7 +465,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         public static final String KEY_INPUT_Y = "@InputY";
         public static final String KEY_INPUT_Z = "@InputZ";
         public static final String KEY_GLOBAL = "@Global";
-        
+
         public String action;
         public String nameInput;
         public String inputX;
@@ -472,7 +473,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         public String inputZ;
         public Boolean global;
 
-        public static final BuilderCodec<EditData> CODEC = BuilderCodec.<EditData>builder(EditData.class, EditData::new)
+        public static final BuilderCodec<EditData> CODEC = BuilderCodec.builder(EditData.class, EditData::new)
                 .addField(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action)
                 .addField(new KeyedCodec<>(KEY_NAME_INPUT, Codec.STRING), (data, value) -> data.nameInput = value, data -> data.nameInput)
                 .addField(new KeyedCodec<>(KEY_INPUT_X, Codec.STRING), (data, value) -> data.inputX = value, data -> data.inputX)

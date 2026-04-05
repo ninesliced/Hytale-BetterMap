@@ -52,15 +52,15 @@ public class MaxChunksToLoadCommand extends AbstractCommand {
         int limit = currentQuality.maxChunks;
 
         if (requestedChunks > limit) {
-             config.setMaxChunksToLoad(limit);
-             context.sendMessage(Message.raw("Requested " + requestedChunks + " exceeds limit for " + currentQuality.name() + " quality (" + limit + ").")
-                     .color(Color.YELLOW));
-             context.sendMessage(Message.raw("Set max chunks to " + limit + ".").color(Color.YELLOW));
+            config.setMaxChunksToLoad(limit);
+            context.sendMessage(Message.raw("Requested " + requestedChunks + " exceeds limit for " + currentQuality.name() + " quality (" + limit + ").")
+                    .color(Color.YELLOW));
+            context.sendMessage(Message.raw("Set max chunks to " + limit + ".").color(Color.YELLOW));
         } else {
             config.setMaxChunksToLoad(requestedChunks);
             context.sendMessage(Message.raw("Set max chunks to " + requestedChunks + ".").color(Color.GREEN));
         }
-        
+
         context.sendMessage(Message.raw("NOTE: The server must be restarted for this change to take effect.").color(Color.GRAY));
 
         return CompletableFuture.completedFuture(null);

@@ -5,6 +5,7 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.EntityUtils;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
@@ -13,14 +14,13 @@ import com.hypixel.hytale.server.core.ui.Anchor;
 import com.hypixel.hytale.server.core.ui.Value;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.universe.world.worldgen.IWorldGen;
+import com.hypixel.hytale.server.worldgen.biome.Biome;
 import com.hypixel.hytale.server.worldgen.chunk.ChunkGenerator;
 import com.hypixel.hytale.server.worldgen.chunk.ZoneBiomeResult;
-import com.hypixel.hytale.server.worldgen.biome.Biome;
 import com.hypixel.hytale.server.worldgen.zone.Zone;
-import com.hypixel.hytale.server.core.universe.world.worldgen.IWorldGen;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -34,10 +34,14 @@ public class LocationHud extends CustomUIHud {
     private static final int HUD_HEIGHT = 160;
     private static final int MARGIN = 20;
 
-    @Nullable private Vector3d playerPosition;
-    @Nullable private String worldName;
-    @Nullable private String biomeName;
-    @Nullable private String zoneName;
+    @Nullable
+    private Vector3d playerPosition;
+    @Nullable
+    private String worldName;
+    @Nullable
+    private String biomeName;
+    @Nullable
+    private String zoneName;
 
     private boolean isEnabled = true;
     private HudPosition position = HudPosition.TOP_LEFT;
@@ -110,7 +114,7 @@ public class LocationHud extends CustomUIHud {
             if (!word.isEmpty()) {
                 if (formatted.length() > 0) formatted.append(" ");
                 formatted.append(Character.toUpperCase(word.charAt(0)))
-                         .append(word.substring(1).toLowerCase());
+                        .append(word.substring(1).toLowerCase());
             }
         }
         return formatted.toString();

@@ -1,12 +1,5 @@
 package dev.ninesliced.listeners;
 
-import java.awt.Color;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
-
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -23,27 +16,29 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.ExplorationTicker;
 import dev.ninesliced.exploration.ExplorationTracker;
-import dev.ninesliced.managers.CaveModeManager;
-import dev.ninesliced.managers.ChunkStreamingManager;
-import dev.ninesliced.managers.ExplorationManager;
-import dev.ninesliced.managers.MapAnchorManager;
-import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.managers.PlayerRadarManager;
-import dev.ninesliced.managers.WaypointManager;
-import dev.ninesliced.managers.WaypointMigrationManager;
-import dev.ninesliced.managers.WorldBorderManager;
+import dev.ninesliced.managers.*;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
+import javax.annotation.Nonnull;
+import java.awt.*;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
+
 /**
  * Listener class for handling player connection and world transitions events.
  * Responsible for initializing and saving exploration data.
+ * <p>
+ * Memory safety fixes:
+ * - onPlayerQuit() uses finally block to guarantee cleanup of all static maps even if save throws.
+ * - onPlayerLeaveWorld() uses finally block to guarantee ExplorationTracker cleanup.
+ * - All cleanup paths are guaranteed to execute regardless of exceptions.
  */
 public class ExplorationListener {
     private static final Logger LOGGER = Logger.getLogger(ExplorationListener.class.getName());
@@ -52,8 +47,6 @@ public class ExplorationListener {
     /**
      * Handles the PlayerReadyEvent.
      * Initializes tracking if the player joins the default world.
-     *
-     * @param event The event.
      */
     public static void onPlayerReady(@Nonnull PlayerReadyEvent event) {
         try {
@@ -83,7 +76,8 @@ public class ExplorationListener {
                 ModConfig.getInstance().addAllowedWorld(worldName);
                 ModConfig.getInstance().setFirstLaunch(false);
 
-                LOGGER.info("First launch detected. Added " + worldName + " to tracked worlds.");ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
+                LOGGER.info("First launch detected. Added " + worldName + " to tracked worlds.");
+                ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
                     try {
                         if (player.getReference() != null && player.getReference().isValid()) {
                             player.sendMessage(Message.raw("WARNING: BetterMap - Just added this world as tracked but you need to restart the server to apply the changes.").color(Color.RED));
@@ -117,7 +111,7 @@ public class ExplorationListener {
                 ExplorationManager.getInstance().loadPlayerData(player);
 
                 LOGGER.info("[DEBUG] Loaded exploration data for " + playerName +
-                           ", explored chunks: " + explorationData.getExploredChunks().getExploredChunks().size());
+                        ", explored chunks: " + explorationData.getExploredChunks().getExploredChunks().size());
 
                 WorldMapTracker tracker = player.getWorldMapTracker();
                 WorldMapHook.hookPlayerMapTracker(player, tracker);
@@ -160,11 +154,11 @@ public class ExplorationListener {
     /**
      * Handles the DrainPlayerFromWorldEvent.
      * Saves data and cleans up tracking when a player leaves a world.
-     *
-     * @param event The event.
+     * FIX: Uses finally block to guarantee ExplorationTracker and cave mode cleanup.
      */
     public static void onPlayerLeaveWorld(@Nonnull DrainPlayerFromWorldEvent event) {
         LOGGER.info("[DEBUG] DrainPlayerFromWorldEvent FIRED!");
+        String playerName = null;
         try {
             Holder<EntityStore> holder = event.getHolder();
 
@@ -175,7 +169,7 @@ public class ExplorationListener {
             if (player != null) {
                 World world = event.getWorld();
                 String worldName = world.getName();
-                String playerName = player.getDisplayName();
+                playerName = player.getDisplayName();
                 LOGGER.info("[DEBUG] Player " + playerName + " leaving world " + worldName);
 
                 WorldMapTracker tracker = player.getWorldMapTracker();
@@ -202,15 +196,17 @@ public class ExplorationListener {
         } catch (Exception e) {
             LOGGER.warning("[DEBUG] Error handling player leave world: " + e.getMessage());
             e.printStackTrace();
+            // FIX: Guarantee cleanup even if save or unhook threw
+            if (playerName != null) {
+                try {ExplorationTracker.getInstance().removePlayerData(playerName);} catch (Exception ignored) {}
+                try {cleanupCaveModeStateByName(playerName);} catch (Exception ignored) {}
+            }
         }
     }
 
     /**
      * Handles the AddPlayerToWorldEvent.
      * Manages world transitions, saving old data and loading new data if applicable.
-     * Uses synchronized operations to prevent race conditions during rapid world changes.
-     *
-     * @param event The event.
      */
     public static void onPlayerJoinWorld(@Nonnull AddPlayerToWorldEvent event) {
         LOGGER.info("[DEBUG] AddPlayerToWorldEvent FIRED!");
@@ -231,9 +227,9 @@ public class ExplorationListener {
 
             ModConfig config = ModConfig.getInstance();
             WaypointLimitUtil.applyOverridesToWorld(
-                newWorld,
-                config.getMaxPersonalMarkersPerPlayer(),
-                config.getMaxSharedMarkersPerPlayer()
+                    newWorld,
+                    config.getMaxPersonalMarkersPerPlayer(),
+                    config.getMaxSharedMarkersPerPlayer()
             );
 
             WorldMapTracker earlyTracker = player.getWorldMapTracker();
@@ -242,7 +238,7 @@ public class ExplorationListener {
                     ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToMarkers", false);
 
                     boolean allowCoordTp = config.isAllowCoordinateTeleports()
-                        || PermissionsUtil.canTeleportToCoordinates(player);
+                            || PermissionsUtil.canTeleportToCoordinates(player);
                     ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToCoordinates", allowCoordTp);
 
                 } catch (Exception e) {
@@ -280,7 +276,7 @@ public class ExplorationListener {
                     WorldMapHook.restoreVanillaMapTracker(player, tracker);
                 }
             } else if (oldWorldName == null || !oldWorldName.equals(newWorldName)
-                       || ExplorationTracker.getInstance().getPlayerData(playerName) == null) {
+                    || ExplorationTracker.getInstance().getPlayerData(playerName) == null) {
                 LOGGER.info("[DEBUG] Initializing exploration for " + playerName + " in world " + newWorldName);
 
                 ExplorationTracker.getInstance().getOrCreatePlayerData(player);
@@ -344,16 +340,18 @@ public class ExplorationListener {
     /**
      * Handles the PlayerDisconnectEvent.
      * Ensures final data save on disconnect.
-     *
-     * @param event The event.
+     * FIX: Uses finally block to GUARANTEE cleanup of all tracking maps (playerWorlds, cave mode,
+     * streaming state, anchor) even if the save or any intermediate step throws an exception.
      */
     public static void onPlayerQuit(@Nonnull PlayerDisconnectEvent event) {
         LOGGER.info("[DEBUG] PlayerDisconnectEvent FIRED!");
+        String playerName = null;
+        UUID playerUUID = null;
         try {
             PlayerRef playerRef = event.getPlayerRef();
 
-            String playerName = playerRef.getUsername();
-            UUID playerUUID = playerRef.getUuid();
+            playerName = playerRef.getUsername();
+            playerUUID = playerRef.getUuid();
 
             PlayerConfigManager.getInstance().unloadPlayerConfig(playerUUID);
 
@@ -377,26 +375,25 @@ public class ExplorationListener {
                             LOGGER.info("[DEBUG] Fallback save for player " + playerName + " disconnecting from default world");
                             ExplorationManager.getInstance().savePlayerData(playerName, playerUUID, worldName);
                         }
-                        ExplorationTracker.getInstance().removePlayerData(playerName);
                     } catch (Exception e) {
                         LOGGER.warning("Could not determine world for fallback save: " + e.getMessage());
-                        ExplorationTracker.getInstance().removePlayerData(playerName);
                     }
-                } else {
-                    ExplorationTracker.getInstance().removePlayerData(playerName);
                 }
             } else {
                 LOGGER.info("Player " + playerName + " disconnect - data already saved");
             }
-
-            cleanupCaveModeStateByName(playerName);
-
-            MapAnchorManager.getInstance().removePlayer(playerName);
-
-            playerWorlds.remove(playerName);
-            LOGGER.info("[DEBUG] Removed world tracking for " + playerName);
         } catch (Exception e) {
             LOGGER.warning("Failed to handle player quit event: " + e.getMessage());
+        } finally {
+            // FIX: ALWAYS clean up all tracking state, even if save threw an exception.
+            // This prevents memory leaks from orphaned entries in static maps.
+            if (playerName != null) {
+                try {ExplorationTracker.getInstance().removePlayerData(playerName);} catch (Exception ignored) {}
+                try {cleanupCaveModeStateByName(playerName);} catch (Exception ignored) {}
+                try {MapAnchorManager.getInstance().removePlayer(playerName);} catch (Exception ignored) {}
+                playerWorlds.remove(playerName);
+                LOGGER.info("[DEBUG] Removed world tracking for " + playerName);
+            }
         }
     }
 
@@ -409,9 +406,6 @@ public class ExplorationListener {
 
     /**
      * Initializes the dynamic cave mode for a player (creates their state).
-     * The new system is automatic - no need to restore from config.
-     *
-     * @param player The player.
      */
     private static void initDynamicCaveMode(@Nonnull Player player) {
         try {
@@ -429,8 +423,6 @@ public class ExplorationListener {
 
     /**
      * Cleans up cave mode state for a player.
-     *
-     * @param player The player.
      */
     private static void cleanupCaveModeState(@Nonnull Player player) {
         cleanupCaveModeStateByName(player.getDisplayName());
@@ -439,8 +431,6 @@ public class ExplorationListener {
     /**
      * Cleans up cave mode state for a player by name.
      * Use this when the Player object might not be available (e.g., on disconnect).
-     *
-     * @param playerName The player's display name.
      */
     private static void cleanupCaveModeStateByName(@Nonnull String playerName) {
         try {

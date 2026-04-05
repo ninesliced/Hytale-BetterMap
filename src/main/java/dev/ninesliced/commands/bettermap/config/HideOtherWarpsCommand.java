@@ -64,8 +64,8 @@ public class HideOtherWarpsCommand extends AbstractCommand {
             config.setHideOtherWarpsOnMap(newState);
 
             PlayerConfig playerConfig = playerRef.getUuid() != null
-                ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
-                : null;
+                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
+                    : null;
             if (playerConfig != null) {
                 playerConfig.setOverrideGlobalOtherWarpsHide(false);
                 playerConfig.setOverrideGlobalAllWarpsHide(false);

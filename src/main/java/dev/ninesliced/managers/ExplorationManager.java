@@ -5,30 +5,36 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
-import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.exploration.ExplorationTracker;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Logger;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Singleton manager responsible for the lifecycle of the exploration system.
  * Handles initialization, configuration, and player data persistence.
+ * <p>
+ * Memory safety:
+ * - getAllExploredChunks() uses version-based caching to avoid repeated disk reads.
+ * - getAllExploredCaveChunks() now also uses version-based caching (was uncached before).
+ * - Shared caches are periodically trimmed and cleared on shutdown.
+ * - maxStoredChunksPerPlayer defaults to 1,000,000 (enforced in ExploredChunksTracker).
  */
 public class ExplorationManager {
     private static final Logger LOGGER = Logger.getLogger(ExplorationManager.class.getName());
     private static ExplorationManager INSTANCE;
 
     private boolean initialized = false;
-    private int maxStoredChunksPerPlayer = Integer.MAX_VALUE;
+    private int maxStoredChunksPerPlayer = 1_000_000;
     private float explorationUpdateRate = 0.5f;
     private boolean persistenceEnabled = true;
 
@@ -37,8 +43,20 @@ public class ExplorationManager {
 
     private String persistencePath = "universe/exploration_data";
 
-    private final ScheduledExecutorService autoSaveScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService autoSaveScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "BetterMap-AutoSave");
+        t.setDaemon(true);
+        return t;
+    });
     private ScheduledFuture<?> autoSaveTask;
+
+    // --- Surface exploration shared cache (version-based) ---
+    private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // --- Cave exploration shared cache (version-based) — FIX: was completely uncached ---
+    private final Map<String, Set<Long>> cachedAllCaveChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Long> cachedAllCaveVersion = new java.util.concurrent.ConcurrentHashMap<>();
 
     private ExplorationManager() {
     }
@@ -163,14 +181,12 @@ public class ExplorationManager {
 
     /**
      * Gets all explored chunks for a given world, combining persistence and active data.
+     * Uses version-based caching to avoid repeated disk reads.
      *
      * @param worldName The world name.
      * @return A set of all explored chunks.
      */
-    private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
-    
-    public java.util.Set<Long> getAllExploredChunks(String worldName) {
+    public Set<Long> getAllExploredChunks(String worldName) {
         long combinedVersion = 0;
         int playerCount = 0;
         for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
@@ -180,7 +196,7 @@ public class ExplorationManager {
             playerCount++;
         }
         combinedVersion = combinedVersion * 31 + playerCount;
-        
+
         Long cachedVersion = cachedAllExploredVersion.get(worldName);
         if (cachedVersion != null && cachedVersion == combinedVersion) {
             Set<Long> cached = cachedAllExploredChunks.get(worldName);
@@ -188,10 +204,10 @@ public class ExplorationManager {
                 return cached;
             }
         }
-        
+
         Set<Long> allChunks = new HashSet<>();
 
-        if (persistenceEnabled) {
+        if (persistenceEnabled && persistence != null) {
             allChunks.addAll(persistence.loadAllChunks(worldName));
         }
 
@@ -213,18 +229,44 @@ public class ExplorationManager {
 
     /**
      * Gets all explored cave chunks for a given world, combining persistence and active data.
+     * FIX: Now uses version-based caching (was previously uncached, causing disk reads every call).
      *
      * @param worldName The world name.
      * @return A set of all explored cave chunks.
      */
-    public java.util.Set<Long> getAllExploredCaveChunks(String worldName) {
+    public Set<Long> getAllExploredCaveChunks(String worldName) {
+        // Build version from active player cave state sizes
+        long combinedVersion = 0;
+        int playerCount = 0;
+        Universe universe = Universe.get();
+        if (universe != null && universe.getWorld(worldName) != null) {
+            for (PlayerRef playerRef : universe.getWorld(worldName).getPlayerRefs()) {
+                Player player = playerRef.getComponent(Player.getComponentType());
+                if (player != null) {
+                    CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
+                    if (state != null) {
+                        combinedVersion += state.getExploredCaveChunks().size();
+                        playerCount++;
+                    }
+                }
+            }
+        }
+        combinedVersion = combinedVersion * 31 + playerCount;
+
+        Long cachedVersion = cachedAllCaveVersion.get(worldName);
+        if (cachedVersion != null && cachedVersion == combinedVersion) {
+            Set<Long> cached = cachedAllCaveChunks.get(worldName);
+            if (cached != null) {
+                return cached;
+            }
+        }
+
         Set<Long> allChunks = new HashSet<>();
 
         if (persistenceEnabled && cavePersistence != null) {
             allChunks.addAll(cavePersistence.loadAllChunks(worldName));
         }
 
-        Universe universe = Universe.get();
         if (universe != null && universe.getWorld(worldName) != null) {
             universe.getWorld(worldName).getPlayerRefs().forEach(playerRef -> {
                 Player player = playerRef.getComponent(Player.getComponentType());
@@ -237,7 +279,27 @@ public class ExplorationManager {
             });
         }
 
+        cachedAllCaveChunks.put(worldName, allChunks);
+        cachedAllCaveVersion.put(worldName, combinedVersion);
         return allChunks;
+    }
+
+    /**
+     * Invalidates cave exploration caches. Call when cave exploration is reset.
+     */
+    public void invalidateCaveCaches() {
+        cachedAllCaveChunks.clear();
+        cachedAllCaveVersion.clear();
+    }
+
+    /**
+     * Invalidates all shared exploration caches (surface and cave).
+     */
+    public void invalidateAllCaches() {
+        cachedAllExploredChunks.clear();
+        cachedAllExploredVersion.clear();
+        cachedAllCaveChunks.clear();
+        cachedAllCaveVersion.clear();
     }
 
     /**
@@ -245,7 +307,7 @@ public class ExplorationManager {
      *
      * @return The cave persistence, or null if not initialized.
      */
-    public dev.ninesliced.configs.CavePersistence getCavePersistence() {
+    public CavePersistence getCavePersistence() {
         return cavePersistence;
     }
 
@@ -264,8 +326,7 @@ public class ExplorationManager {
             runtimeResetCount++;
         }
 
-        cachedAllExploredChunks.clear();
-        cachedAllExploredVersion.clear();
+        invalidateAllCaches();
 
         int deletedFiles = 0;
         if (persistenceEnabled && persistence != null) {
@@ -283,6 +344,8 @@ public class ExplorationManager {
      */
     public int resetAllCaveExploration() {
         int runtimeResetCount = CaveModeManager.getInstance().clearAllCaveExploration();
+
+        invalidateCaveCaches();
 
         int deletedFiles = 0;
         if (persistenceEnabled && cavePersistence != null) {
@@ -338,8 +401,7 @@ public class ExplorationManager {
             }
         }
 
-        cachedAllExploredChunks.clear();
-        cachedAllExploredVersion.clear();
+        invalidateAllCaches();
         return deletedFiles;
     }
 
@@ -364,11 +426,13 @@ public class ExplorationManager {
             }
         }
 
+        invalidateCaveCaches();
         return deletedFiles;
     }
 
     /**
      * Shuts down the system and clears trackers.
+     * FIX: Also clears all shared caches to release memory immediately.
      */
     public synchronized void shutdown() {
         try {
@@ -384,6 +448,10 @@ public class ExplorationManager {
                 autoSaveScheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
+
+            // Clear all caches to release memory
+            invalidateAllCaches();
+
             ExplorationTracker.getInstance().clear();
             LOGGER.info("Exploration System shutdown complete");
         } catch (Exception e) {
@@ -547,55 +615,27 @@ public class ExplorationManager {
     public static class ConfigBuilder {
         private final ExplorationManager manager = getInstance();
 
-        /**
-         * Sets the max chunks limitation.
-         *
-         * @param max Max chunks.
-         * @return The builder.
-         */
         public ConfigBuilder maxChunksPerPlayer(int max) {
             manager.setMaxStoredChunksPerPlayer(max);
             return this;
         }
 
-        /**
-         * Sets the update rate.
-         *
-         * @param seconds Rate in seconds.
-         * @return The builder.
-         */
         public ConfigBuilder updateRate(float seconds) {
             manager.setExplorationUpdateRate(seconds);
             return this;
         }
 
-        /**
-         * Enables persistence at the given path.
-         *
-         * @param path The path.
-         * @return The builder.
-         */
         public ConfigBuilder enablePersistence(String path) {
             manager.setPersistencePath(path);
             manager.setPersistenceEnabled(true);
             return this;
         }
 
-        /**
-         * Disables persistence.
-         *
-         * @return The builder.
-         */
         public ConfigBuilder disablePersistence() {
             manager.setPersistenceEnabled(false);
             return this;
         }
 
-        /**
-         * Builds (initializes) the manager.
-         *
-         * @return The initialized manager.
-         */
         public ExplorationManager build() {
             manager.initialize();
             return manager;

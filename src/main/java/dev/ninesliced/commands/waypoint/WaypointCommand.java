@@ -9,6 +9,7 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.ui.WaypointMenuPage;
+
 import javax.annotation.Nonnull;
 
 public class WaypointCommand extends AbstractPlayerCommand {

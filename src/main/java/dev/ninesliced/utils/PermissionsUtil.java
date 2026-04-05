@@ -1,18 +1,16 @@
 package dev.ninesliced.utils;
 
-import java.util.Set;
-import java.util.UUID;
-
-import javax.annotation.Nonnull;
-
 import com.hypixel.hytale.protocol.GameMode;
-import com.hypixel.hytale.server.core.asset.type.gameplay.worldmap.UserMapMarkerConfig;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.permissions.PermissionsModule;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.configs.ModConfig;
+
+import javax.annotation.Nonnull;
+import java.util.Set;
+import java.util.UUID;
 
 public final class PermissionsUtil {
     private static final String ADMIN_PERMISSION = "bettermap.admin";
@@ -57,8 +55,8 @@ public final class PermissionsUtil {
 
     public static boolean canTeleport(@Nonnull Player player) {
         return canTeleportToWaypoints(player)
-            || canTeleportToMarkers(player)
-            || canTeleportToCoordinates(player);
+                || canTeleportToMarkers(player)
+                || canTeleportToCoordinates(player);
     }
 
     public static boolean canTeleportToWaypoints(@Nonnull Player player) {
@@ -74,7 +72,7 @@ public final class PermissionsUtil {
         }
 
         return perms.hasPermission(uuid, TELEPORT_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_WAYPOINT_PERMISSION);
+                || perms.hasPermission(uuid, TELEPORT_WAYPOINT_PERMISSION);
     }
 
     public static boolean canTeleportToMarkers(@Nonnull Player player) {
@@ -90,11 +88,11 @@ public final class PermissionsUtil {
         }
 
         return perms.hasPermission(uuid, TELEPORT_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_POI_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_WARP_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_DEATH_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_SPAWN_PERMISSION);
+                || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
+                || perms.hasPermission(uuid, TELEPORT_MARKER_POI_PERMISSION)
+                || perms.hasPermission(uuid, TELEPORT_MARKER_WARP_PERMISSION)
+                || perms.hasPermission(uuid, TELEPORT_MARKER_DEATH_PERMISSION)
+                || perms.hasPermission(uuid, TELEPORT_MARKER_SPAWN_PERMISSION);
     }
 
     public static boolean canTeleportToMarkerType(@Nonnull Player player, @Nonnull MarkerType type) {
@@ -110,7 +108,7 @@ public final class PermissionsUtil {
         }
 
         if (perms.hasPermission(uuid, TELEPORT_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)) {
+                || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)) {
             return true;
         }
 
@@ -136,8 +134,8 @@ public final class PermissionsUtil {
         }
 
         return perms.hasPermission(uuid, TELEPORT_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_MARKER_PLAYER_PERMISSION);
+                || perms.hasPermission(uuid, TELEPORT_MARKER_PERMISSION)
+                || perms.hasPermission(uuid, TELEPORT_MARKER_PLAYER_PERMISSION);
     }
 
     public enum MarkerType {
@@ -157,7 +155,7 @@ public final class PermissionsUtil {
         }
 
         return perms.hasPermission(uuid, TELEPORT_PERMISSION)
-            || perms.hasPermission(uuid, TELEPORT_COORDINATE_PERMISSION);
+                || perms.hasPermission(uuid, TELEPORT_COORDINATE_PERMISSION);
     }
 
     public static boolean hasNativeCreativeOpMarkerTeleport(@Nonnull Player player) {
@@ -177,7 +175,7 @@ public final class PermissionsUtil {
 
     /**
      * Checks if shared waypoints are enabled for BetterMap.
-     *
+     * <p>
      * This intentionally ignores Hytale's native marker-creation setting because
      * BetterMap can manage waypoint creation independently of the default map UI.
      */
@@ -197,7 +195,7 @@ public final class PermissionsUtil {
 
     /**
      * Checks whether a player may edit/delete a shared waypoint marker.
-     *
+     * <p>
      * Rules:
      * - Marker creator can always edit/delete their own shared marker.
      * - Players with {@code bettermap.command.waypoint.editglobal} can edit/delete any shared marker.

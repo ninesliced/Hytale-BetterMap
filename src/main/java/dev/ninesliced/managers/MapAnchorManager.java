@@ -14,8 +14,6 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.anchoraction.AnchorActionModule;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
-import com.hypixel.hytale.server.core.ui.DropdownEntryInfo;
-import com.hypixel.hytale.server.core.ui.LocalizableString;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
@@ -32,15 +30,10 @@ import dev.ninesliced.ui.WaypointMenuPage;
 import dev.ninesliced.utils.PermissionsUtil;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
 /**
@@ -276,35 +269,35 @@ public class MapAnchorManager {
             lastMarkerCounts.put(player.getDisplayName(), markerCount);
 
             events.addEventBinding(
-                CustomUIEventBindingType.Activating,
-                "#ManageWaypointsButton",
-                EventData.of("action", ACTION_OPEN_MANAGER),
-                false
+                    CustomUIEventBindingType.Activating,
+                    "#ManageWaypointsButton",
+                    EventData.of("action", ACTION_OPEN_MANAGER),
+                    false
             );
 
             events.addEventBinding(
-                CustomUIEventBindingType.Activating,
-                "#AddWaypointButton",
-                EventData.of("action", ACTION_CREATE),
-                false
+                    CustomUIEventBindingType.Activating,
+                    "#AddWaypointButton",
+                    EventData.of("action", ACTION_CREATE),
+                    false
             );
 
             events.addEventBinding(
-                CustomUIEventBindingType.Activating,
-                "#ConfigButton",
-                EventData.of("action", ACTION_OPEN_CONFIG),
-                false
+                    CustomUIEventBindingType.Activating,
+                    "#ConfigButton",
+                    EventData.of("action", ACTION_OPEN_CONFIG),
+                    false
             );
 
             events.addEventBinding(
-                CustomUIEventBindingType.Activating,
-                "#AdminConfigButton",
-                EventData.of("action", ACTION_OPEN_ADMIN_CONFIG),
-                false
+                    CustomUIEventBindingType.Activating,
+                    "#AdminConfigButton",
+                    EventData.of("action", ACTION_OPEN_ADMIN_CONFIG),
+                    false
             );
 
             playerRef.getPacketHandler().writeNoCache(
-                new UpdateAnchorUI(MAP_ANCHOR_ID, true, commands.getCommands(), events.getEvents())
+                    new UpdateAnchorUI(MAP_ANCHOR_ID, true, commands.getCommands(), events.getEvents())
             );
 
             activePlayers.put(player.getDisplayName(), playerRef);
@@ -375,7 +368,7 @@ public class MapAnchorManager {
 
         try {
             playerRef.getPacketHandler().writeNoCache(
-                new UpdateAnchorUI(MAP_ANCHOR_ID, true, null, null)
+                    new UpdateAnchorUI(MAP_ANCHOR_ID, true, null, null)
             );
             activePlayers.remove(player.getDisplayName());
         } catch (Exception e) {
@@ -427,9 +420,9 @@ public class MapAnchorManager {
     }
 
     private List<UserMapMarker> buildWaypointEntries(
-        @Nonnull Player player,
-        @Nonnull UICommandBuilder commands,
-        @Nonnull UIEventBuilder events
+            @Nonnull Player player,
+            @Nonnull UICommandBuilder commands,
+            @Nonnull UIEventBuilder events
     ) {
         List<UserMapMarker> markers = WaypointManager.getUserMarkers(player);
 
@@ -444,7 +437,7 @@ public class MapAnchorManager {
         commands.set("#EmptyLabel.Visible", false);
 
         boolean canTeleport = ModConfig.getInstance().isAllowWaypointTeleports()
-            || PermissionsUtil.canTeleportToWaypoints(player);
+                || PermissionsUtil.canTeleportToWaypoints(player);
 
         int index = 0;
         for (UserMapMarker marker : markers) {
@@ -458,9 +451,9 @@ public class MapAnchorManager {
             commands.set(itemPath + " #WpName.Text", (name != null && !name.isEmpty()) ? name : "Unnamed");
 
             commands.set(itemPath + " #XValue.Text",
-                String.format(Locale.ROOT, "X: %.0f", marker.getX()));
+                    String.format(Locale.ROOT, "X: %.0f", marker.getX()));
             commands.set(itemPath + " #ZValue.Text",
-                String.format(Locale.ROOT, "Z: %.0f", marker.getZ()));
+                    String.format(Locale.ROOT, "Z: %.0f", marker.getZ()));
 
             boolean isShared = WaypointManager.isSharedId(marker.getId());
             commands.set(itemPath + " #WpSharedLabel.Text", isShared ? "(S)" : "");
@@ -472,7 +465,7 @@ public class MapAnchorManager {
             Color tint = marker.getColorTint();
             if (tint != null) {
                 commands.set(itemPath + " #WpIcon.Background.Color",
-                    String.format("#%02X%02X%02X", tint.red & 0xFF, tint.green & 0xFF, tint.blue & 0xFF));
+                        String.format("#%02X%02X%02X", tint.red & 0xFF, tint.green & 0xFF, tint.blue & 0xFF));
             }
 
             boolean canEdit = !isShared || PermissionsUtil.canEditSharedWaypoint(player, marker);
@@ -480,36 +473,36 @@ public class MapAnchorManager {
             commands.set(itemPath + " #EditButton.Visible", canEdit);
             if (canEdit) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #EditButton",
-                    new EventData()
-                        .put("action", ACTION_EDIT)
-                        .put("waypointId", marker.getId()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #EditButton",
+                        new EventData()
+                                .put("action", ACTION_EDIT)
+                                .put("waypointId", marker.getId()),
+                        false
                 );
             }
 
             commands.set(itemPath + " #TeleportButton.Visible", canTeleport);
             if (canTeleport) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #TeleportButton",
-                    new EventData()
-                        .put("action", ACTION_TELEPORT)
-                        .put("waypointId", marker.getId()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #TeleportButton",
+                        new EventData()
+                                .put("action", ACTION_TELEPORT)
+                                .put("waypointId", marker.getId()),
+                        false
                 );
             }
 
             commands.set(itemPath + " #DeleteButton.Visible", canEdit);
             if (canEdit) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #DeleteButton",
-                    new EventData()
-                        .put("action", ACTION_DELETE)
-                        .put("waypointId", marker.getId()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #DeleteButton",
+                        new EventData()
+                                .put("action", ACTION_DELETE)
+                                .put("waypointId", marker.getId()),
+                        false
                 );
             }
 

@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
  * </p>
  */
 public class CaveModeThresholdCommand extends AbstractCommand {
-    
+
     private final OptionalArg<Integer> thresholdArg = this.withOptionalArg("y", "Y threshold (0-319)", ArgTypes.INTEGER);
 
     public CaveModeThresholdCommand() {

@@ -15,7 +15,7 @@ import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
 public class CoordinateTeleportCommand extends AbstractCommand {

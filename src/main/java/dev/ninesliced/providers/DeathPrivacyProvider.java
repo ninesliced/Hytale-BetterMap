@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerDeathPositionData;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -15,7 +16,7 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -42,8 +43,8 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
 
             boolean canOverrideDeath = PermissionsUtil.canOverrideDeath(player);
             boolean overrideEnabled = canOverrideDeath
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalDeathHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalDeathHide();
             boolean globalHide = globalConfig.isHideDeathMarkerOnMap();
 
             if (globalHide && !overrideEnabled) {
@@ -113,12 +114,12 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
         displayName.rawText = name;
 
         return new MapMarker(
-            id,
-            displayName,
-            MARKER_ICON,
-            PositionUtil.toTransformPacket(deathPosition.getTransform()),
-            null,
-            null
+                id,
+                displayName,
+                MARKER_ICON,
+                PositionUtil.toTransformPacket(deathPosition.getTransform()),
+                null,
+                null
         );
     }
 }

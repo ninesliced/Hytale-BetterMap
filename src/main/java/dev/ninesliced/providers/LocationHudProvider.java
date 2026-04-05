@@ -17,12 +17,8 @@ import dev.ninesliced.hud.LocationHud;
 import dev.ninesliced.managers.PlayerConfigManager;
 
 import javax.annotation.Nonnull;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import java.lang.reflect.Field;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

@@ -72,8 +72,8 @@ public class HidePlayersCommand extends AbstractCommand {
             config.setHidePlayersOnMap(newState);
 
             PlayerConfig playerConfig = playerRef.getUuid() != null
-                ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
-                : null;
+                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
+                    : null;
             if (playerConfig != null) {
                 playerConfig.setOverrideGlobalPlayersHide(false);
                 PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());

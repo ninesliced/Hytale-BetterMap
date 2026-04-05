@@ -1,18 +1,5 @@
 package dev.ninesliced.ui;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import javax.annotation.Nonnull;
-
 import com.hypixel.hytale.codec.Codec;
 import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
@@ -39,29 +26,28 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.util.NotificationUtil;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.ModConfig.MapQuality;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.hud.HudPosition;
 import dev.ninesliced.integration.ExtendedTeleportIntegration;
-import dev.ninesliced.managers.CaveModeManager;
-import dev.ninesliced.managers.ExplorationManager;
-import dev.ninesliced.managers.MapPrivacyManager;
-import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.managers.PoiPrivacyManager;
-import dev.ninesliced.managers.UserMarkerProviderManager;
-import dev.ninesliced.managers.WarpPrivacyManager;
-import dev.ninesliced.managers.WorldBorderManager;
+import dev.ninesliced.managers.*;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
 
+import javax.annotation.Nonnull;
+import java.util.*;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.ConfigEventData> {
 
     private static final Logger LOGGER = Logger.getLogger(ConfigMenuPage.class.getName());
-    private enum BindingType { STRING, NUMBER, BOOLEAN }
-    private enum ExplorationResetType { MAP, CAVE, PLAYER_SURFACE, PLAYER_CAVE }
+
+    private enum BindingType {STRING, NUMBER, BOOLEAN}
+
+    private enum ExplorationResetType {MAP, CAVE, PLAYER_SURFACE, PLAYER_CAVE}
 
     private static class SavedPlayerEntry {
         private final UUID uuid;
@@ -104,7 +90,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         PlayerConfig pConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
         ui.set("#PlayerMinScale.Value", pConfig.getMinScale());
         ui.set("#PlayerMaxScale.Value", pConfig.getMaxScale());
-        
+
         boolean serverLocationEnabled = ModConfig.getInstance().isLocationEnabled();
         boolean serverCaveModeEnabled = ModConfig.getInstance().isCaveModeEnabled();
 
@@ -156,144 +142,144 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         bindClick(events, "#CloseBtn", "close_menu");
 
         if (isAdmin) {
-             ui.set("#AdminViewContainer.Visible", true);
-             ui.set("#AdminViewSpacer.Visible", true);
+            ui.set("#AdminViewContainer.Visible", true);
+            ui.set("#AdminViewSpacer.Visible", true);
 
-             ModConfig gConfig = ModConfig.getInstance();
+            ModConfig gConfig = ModConfig.getInstance();
 
-             ui.set("#AdminExplorationRadius.Value", gConfig.getExplorationRadius());
-             applyMapQualityDropdown(ui, gConfig.getMapQuality(), "#AdminMapQuality");
-             ui.set("#AdminMaxChunksToLoad.Value", gConfig.getMaxChunksToLoad());
+            ui.set("#AdminExplorationRadius.Value", gConfig.getExplorationRadius());
+            applyMapQualityDropdown(ui, gConfig.getMapQuality(), "#AdminMapQuality");
+            ui.set("#AdminMaxChunksToLoad.Value", gConfig.getMaxChunksToLoad());
 
-             ui.set("#AdminMinScale.Value", (int) gConfig.getMinScale());
-             ui.set("#AdminMaxScale.Value", (int) gConfig.getMaxScale());
+            ui.set("#AdminMinScale.Value", (int) gConfig.getMinScale());
+            ui.set("#AdminMaxScale.Value", (int) gConfig.getMaxScale());
 
-             ui.set("#AllowWaypointTeleport.Value", gConfig.isAllowWaypointTeleports());
-             ui.set("#AllowPoiTeleport.Value", gConfig.isAllowPoiTeleports());
-             ui.set("#AllowWarpTeleport.Value", gConfig.isAllowWarpTeleports());
-             ui.set("#AllowDeathTeleport.Value", gConfig.isAllowDeathTeleports());
-             ui.set("#AllowSpawnTeleport.Value", gConfig.isAllowSpawnTeleports());
-             ui.set("#AllowPlayerTeleport.Value", gConfig.isAllowPlayerTeleports());
-             ui.set("#AllowCoordinateTeleport.Value", gConfig.isAllowCoordinateTeleports());
-             ui.set("#AllowNativeMapMarkerCreation.Value", gConfig.isAllowNativeMapMarkerCreation());
-             ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
-             ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
-             ui.set("#DebugMode.Value", gConfig.isDebug());
-             ui.set("#HStatsEnabled.Value", gConfig.isHstatsEnabled());
-             ui.set("#LocationHudEnabled.Value", gConfig.isLocationEnabled());
-             applyLocationPositionDropdown(ui, gConfig.getLocationHudPosition(), "#AdminLocationPosition");
-             ui.set("#RadarEnabled.Value", gConfig.isRadarEnabled());
-             ui.set("#HidePlayers.Value", gConfig.isHidePlayersOnMap());
-             ui.set("#HideOtherWarps.Value", gConfig.isHideOtherWarpsOnMap());
-             ui.set("#HideUnexploredWarps.Value", gConfig.isHideUnexploredWarpsOnMap());
-             ui.set("#HideAllPois.Value", gConfig.isHideAllPoiOnMap());
-             ui.set("#HideUnexploredPois.Value", gConfig.isHideUnexploredPoiOnMap());
+            ui.set("#AllowWaypointTeleport.Value", gConfig.isAllowWaypointTeleports());
+            ui.set("#AllowPoiTeleport.Value", gConfig.isAllowPoiTeleports());
+            ui.set("#AllowWarpTeleport.Value", gConfig.isAllowWarpTeleports());
+            ui.set("#AllowDeathTeleport.Value", gConfig.isAllowDeathTeleports());
+            ui.set("#AllowSpawnTeleport.Value", gConfig.isAllowSpawnTeleports());
+            ui.set("#AllowPlayerTeleport.Value", gConfig.isAllowPlayerTeleports());
+            ui.set("#AllowCoordinateTeleport.Value", gConfig.isAllowCoordinateTeleports());
+            ui.set("#AllowNativeMapMarkerCreation.Value", gConfig.isAllowNativeMapMarkerCreation());
+            ui.set("#AllowGlobalWaypointEdits.Value", gConfig.isAllowGlobalWaypointEditsForEveryone());
+            ui.set("#ShareAllExploration.Value", gConfig.isShareAllExploration());
+            ui.set("#DebugMode.Value", gConfig.isDebug());
+            ui.set("#HStatsEnabled.Value", gConfig.isHstatsEnabled());
+            ui.set("#LocationHudEnabled.Value", gConfig.isLocationEnabled());
+            applyLocationPositionDropdown(ui, gConfig.getLocationHudPosition(), "#AdminLocationPosition");
+            ui.set("#RadarEnabled.Value", gConfig.isRadarEnabled());
+            ui.set("#HidePlayers.Value", gConfig.isHidePlayersOnMap());
+            ui.set("#HideOtherWarps.Value", gConfig.isHideOtherWarpsOnMap());
+            ui.set("#HideUnexploredWarps.Value", gConfig.isHideUnexploredWarpsOnMap());
+            ui.set("#HideAllPois.Value", gConfig.isHideAllPoiOnMap());
+            ui.set("#HideUnexploredPois.Value", gConfig.isHideUnexploredPoiOnMap());
 
-             ui.set("#RadarRange.Value", gConfig.getRadarRange());
+            ui.set("#RadarRange.Value", gConfig.getRadarRange());
 
-             int personalLimit = gConfig.getMaxPersonalMarkersPerPlayer();
-             int sharedLimit = gConfig.getMaxSharedMarkersPerPlayer();
-             ui.set("#AdminMaxPersonalMarkers.Value", personalLimit);
-             ui.set("#AdminMaxSharedMarkers.Value", sharedLimit);
+            int personalLimit = gConfig.getMaxPersonalMarkersPerPlayer();
+            int sharedLimit = gConfig.getMaxSharedMarkersPerPlayer();
+            ui.set("#AdminMaxPersonalMarkers.Value", personalLimit);
+            ui.set("#AdminMaxSharedMarkers.Value", sharedLimit);
 
 
-             ui.set("#HiddenPoisList.Value", String.join(", ", gConfig.getHiddenPoiNames()));
-             ui.set("#AllowedWorldList.Value", String.join(", ", gConfig.getAllowedWorlds()));
-             ui.set("#AutoSaveInterval.Value", gConfig.getAutoSaveInterval());
+            ui.set("#HiddenPoisList.Value", String.join(", ", gConfig.getHiddenPoiNames()));
+            ui.set("#AllowedWorldList.Value", String.join(", ", gConfig.getAllowedWorlds()));
+            ui.set("#AutoSaveInterval.Value", gConfig.getAutoSaveInterval());
 
-             ui.set("#WorldBorderEnabled.Value", gConfig.isWorldBorderEnabled());
-             ui.set("#WorldBorderRadius.Value", gConfig.getWorldBorderRadius());
-             ui.set("#WorldBorderOffsetX.Value", gConfig.getWorldBorderOffsetX());
-             ui.set("#WorldBorderOffsetZ.Value", gConfig.getWorldBorderOffsetZ());
+            ui.set("#WorldBorderEnabled.Value", gConfig.isWorldBorderEnabled());
+            ui.set("#WorldBorderRadius.Value", gConfig.getWorldBorderRadius());
+            ui.set("#WorldBorderOffsetX.Value", gConfig.getWorldBorderOffsetX());
+            ui.set("#WorldBorderOffsetZ.Value", gConfig.getWorldBorderOffsetZ());
 
-             ui.set("#CaveModeEnabled.Value", gConfig.isCaveModeEnabled());
-             ui.set("#DiscoverSurfaceUnderground.Value", gConfig.isDiscoverSurfaceUnderground());
-             ui.set("#CaveFogOfWar.Value", gConfig.isCaveFogOfWar());
-             ui.set("#CaveModeLayerSize.Value", gConfig.getCaveModeLayerSize());
-             ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
-             ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
+            ui.set("#CaveModeEnabled.Value", gConfig.isCaveModeEnabled());
+            ui.set("#DiscoverSurfaceUnderground.Value", gConfig.isDiscoverSurfaceUnderground());
+            ui.set("#CaveFogOfWar.Value", gConfig.isCaveFogOfWar());
+            ui.set("#CaveModeLayerSize.Value", gConfig.getCaveModeLayerSize());
+            ui.set("#CaveModeThreshold.Value", gConfig.getCaveModeUndergroundThreshold());
+            ui.set("#CaveModeRadius.Value", gConfig.getCaveModeRadius());
 
-             ui.set("#DisableMarkerCreationDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerCreation());
-             ui.set("#DisableMarkerDeletionDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerDeletion());
+            ui.set("#DisableMarkerCreationDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerCreation());
+            ui.set("#DisableMarkerDeletionDistance.Value", gConfig.isDisableDistanceRestrictionsForMarkerDeletion());
 
-             applySavedPlayersDropdown(ui);
+            applySavedPlayersDropdown(ui);
 
-             bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
-             bindChange(events, "#AdminMapQuality", "admin_map_quality", BindingType.STRING);
-             bindChange(events, "#AdminMaxChunksToLoad", "admin_max_chunks", BindingType.NUMBER);
-             bindChange(events, "#AdminMinScale", "admin_min_scale", BindingType.NUMBER);
-             bindChange(events, "#AdminMaxScale", "admin_max_scale", BindingType.NUMBER);
+            bindChange(events, "#AdminExplorationRadius", "admin_exp_radius", BindingType.NUMBER);
+            bindChange(events, "#AdminMapQuality", "admin_map_quality", BindingType.STRING);
+            bindChange(events, "#AdminMaxChunksToLoad", "admin_max_chunks", BindingType.NUMBER);
+            bindChange(events, "#AdminMinScale", "admin_min_scale", BindingType.NUMBER);
+            bindChange(events, "#AdminMaxScale", "admin_max_scale", BindingType.NUMBER);
 
-             bindChange(events, "#AllowWaypointTeleport", "admin_wp_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowPoiTeleport", "admin_poi_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowWarpTeleport", "admin_warp_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowDeathTeleport", "admin_death_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowSpawnTeleport", "admin_spawn_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowPlayerTeleport", "admin_player_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowCoordinateTeleport", "admin_coord_teleport", BindingType.BOOLEAN);
-             bindChange(events, "#AllowNativeMapMarkerCreation", "admin_native_marker_creation", BindingType.BOOLEAN);
-             bindChange(events, "#AllowGlobalWaypointEdits", "admin_global_waypoint_edits", BindingType.BOOLEAN);
-             bindChange(events, "#ShareAllExploration", "admin_share_exp", BindingType.BOOLEAN);
-             bindChange(events, "#DebugMode", "admin_debug", BindingType.BOOLEAN);
-             bindChange(events, "#HStatsEnabled", "admin_hstats_enabled", BindingType.BOOLEAN);
-             bindChange(events, "#LocationHudEnabled", "admin_location_enabled", BindingType.BOOLEAN);
-             bindChange(events, "#AdminLocationPosition", "admin_location_pos", BindingType.STRING);
+            bindChange(events, "#AllowWaypointTeleport", "admin_wp_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowPoiTeleport", "admin_poi_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowWarpTeleport", "admin_warp_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowDeathTeleport", "admin_death_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowSpawnTeleport", "admin_spawn_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowPlayerTeleport", "admin_player_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowCoordinateTeleport", "admin_coord_teleport", BindingType.BOOLEAN);
+            bindChange(events, "#AllowNativeMapMarkerCreation", "admin_native_marker_creation", BindingType.BOOLEAN);
+            bindChange(events, "#AllowGlobalWaypointEdits", "admin_global_waypoint_edits", BindingType.BOOLEAN);
+            bindChange(events, "#ShareAllExploration", "admin_share_exp", BindingType.BOOLEAN);
+            bindChange(events, "#DebugMode", "admin_debug", BindingType.BOOLEAN);
+            bindChange(events, "#HStatsEnabled", "admin_hstats_enabled", BindingType.BOOLEAN);
+            bindChange(events, "#LocationHudEnabled", "admin_location_enabled", BindingType.BOOLEAN);
+            bindChange(events, "#AdminLocationPosition", "admin_location_pos", BindingType.STRING);
 
-             bindChange(events, "#RadarEnabled", "admin_radar_enabled", BindingType.BOOLEAN);
-             bindChange(events, "#RadarRange", "admin_radar_range", BindingType.NUMBER);
-             bindChange(events, "#AdminMaxPersonalMarkers", "admin_marker_personal_limit", BindingType.NUMBER);
-             bindChange(events, "#AdminMaxSharedMarkers", "admin_marker_shared_limit", BindingType.NUMBER);
+            bindChange(events, "#RadarEnabled", "admin_radar_enabled", BindingType.BOOLEAN);
+            bindChange(events, "#RadarRange", "admin_radar_range", BindingType.NUMBER);
+            bindChange(events, "#AdminMaxPersonalMarkers", "admin_marker_personal_limit", BindingType.NUMBER);
+            bindChange(events, "#AdminMaxSharedMarkers", "admin_marker_shared_limit", BindingType.NUMBER);
 
-             bindChange(events, "#HidePlayers", "admin_hide_players", BindingType.BOOLEAN);
-             bindChange(events, "#HideOtherWarps", "admin_hide_other_warps", BindingType.BOOLEAN);
-             bindChange(events, "#HideUnexploredWarps", "admin_hide_unex_warps", BindingType.BOOLEAN);
-             bindChange(events, "#HideAllPois", "admin_hide_all_pois", BindingType.BOOLEAN);
-             bindChange(events, "#HideUnexploredPois", "admin_hide_unex_pois", BindingType.BOOLEAN);
+            bindChange(events, "#HidePlayers", "admin_hide_players", BindingType.BOOLEAN);
+            bindChange(events, "#HideOtherWarps", "admin_hide_other_warps", BindingType.BOOLEAN);
+            bindChange(events, "#HideUnexploredWarps", "admin_hide_unex_warps", BindingType.BOOLEAN);
+            bindChange(events, "#HideAllPois", "admin_hide_all_pois", BindingType.BOOLEAN);
+            bindChange(events, "#HideUnexploredPois", "admin_hide_unex_pois", BindingType.BOOLEAN);
 
-             bindChange(events, "#HiddenPoisList", "admin_hidden_pois", BindingType.STRING);
-             bindChange(events, "#AllowedWorldList", "admin_allowed_worlds", BindingType.STRING);
-             bindClick(events, "#AddCurrentWorldBtn", "admin_add_current_world");
-             bindChange(events, "#AutoSaveInterval", "admin_autosave", BindingType.NUMBER);
+            bindChange(events, "#HiddenPoisList", "admin_hidden_pois", BindingType.STRING);
+            bindChange(events, "#AllowedWorldList", "admin_allowed_worlds", BindingType.STRING);
+            bindClick(events, "#AddCurrentWorldBtn", "admin_add_current_world");
+            bindChange(events, "#AutoSaveInterval", "admin_autosave", BindingType.NUMBER);
 
-             bindChange(events, "#WorldBorderEnabled", "admin_world_border_enabled", BindingType.BOOLEAN);
-             bindChange(events, "#WorldBorderRadius", "admin_world_border_radius", BindingType.NUMBER);
-             bindChange(events, "#WorldBorderOffsetX", "admin_world_border_offset_x", BindingType.NUMBER);
-             bindChange(events, "#WorldBorderOffsetZ", "admin_world_border_offset_z", BindingType.NUMBER);
+            bindChange(events, "#WorldBorderEnabled", "admin_world_border_enabled", BindingType.BOOLEAN);
+            bindChange(events, "#WorldBorderRadius", "admin_world_border_radius", BindingType.NUMBER);
+            bindChange(events, "#WorldBorderOffsetX", "admin_world_border_offset_x", BindingType.NUMBER);
+            bindChange(events, "#WorldBorderOffsetZ", "admin_world_border_offset_z", BindingType.NUMBER);
 
-             bindChange(events, "#CaveModeEnabled", "admin_cavemode_enabled", BindingType.BOOLEAN);
-             bindChange(events, "#DiscoverSurfaceUnderground", "admin_discover_surface", BindingType.BOOLEAN);
-             bindChange(events, "#CaveFogOfWar", "admin_cave_fog_of_war", BindingType.BOOLEAN);
-             bindChange(events, "#CaveModeLayerSize", "admin_cavemode_layer", BindingType.NUMBER);
-             bindChange(events, "#CaveModeThreshold", "admin_cavemode_threshold", BindingType.NUMBER);
-             bindChange(events, "#CaveModeRadius", "admin_cavemode_radius", BindingType.NUMBER);
+            bindChange(events, "#CaveModeEnabled", "admin_cavemode_enabled", BindingType.BOOLEAN);
+            bindChange(events, "#DiscoverSurfaceUnderground", "admin_discover_surface", BindingType.BOOLEAN);
+            bindChange(events, "#CaveFogOfWar", "admin_cave_fog_of_war", BindingType.BOOLEAN);
+            bindChange(events, "#CaveModeLayerSize", "admin_cavemode_layer", BindingType.NUMBER);
+            bindChange(events, "#CaveModeThreshold", "admin_cavemode_threshold", BindingType.NUMBER);
+            bindChange(events, "#CaveModeRadius", "admin_cavemode_radius", BindingType.NUMBER);
 
-             bindChange(events, "#DisableMarkerCreationDistance", "admin_disable_marker_creation_distance", BindingType.BOOLEAN);
-             bindChange(events, "#DisableMarkerDeletionDistance", "admin_disable_marker_deletion_distance", BindingType.BOOLEAN);
+            bindChange(events, "#DisableMarkerCreationDistance", "admin_disable_marker_creation_distance", BindingType.BOOLEAN);
+            bindChange(events, "#DisableMarkerDeletionDistance", "admin_disable_marker_deletion_distance", BindingType.BOOLEAN);
 
-             bindClick(events, "#AdminResetDefaultsBtn", "admin_reset_defaults");
-             bindClick(events, "#AdminResetConfirmAllBtn", "admin_reset_confirm_all");
-             bindClick(events, "#AdminResetConfirmKeepWorldsBtn", "admin_reset_confirm_keep_worlds");
-             bindClick(events, "#AdminResetConfirmCancelBtn", "admin_reset_cancel");
-             bindClick(events, "#AdminResetMapExplorationBtn", "admin_reset_map_exploration");
-             bindClick(events, "#AdminResetCaveExplorationBtn", "admin_reset_cave_exploration");
-             bindChange(events, "#AdminExplorationPlayerSelect", "admin_exploration_player_select", BindingType.STRING);
-             bindClick(events, "#AdminResetSelectedPlayerSurfaceExplorationBtn", "admin_reset_selected_player_surface_exploration");
-             bindClick(events, "#AdminResetSelectedPlayerCaveExplorationBtn", "admin_reset_selected_player_cave_exploration");
-             bindClick(events, "#AdminExplorationResetConfirmBtn", "admin_exploration_reset_confirm");
-             bindClick(events, "#AdminExplorationResetCancelBtn", "admin_exploration_reset_cancel");
+            bindClick(events, "#AdminResetDefaultsBtn", "admin_reset_defaults");
+            bindClick(events, "#AdminResetConfirmAllBtn", "admin_reset_confirm_all");
+            bindClick(events, "#AdminResetConfirmKeepWorldsBtn", "admin_reset_confirm_keep_worlds");
+            bindClick(events, "#AdminResetConfirmCancelBtn", "admin_reset_cancel");
+            bindClick(events, "#AdminResetMapExplorationBtn", "admin_reset_map_exploration");
+            bindClick(events, "#AdminResetCaveExplorationBtn", "admin_reset_cave_exploration");
+            bindChange(events, "#AdminExplorationPlayerSelect", "admin_exploration_player_select", BindingType.STRING);
+            bindClick(events, "#AdminResetSelectedPlayerSurfaceExplorationBtn", "admin_reset_selected_player_surface_exploration");
+            bindClick(events, "#AdminResetSelectedPlayerCaveExplorationBtn", "admin_reset_selected_player_cave_exploration");
+            bindClick(events, "#AdminExplorationResetConfirmBtn", "admin_exploration_reset_confirm");
+            bindClick(events, "#AdminExplorationResetCancelBtn", "admin_exploration_reset_cancel");
 
-             bindClick(events, "#HostingBannerBtn", "open_hosting_link");
+            bindClick(events, "#HostingBannerBtn", "open_hosting_link");
 
-             if (openAdminViewByDefault) {
-                 ui.set("#PlayerView.Visible", false);
-                 ui.set("#AdminView.Visible", true);
-                 ui.set("#PlayerViewBtnContainer.Visible", true);
-                 ui.set("#PlayerViewBtnSelectedContainer.Visible", false);
-                 ui.set("#AdminViewBtnContainer.Visible", false);
-                 ui.set("#AdminViewBtnSelectedContainer.Visible", true);
-                 ui.set("#HelpViewBtnContainer.Visible", true);
-                 ui.set("#HelpViewBtnSelectedContainer.Visible", false);
-             }
+            if (openAdminViewByDefault) {
+                ui.set("#PlayerView.Visible", false);
+                ui.set("#AdminView.Visible", true);
+                ui.set("#PlayerViewBtnContainer.Visible", true);
+                ui.set("#PlayerViewBtnSelectedContainer.Visible", false);
+                ui.set("#AdminViewBtnContainer.Visible", false);
+                ui.set("#AdminViewBtnSelectedContainer.Visible", true);
+                ui.set("#HelpViewBtnContainer.Visible", true);
+                ui.set("#HelpViewBtnSelectedContainer.Visible", false);
+            }
         }
     }
 
@@ -311,9 +297,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
     private void bindClick(UIEventBuilder events, String elementId, String action) {
         events.addEventBinding(CustomUIEventBindingType.Activating, elementId,
-            new EventData()
-                .put("Action", action),
-            false
+                new EventData()
+                        .put("Action", action),
+                false
         );
     }
 
@@ -362,10 +348,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
     private static boolean determineNewVisibilityState(boolean currentlyWantsVisible, boolean currentlyWantsHidden) {
         if (currentlyWantsVisible) {
             return false;
-        } else if (currentlyWantsHidden) {
-            return true;
-        }
-        return false;
+        } else return currentlyWantsHidden;
     }
 
     private void refreshHideState(World world) {
@@ -406,9 +389,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
             if (markerIdsToRemove.isEmpty()) return;
 
             playerRef.getPacketHandler().write(new UpdateWorldMap(
-                null,
-                null,
-                markerIdsToRemove.toArray(new String[0])
+                    null,
+                    null,
+                    markerIdsToRemove.toArray(new String[0])
             ));
         } catch (Exception ignored) {
         }
@@ -518,9 +501,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         }
 
         actor.sendMessage(
-            Message.raw("[BetterMap] ").color("#93844c").bold(true)
-                .insert(Message.raw("Reset map exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
-                    .color("#bfcdd5"))
+                Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                        .insert(Message.raw("Reset map exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
+                                .color("#bfcdd5"))
         );
     }
 
@@ -552,9 +535,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         }
 
         actor.sendMessage(
-            Message.raw("[BetterMap] ").color("#93844c").bold(true)
-                .insert(Message.raw("Reset cave exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
-                    .color("#bfcdd5"))
+                Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                        .insert(Message.raw("Reset cave exploration for all players. Cleared " + deletedFiles + " persisted file(s).")
+                                .color("#bfcdd5"))
         );
     }
 
@@ -639,9 +622,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         }
 
         actor.sendMessage(
-            Message.raw("[BetterMap] ").color("#93844c").bold(true)
-                .insert(Message.raw("Reset surface exploration for " + label + ". Cleared " + deletedMapFiles + " map file(s).")
-                    .color("#bfcdd5"))
+                Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                        .insert(Message.raw("Reset surface exploration for " + label + ". Cleared " + deletedMapFiles + " map file(s).")
+                                .color("#bfcdd5"))
         );
     }
 
@@ -666,9 +649,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         }
 
         actor.sendMessage(
-            Message.raw("[BetterMap] ").color("#93844c").bold(true)
-                .insert(Message.raw("Reset cave exploration for " + label + ". Cleared " + deletedCaveFiles + " cave file(s).")
-                    .color("#bfcdd5"))
+                Message.raw("[BetterMap] ").color("#93844c").bold(true)
+                        .insert(Message.raw("Reset cave exploration for " + label + ". Cleared " + deletedCaveFiles + " cave file(s).")
+                                .color("#bfcdd5"))
         );
     }
 
@@ -685,18 +668,18 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         ui.set("#AdminExplorationResetConfirm.Visible", true);
         if (type == ExplorationResetType.CAVE) {
             ui.set("#AdminExplorationResetConfirmMessage.Text",
-                "Are you sure you want to delete all cave exploration data for all players? This action is irreversible.");
+                    "Are you sure you want to delete all cave exploration data for all players? This action is irreversible.");
         } else if (type == ExplorationResetType.PLAYER_SURFACE) {
             String label = pendingExplorationResetPlayerLabel != null ? pendingExplorationResetPlayerLabel : "selected player";
             ui.set("#AdminExplorationResetConfirmMessage.Text",
-                "Are you sure you want to delete all surface exploration data for " + label + "? This action is irreversible.");
+                    "Are you sure you want to delete all surface exploration data for " + label + "? This action is irreversible.");
         } else if (type == ExplorationResetType.PLAYER_CAVE) {
             String label = pendingExplorationResetPlayerLabel != null ? pendingExplorationResetPlayerLabel : "selected player";
             ui.set("#AdminExplorationResetConfirmMessage.Text",
-                "Are you sure you want to delete all cave exploration data for " + label + "? This action is irreversible.");
+                    "Are you sure you want to delete all cave exploration data for " + label + "? This action is irreversible.");
         } else {
             ui.set("#AdminExplorationResetConfirmMessage.Text",
-                "Are you sure you want to delete all map exploration data for all players? This action is irreversible.");
+                    "Are you sure you want to delete all map exploration data for all players? This action is irreversible.");
         }
         sendUpdate(ui, events, false);
     }
@@ -826,16 +809,16 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         var icon = new ItemStack("Deco_Trophy_Harvest", 1).toPacket();
 
         NotificationUtil.sendNotification(
-            packetHandler,
-            primaryMessage,
-            secondaryMessage,
-            icon
+                packetHandler,
+                primaryMessage,
+                secondaryMessage,
+                icon
         );
 
         Message linkMessage = Message.raw("")
-            .insert(Message.raw("[BetterMap] ").color("#93844c").bold(true))
-            .insert(Message.raw("Click here to get a discount on your game server: ").color("#bfcdd5"))
-            .insert(Message.raw(url).color("#4c9cff").link(url));
+                .insert(Message.raw("[BetterMap] ").color("#93844c").bold(true))
+                .insert(Message.raw("Click here to get a discount on your game server: ").color("#bfcdd5"))
+                .insert(Message.raw(url).color("#4c9cff").link(url));
         player.sendMessage(linkMessage);
     }
 
@@ -932,10 +915,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     } else {
                         selectedExplorationPlayerUuid = value;
                         selectedExplorationPlayerLabel = collectSavedPlayersWithData().stream()
-                            .filter(entry -> entry.uuid.toString().equals(value))
-                            .map(entry -> entry.label)
-                            .findFirst()
-                            .orElse(value);
+                                .filter(entry -> entry.uuid.toString().equals(value))
+                                .map(entry -> entry.label)
+                                .findFirst()
+                                .orElse(value);
                     }
                 }
                 return;
@@ -981,10 +964,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     var icon = new ItemStack("Weapon_Spellbook_Demon", 1).toPacket();
 
                     NotificationUtil.sendNotification(
-                        packetHandler,
-                        primaryMessage,
-                        secondaryMessage,
-                        icon
+                            packetHandler,
+                            primaryMessage,
+                            secondaryMessage,
+                            icon
                     );
                 }
                 player.getPageManager().setPage(ref, store, Page.None);
@@ -999,9 +982,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         if (data.action.startsWith("player_")) {
             handlePlayerUpdate(data, player);
         } else if (data.action.startsWith("admin_")) {
-             if (PermissionsUtil.isAdmin(player)) {
+            if (PermissionsUtil.isAdmin(player)) {
                 handleAdminUpdate(data, ui, player);
-             }
+            }
         }
     }
 
@@ -1060,8 +1043,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_players":
                     if (world == null) break;
                     boolean newPlayersVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalPlayersHide() && !pConfig.isHidePlayersOnMap(),
-                        pConfig.isHidePlayersOnMap()
+                            pConfig.isOverrideGlobalPlayersHide() && !pConfig.isHidePlayersOnMap(),
+                            pConfig.isHidePlayersOnMap()
                     );
                     pConfig.setOverrideGlobalPlayersHide(newPlayersVisible);
                     pConfig.setHidePlayersOnMap(!newPlayersVisible);
@@ -1072,8 +1055,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_all_warps":
                     if (world == null) break;
                     boolean newAllWarpsVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalAllWarpsHide() && !pConfig.isHideAllWarpsOnMap(),
-                        pConfig.isHideAllWarpsOnMap()
+                            pConfig.isOverrideGlobalAllWarpsHide() && !pConfig.isHideAllWarpsOnMap(),
+                            pConfig.isHideAllWarpsOnMap()
                     );
                     pConfig.setOverrideGlobalAllWarpsHide(newAllWarpsVisible);
                     pConfig.setHideAllWarpsOnMap(!newAllWarpsVisible);
@@ -1088,8 +1071,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         break;
                     }
                     boolean newOtherWarpsVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalOtherWarpsHide() && !pConfig.isHideOtherWarpsOnMap(),
-                        pConfig.isHideOtherWarpsOnMap()
+                            pConfig.isOverrideGlobalOtherWarpsHide() && !pConfig.isHideOtherWarpsOnMap(),
+                            pConfig.isHideOtherWarpsOnMap()
                     );
                     pConfig.setOverrideGlobalOtherWarpsHide(newOtherWarpsVisible);
                     pConfig.setHideOtherWarpsOnMap(!newOtherWarpsVisible);
@@ -1100,8 +1083,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_all_pois":
                     if (world == null) break;
                     boolean newPoisVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalPoiHide() && !pConfig.isHideAllPoiOnMap(),
-                        pConfig.isHideAllPoiOnMap()
+                            pConfig.isOverrideGlobalPoiHide() && !pConfig.isHideAllPoiOnMap(),
+                            pConfig.isHideAllPoiOnMap()
                     );
                     pConfig.setOverrideGlobalPoiHide(newPoisVisible);
                     pConfig.setHideAllPoiOnMap(!newPoisVisible);
@@ -1112,8 +1095,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_spawn":
                     if (world == null) break;
                     boolean newSpawnVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalSpawnHide() && !pConfig.isHideSpawnOnMap(),
-                        pConfig.isHideSpawnOnMap()
+                            pConfig.isOverrideGlobalSpawnHide() && !pConfig.isHideSpawnOnMap(),
+                            pConfig.isHideSpawnOnMap()
                     );
                     pConfig.setOverrideGlobalSpawnHide(newSpawnVisible);
                     pConfig.setHideSpawnOnMap(!newSpawnVisible);
@@ -1124,8 +1107,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_death":
                     if (world == null) break;
                     boolean newDeathVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalDeathHide() && !pConfig.isHideDeathMarkerOnMap(),
-                        pConfig.isHideDeathMarkerOnMap()
+                            pConfig.isOverrideGlobalDeathHide() && !pConfig.isHideDeathMarkerOnMap(),
+                            pConfig.isHideDeathMarkerOnMap()
                     );
                     pConfig.setOverrideGlobalDeathHide(newDeathVisible);
                     pConfig.setHideDeathMarkerOnMap(!newDeathVisible);
@@ -1139,8 +1122,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "player_hide_global_waypoints":
                     if (world == null) break;
                     boolean newGlobalWaypointsVisible = determineNewVisibilityState(
-                        pConfig.isOverrideGlobalWaypointHide() && !pConfig.isHideGlobalWaypointsOnMap(),
-                        pConfig.isHideGlobalWaypointsOnMap()
+                            pConfig.isOverrideGlobalWaypointHide() && !pConfig.isHideGlobalWaypointsOnMap(),
+                            pConfig.isHideGlobalWaypointsOnMap()
                     );
                     pConfig.setOverrideGlobalWaypointHide(newGlobalWaypointsVisible);
                     pConfig.setHideGlobalWaypointsOnMap(!newGlobalWaypointsVisible);
@@ -1168,8 +1151,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         try {
             switch (data.action) {
                 case "admin_exp_radius":
-                     if (val != null) gConfig.setExplorationRadius(Integer.parseInt(val));
-                     break;
+                    if (val != null) gConfig.setExplorationRadius(Integer.parseInt(val));
+                    break;
                 case "admin_map_quality":
                     if (val != null && !val.isBlank()) {
                         try {
@@ -1223,16 +1206,16 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     }
                     break;
                 case "admin_min_scale":
-                     if (val != null) {
-                         float f = Float.parseFloat(val);
-                         gConfig.setMinScale(f);
-                     }
+                    if (val != null) {
+                        float f = Float.parseFloat(val);
+                        gConfig.setMinScale(f);
+                    }
                     break;
                 case "admin_max_scale":
-                     if (val != null) {
-                         float f2 = Float.parseFloat(val);
-                         gConfig.setMaxScale(f2);
-                     }
+                    if (val != null) {
+                        float f2 = Float.parseFloat(val);
+                        gConfig.setMaxScale(f2);
+                    }
                     break;
                 case "admin_wp_teleport":
                     if (val != null) {
@@ -1347,7 +1330,7 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     }
                     break;
                 case "admin_debug":
-                     if (val != null) gConfig.setDebug(Boolean.parseBoolean(val));
+                    if (val != null) gConfig.setDebug(Boolean.parseBoolean(val));
                     break;
                 case "admin_hstats_enabled":
                     if (val != null) {
@@ -1364,10 +1347,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                     }
                     break;
                 case "admin_radar_enabled":
-                     if (val != null) gConfig.setRadarEnabled(Boolean.parseBoolean(val));
+                    if (val != null) gConfig.setRadarEnabled(Boolean.parseBoolean(val));
                     break;
                 case "admin_radar_range":
-                     if (val != null) gConfig.setRadarRange(Integer.parseInt(val));
+                    if (val != null) gConfig.setRadarRange(Integer.parseInt(val));
                     break;
                 case "admin_marker_personal_limit":
                     if (val != null) {
@@ -1376,8 +1359,8 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         ui.set("#AdminMaxPersonalMarkers.Value", gConfig.getMaxPersonalMarkersPerPlayer());
                         sendUpdate(ui, new UIEventBuilder(), false);
                         WaypointLimitUtil.applyOverridesToAllWorlds(
-                            gConfig.getMaxPersonalMarkersPerPlayer(),
-                            gConfig.getMaxSharedMarkersPerPlayer()
+                                gConfig.getMaxPersonalMarkersPerPlayer(),
+                                gConfig.getMaxSharedMarkersPerPlayer()
                         );
                     }
                     break;
@@ -1388,34 +1371,34 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                         ui.set("#AdminMaxSharedMarkers.Value", gConfig.getMaxSharedMarkersPerPlayer());
                         sendUpdate(ui, new UIEventBuilder(), false);
                         WaypointLimitUtil.applyOverridesToAllWorlds(
-                            gConfig.getMaxPersonalMarkersPerPlayer(),
-                            gConfig.getMaxSharedMarkersPerPlayer()
+                                gConfig.getMaxPersonalMarkersPerPlayer(),
+                                gConfig.getMaxSharedMarkersPerPlayer()
                         );
                     }
                     break;
                 case "admin_hide_players":
-                     if (val != null) {
-                         gConfig.setHidePlayersOnMap(Boolean.parseBoolean(val));
-                         MapPrivacyManager.getInstance().updatePrivacyState();
-                     }
+                    if (val != null) {
+                        gConfig.setHidePlayersOnMap(Boolean.parseBoolean(val));
+                        MapPrivacyManager.getInstance().updatePrivacyState();
+                    }
                     break;
                 case "admin_hide_other_warps":
-                     if (val != null) {
-                         gConfig.setHideOtherWarpsOnMap(Boolean.parseBoolean(val));
-                         MapPrivacyManager.getInstance().updatePrivacyState();
-                     }
+                    if (val != null) {
+                        gConfig.setHideOtherWarpsOnMap(Boolean.parseBoolean(val));
+                        MapPrivacyManager.getInstance().updatePrivacyState();
+                    }
                     break;
                 case "admin_hide_unex_warps":
-                     if (val != null) {
-                         gConfig.setHideUnexploredWarpsOnMap(Boolean.parseBoolean(val));
-                         MapPrivacyManager.getInstance().updatePrivacyState();
-                     }
+                    if (val != null) {
+                        gConfig.setHideUnexploredWarpsOnMap(Boolean.parseBoolean(val));
+                        MapPrivacyManager.getInstance().updatePrivacyState();
+                    }
                     break;
                 case "admin_hide_all_pois":
-                     if (val != null) {
-                         gConfig.setHideAllPoiOnMap(Boolean.parseBoolean(val));
-                         MapPrivacyManager.getInstance().updatePrivacyState();
-                     }
+                    if (val != null) {
+                        gConfig.setHideAllPoiOnMap(Boolean.parseBoolean(val));
+                        MapPrivacyManager.getInstance().updatePrivacyState();
+                    }
                     break;
                 case "admin_hide_unex_pois":
                     if (val != null) {
@@ -1426,9 +1409,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "admin_hidden_pois":
                     if (val != null) {
                         List<String> pois = Arrays.stream(val.split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .collect(Collectors.toList());
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .collect(Collectors.toList());
                         gConfig.setHiddenPoiNames(pois);
                         MapPrivacyManager.getInstance().updatePrivacyState();
                     }
@@ -1436,9 +1419,9 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
                 case "admin_allowed_worlds":
                     if (val != null) {
                         List<String> worlds = Arrays.stream(val.split(","))
-                            .map(String::trim)
-                            .filter(s -> !s.isEmpty())
-                            .collect(Collectors.toList());
+                                .map(String::trim)
+                                .filter(s -> !s.isEmpty())
+                                .collect(Collectors.toList());
                         gConfig.setAllowedWorlds(worlds);
                     }
                     break;
@@ -1624,10 +1607,10 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
         public String getEffectiveValue() {
             if (value != null) return value;
             if (valueNum != null) {
-                 if (valueNum % 1 == 0 && !Double.isInfinite(valueNum)) {
-                     return String.valueOf(valueNum.longValue());
-                 }
-                 return String.valueOf(valueNum);
+                if (valueNum % 1 == 0 && !Double.isInfinite(valueNum)) {
+                    return String.valueOf(valueNum.longValue());
+                }
+                return String.valueOf(valueNum);
             }
             if (valueBool != null) return String.valueOf(valueBool);
             if (checked != null) return checked;
@@ -1636,11 +1619,11 @@ public class ConfigMenuPage extends InteractiveCustomUIPage<ConfigMenuPage.Confi
 
         @SuppressWarnings("deprecation")
         public static final BuilderCodec<ConfigEventData> CODEC = BuilderCodec.builder(ConfigEventData.class, ConfigEventData::new)
-            .addField(new KeyedCodec<>("Action", Codec.STRING), (o, v) -> o.action = v, o -> o.action)
-            .addField(new KeyedCodec<>("@Value", Codec.STRING), (o, v) -> o.value = v, o -> o.value)
-            .addField(new KeyedCodec<>("@ValueNum", Codec.DOUBLE), (o, v) -> o.valueNum = v, o -> o.valueNum)
-            .addField(new KeyedCodec<>("@ValueBool", Codec.BOOLEAN), (o, v) -> o.valueBool = v, o -> o.valueBool)
-            .addField(new KeyedCodec<>("@Checked", Codec.STRING), (o, v) -> o.checked = v, o -> o.checked)
-            .build();
+                .addField(new KeyedCodec<>("Action", Codec.STRING), (o, v) -> o.action = v, o -> o.action)
+                .addField(new KeyedCodec<>("@Value", Codec.STRING), (o, v) -> o.value = v, o -> o.value)
+                .addField(new KeyedCodec<>("@ValueNum", Codec.DOUBLE), (o, v) -> o.valueNum = v, o -> o.valueNum)
+                .addField(new KeyedCodec<>("@ValueBool", Codec.BOOLEAN), (o, v) -> o.valueBool = v, o -> o.valueBool)
+                .addField(new KeyedCodec<>("@Checked", Codec.STRING), (o, v) -> o.checked = v, o -> o.checked)
+                .build();
     }
 }

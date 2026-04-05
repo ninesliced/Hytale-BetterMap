@@ -3,10 +3,9 @@ package dev.ninesliced.utils;
 import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.server.core.universe.world.chunk.palette.BitFieldArr;
 
+import javax.annotation.Nullable;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
-import javax.annotation.Nullable;
 
 /**
  * Compatibility helpers for the pre-release palette-based {@link MapImage} format.
@@ -22,11 +21,11 @@ public final class MapImageCompat {
         }
         int pixelCount = image.width * image.height;
         return pixelCount > 0
-            && image.palette != null
-            && image.palette.length > 0
-            && image.packedIndices != null
-            && image.packedIndices.length > 0
-            && Byte.toUnsignedInt(image.bitsPerIndex) > 0;
+                && image.palette != null
+                && image.palette.length > 0
+                && image.packedIndices != null
+                && image.packedIndices.length > 0
+                && Byte.toUnsignedInt(image.bitsPerIndex) > 0;
     }
 
     @Nullable

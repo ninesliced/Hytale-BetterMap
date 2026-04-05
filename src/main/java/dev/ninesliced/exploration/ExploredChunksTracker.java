@@ -1,6 +1,7 @@
 package dev.ninesliced.exploration;
 
 import dev.ninesliced.components.ExplorationComponent;
+import dev.ninesliced.managers.ExplorationManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -11,18 +12,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 /**
  * Thread-safe tracker for the set of explored chunks.
  * Uses a persistent component if available, otherwise falls back to memory storage.
+ * Enforces a configurable per-player chunk cap to prevent unbounded memory growth.
  */
 public class ExploredChunksTracker {
+    private static final Logger LOGGER = Logger.getLogger(ExploredChunksTracker.class.getName());
+
     private final Set<Long> memoryExploredChunks;
     private final ExplorationComponent persistentComponent;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    
+
     private volatile long version = 0;
-    
+
     private volatile Set<Long> cachedSnapshot = null;
     private volatile long cachedSnapshotVersion = -1;
 
@@ -41,13 +46,29 @@ public class ExploredChunksTracker {
     }
 
     /**
+     * Checks whether the chunk cap has been reached.
+     * If so, new chunks will not be added.
+     */
+    private boolean isAtCapacity() {
+        int cap = ExplorationManager.getInstance().getMaxStoredChunksPerPlayer();
+        if (cap <= 0 || cap == Integer.MAX_VALUE) {
+            return false;
+        }
+        return getExploredCount() >= cap;
+    }
+
+    /**
      * Marks a single chunk as explored.
+     * Respects the per-player chunk cap — once the cap is reached, no new chunks are added.
      *
      * @param chunkIndex The chunk index to mark.
-     * @return true if the chunk was newly added, false if already explored.
+     * @return true if the chunk was newly added, false if already explored or at capacity.
      */
     public boolean markChunkExplored(long chunkIndex) {
         if (persistentComponent != null) {
+            if (isAtCapacity() && !persistentComponent.isExplored(chunkIndex)) {
+                return false;
+            }
             boolean added = persistentComponent.addExploredChunk(chunkIndex);
             if (added) {
                 version++;
@@ -58,6 +79,9 @@ public class ExploredChunksTracker {
 
         lock.writeLock().lock();
         try {
+            if (isAtCapacity() && !memoryExploredChunks.contains(chunkIndex)) {
+                return false;
+            }
             boolean added = memoryExploredChunks.add(chunkIndex);
             if (added) {
                 version++;
@@ -71,16 +95,23 @@ public class ExploredChunksTracker {
 
     /**
      * Marks multiple chunks as explored.
+     * Respects the per-player chunk cap — stops adding once the cap is reached.
      *
      * @param chunkIndices The set of chunk indices.
      * @return the number of newly added chunks.
      */
     public int markChunksExplored(@Nonnull Set<Long> chunkIndices) {
         if (chunkIndices.isEmpty()) return 0;
-        
+
+        int cap = ExplorationManager.getInstance().getMaxStoredChunksPerPlayer();
+        boolean hasCap = cap > 0 && cap != Integer.MAX_VALUE;
+
         if (persistentComponent != null) {
             int added = 0;
             for (Long chunk : chunkIndices) {
+                if (hasCap && (getExploredCount() + added) >= cap && !persistentComponent.isExplored(chunk)) {
+                    break;
+                }
                 if (persistentComponent.addExploredChunk(chunk)) {
                     added++;
                 }
@@ -94,9 +125,15 @@ public class ExploredChunksTracker {
 
         lock.writeLock().lock();
         try {
-            int sizeBefore = memoryExploredChunks.size();
-            memoryExploredChunks.addAll(chunkIndices);
-            int added = memoryExploredChunks.size() - sizeBefore;
+            int added = 0;
+            for (Long chunk : chunkIndices) {
+                if (hasCap && memoryExploredChunks.size() >= cap && !memoryExploredChunks.contains(chunk)) {
+                    break;
+                }
+                if (memoryExploredChunks.add(chunk)) {
+                    added++;
+                }
+            }
             if (added > 0) {
                 version++;
                 cachedSnapshot = null;
@@ -140,7 +177,7 @@ public class ExploredChunksTracker {
         if (snapshot != null && cachedSnapshotVersion == currentVersion) {
             return snapshot;
         }
-        
+
         if (persistentComponent != null) {
             snapshot = Collections.unmodifiableSet(new HashSet<>(persistentComponent.getExploredChunks()));
         } else {
@@ -151,12 +188,12 @@ public class ExploredChunksTracker {
                 lock.readLock().unlock();
             }
         }
-        
+
         cachedSnapshot = snapshot;
         cachedSnapshotVersion = currentVersion;
         return snapshot;
     }
-    
+
     /**
      * Iterates over all explored chunks without creating a copy.
      * This is the most efficient way to process all explored chunks.

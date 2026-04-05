@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
@@ -17,17 +18,11 @@ import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.PermissionsUtil.MarkerType;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 
 /**
  * Provides POI markers on the world map while allowing custom filtering.
@@ -64,11 +59,11 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }
             boolean overrideEnabled = canOverridePoi
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean overrideUnexploredEnabled = canOverrideUnexplored
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean hideAll = globalConfig.isHideAllPoiOnMap() && !overrideEnabled;
             boolean hideUnexplored = globalConfig.isHideUnexploredPoiOnMap() && !overrideUnexploredEnabled;
 
@@ -132,7 +127,6 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
     }
 
 
-
     private static boolean shouldHideByName(MapMarker marker, @Nullable List<String> hiddenPoiNames) {
         if (hiddenPoiNames == null || hiddenPoiNames.isEmpty()) {
             return false;
@@ -148,8 +142,8 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
                 continue;
             }
             if (normalizedHidden.equals(normalizedName)
-                || normalizedHidden.equals(normalizedId)
-                || normalizedHidden.equals(normalizedImage)) {
+                    || normalizedHidden.equals(normalizedId)
+                    || normalizedHidden.equals(normalizedImage)) {
                 return true;
             }
         }

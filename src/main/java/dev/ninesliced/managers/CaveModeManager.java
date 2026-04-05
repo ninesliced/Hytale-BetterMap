@@ -7,7 +7,6 @@ import dev.ninesliced.configs.PlayerConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,7 +14,7 @@ import java.util.logging.Logger;
 
 /**
  * Manages DYNAMIC cave mode state for players.
- * 
+ * <p>
  * The cave mode is now automatic and seamless:
  * - When a player goes underground (below surface), cave view activates in a radius around them
  * - The Y-level is divided into layers (e.g., 90-100, 80-90, 70-80, etc.)
@@ -23,61 +22,61 @@ import java.util.logging.Logger;
  * - Cave view overlay appears around the player when underground
  * - Previously explored underground areas persist
  * - When returning to surface, cave overlay disappears seamlessly
- * 
+ * <p>
  * Configuration is loaded from BetterMapConfig (config.json).
  */
 public class CaveModeManager {
     private static final Logger LOGGER = Logger.getLogger(CaveModeManager.class.getName());
     private static final CaveModeManager INSTANCE = new CaveModeManager();
-    
+
     /**
      * Minimum consecutive solid blocks above to consider player underground.
      */
     public static final int CEILING_CHECK_BLOCKS = 3;
-    
+
     private final Map<String, DynamicCaveModeState> playerStates = new ConcurrentHashMap<>();
-    
+
     private CaveModeManager() {
     }
-    
+
     @Nonnull
     public static CaveModeManager getInstance() {
         return INSTANCE;
     }
-    
-    
+
+
     /**
      * Gets the configured layer size from config.
      */
     public static int getConfigLayerSize() {
         return ModConfig.getInstance().getCaveModeLayerSize();
     }
-    
+
     /**
      * Gets the configured underground threshold from config.
      */
     public static int getConfigUndergroundThreshold() {
         return ModConfig.getInstance().getCaveModeUndergroundThreshold();
     }
-    
+
     /**
      * Gets the configured cave radius from config.
      */
     public static int getConfigCaveRadius() {
         return ModConfig.getInstance().getCaveModeRadius();
     }
-    
+
     /**
      * Checks if cave mode feature is enabled in server config.
      */
     public static boolean isConfigEnabled() {
         return ModConfig.getInstance().isCaveModeEnabled();
     }
-    
+
     /**
      * Checks if cave mode is effectively enabled for a specific player.
      * Returns true only if BOTH server config AND player config have it enabled.
-     * 
+     *
      * @param player The player to check
      * @return true if cave mode is enabled for this player
      */
@@ -91,7 +90,7 @@ public class CaveModeManager {
         }
         return true;
     }
-    
+
     /**
      * Gets the dynamic cave mode state for a player.
      */
@@ -99,7 +98,7 @@ public class CaveModeManager {
     public DynamicCaveModeState getState(@Nonnull Player player) {
         return playerStates.get(player.getDisplayName());
     }
-    
+
     /**
      * Gets the dynamic cave mode state by player name.
      */
@@ -107,7 +106,7 @@ public class CaveModeManager {
     public DynamicCaveModeState getStateByName(@Nonnull String playerName) {
         return playerStates.get(playerName);
     }
-    
+
     /**
      * Gets or creates the dynamic cave mode state for a player.
      * Initializes with values from global config and player config.
@@ -124,7 +123,7 @@ public class CaveModeManager {
             return state;
         });
     }
-    
+
     /**
      * Calculates the Y-level layer for a given Y position.
      * E.g., with layerSize=5: Y=97 -> layer 95, Y=93 -> layer 90
@@ -132,60 +131,60 @@ public class CaveModeManager {
     public static int getLayerForY(int y, int layerSize) {
         return (y / layerSize) * layerSize;
     }
-    
+
     /**
      * Calculates the Y-level layer using default layer size.
      */
     public static int getLayerForY(int y) {
         return getLayerForY(y, getConfigLayerSize());
     }
-    
+
     /**
      * Gets the layer range (min Y, max Y) for a given layer.
      */
     public static int[] getLayerRange(int layer, int layerSize) {
-        return new int[] { layer, layer + layerSize };
+        return new int[]{layer, layer + layerSize};
     }
-    
+
     /**
      * Gets the layer range using default layer size.
      */
     public static int[] getLayerRange(int layer) {
         return getLayerRange(layer, getConfigLayerSize());
     }
-    
+
     /**
      * Updates the player's underground state based on their position.
      * Call this every tick to update the dynamic cave mode.
-     * 
-     * @param player The player.
-     * @param playerY The player's Y position.
+     *
+     * @param player     The player.
+     * @param playerY    The player's Y position.
      * @param hasCeiling Whether there are solid blocks above the player.
      * @return True if the UNDERGROUND state changed (entered or exited caves).
-     *         Layer changes within caves do NOT return true here.
+     * Layer changes within caves do NOT return true here.
      */
     public boolean updateUndergroundState(@Nonnull Player player, int playerY, boolean hasCeiling) {
         DynamicCaveModeState state = getOrCreateState(player);
-        
+
         boolean wasUnderground = state.isCurrentlyUnderground();
         int oldLayer = state.getCurrentLayer();
-        
+
         int threshold = state.getUndergroundThreshold();
         int layerSize = state.getLayerSize();
-        
+
         boolean isUnderground = state.isDynamicModeEnabled() && playerY < threshold && hasCeiling;
-        
+
         int newLayer = getLayerForY(playerY, layerSize);
-        
+
         state.setCurrentlyUnderground(isUnderground);
         state.setPlayerY(playerY);
-        
+
         if (isUnderground) {
             if (oldLayer != newLayer && wasUnderground) {
                 state.setPreviousLayer(oldLayer);
                 state.setLayerChanged(true);
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
-                           " changed layer from " + oldLayer + " to " + newLayer);
+                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() +
+                        " changed layer from " + oldLayer + " to " + newLayer);
             } else {
                 state.setLayerChanged(false);
             }
@@ -194,22 +193,22 @@ public class CaveModeManager {
         } else {
             state.setLayerChanged(false);
         }
-        
+
         boolean undergroundStateChanged = (wasUnderground != isUnderground);
-        
+
         if (undergroundStateChanged) {
             if (isUnderground) {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
-                           " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + layerSize) + ")");
+                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() +
+                        " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + layerSize) + ")");
             } else {
-                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() + 
-                           " returned to surface from Y=" + playerY);
+                LOGGER.info("[DYNAMIC CAVE] Player " + player.getDisplayName() +
+                        " returned to surface from Y=" + playerY);
             }
         }
-        
+
         return undergroundStateChanged;
     }
-    
+
     /**
      * Checks if the player changed layers while underground.
      */
@@ -217,7 +216,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null && state.isLayerChanged();
     }
-    
+
     /**
      * Gets the previous layer before the last change.
      */
@@ -225,7 +224,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null ? state.getPreviousLayer() : 0;
     }
-    
+
     /**
      * Checks if dynamic cave mode is enabled for a player.
      * Checks both server config and player config.
@@ -237,7 +236,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state == null || state.isDynamicModeEnabled();
     }
-    
+
     /**
      * Checks if a player is currently underground (needs cave view).
      * Returns false if cave mode is disabled for this player.
@@ -249,7 +248,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null && state.isCurrentlyUnderground();
     }
-    
+
     /**
      * Gets the cave view radius for a player (in chunks).
      */
@@ -257,7 +256,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null ? state.getCaveRadius() : getConfigCaveRadius();
     }
-    
+
     /**
      * Gets the current layer Y-level for cave rendering.
      */
@@ -268,14 +267,14 @@ public class CaveModeManager {
         }
         return state.getCurrentLayer() + (state.getLayerSize() / 2);
     }
-    
+
     /**
      * Removes a player from the manager (on disconnect).
      */
     public void removePlayer(@Nonnull Player player) {
         playerStates.remove(player.getDisplayName());
     }
-    
+
     /**
      * Removes a player from the manager by name (on disconnect when Player object unavailable).
      */
@@ -322,30 +321,30 @@ public class CaveModeManager {
         }
         return resetCount;
     }
-    
+
     public void enableCaveMode(@Nonnull Player player, int yLevel) {
         DynamicCaveModeState state = getOrCreateState(player);
         state.setCurrentlyUnderground(true);
         state.setCurrentLayer(getLayerForY(yLevel));
         state.setPlayerY(yLevel);
     }
-    
+
     public void enableCaveMode(@Nonnull Player player, int yLevel, int verticalRange) {
         enableCaveMode(player, yLevel);
     }
-    
+
     public void enableAutoCaveMode(@Nonnull Player player) {
         DynamicCaveModeState state = getOrCreateState(player);
         state.setDynamicModeEnabled(true);
     }
-    
+
     public void disableCaveMode(@Nonnull Player player) {
         DynamicCaveModeState state = getState(player);
         if (state != null) {
             state.setCurrentlyUnderground(false);
         }
     }
-    
+
     public boolean toggleCaveMode(@Nonnull Player player, int yLevel) {
         if (isPlayerUnderground(player)) {
             disableCaveMode(player);
@@ -355,7 +354,7 @@ public class CaveModeManager {
             return true;
         }
     }
-    
+
     public void updateYLevel(@Nonnull Player player, int yLevel) {
         DynamicCaveModeState state = getState(player);
         if (state != null && state.isCurrentlyUnderground()) {
@@ -363,13 +362,13 @@ public class CaveModeManager {
             state.setCurrentLayer(getLayerForY(yLevel, state.getLayerSize()));
         }
     }
-    
+
     public boolean shouldAutoActivate(@Nonnull Player player, int playerY, int skylight) {
         DynamicCaveModeState state = getState(player);
         int threshold = state != null ? state.getUndergroundThreshold() : getConfigUndergroundThreshold();
         return playerY < threshold && skylight < 15;
     }
-    
+
     /**
      * Gets the player's layer size.
      */
@@ -377,7 +376,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null ? state.getLayerSize() : getConfigLayerSize();
     }
-    
+
     /**
      * Gets the player's underground threshold.
      */
@@ -385,7 +384,7 @@ public class CaveModeManager {
         DynamicCaveModeState state = getState(player);
         return state != null ? state.getUndergroundThreshold() : getConfigUndergroundThreshold();
     }
-    
+
     /**
      * Configures the player's cave mode settings.
      */
@@ -404,8 +403,8 @@ public class CaveModeManager {
         int clampedRadius = Math.max(1, Math.min(radius, 16));
         playerStates.values().forEach(state -> state.setCaveRadius(clampedRadius));
     }
-    
-    
+
+
     /**
      * Holds the dynamic cave mode state for a single player.
      * Tracks underground detection, layer position, and explored cave chunks.
@@ -422,101 +421,107 @@ public class CaveModeManager {
         private int caveRadius = 8;
         private long lastLayerChangeTime = 0;
         private boolean needsLayerRefresh = false;
-        
+
         private int layerSize = 5;
         private int undergroundThreshold = 100;
-        
+
         private final Set<Long> exploredCaveChunks = ConcurrentHashMap.newKeySet();
-        
+
         private final Set<Long> loadedCaveChunks = ConcurrentHashMap.newKeySet();
-        
+
         private final Set<Long> pendingCaveChunks = ConcurrentHashMap.newKeySet();
 
         private volatile long lastOverlayUpdateMs = 0L;
         private volatile int lastOverlayMapChunkX = Integer.MIN_VALUE;
         private volatile int lastOverlayMapChunkZ = Integer.MIN_VALUE;
-        
-        /** Cached target cave chunks - only recomputed when player moves map chunk */
+
+        /**
+         * Cached target cave chunks - only recomputed when player moves map chunk
+         */
         private volatile Set<Long> cachedTargetChunks = null;
-        /** Sorted by distance from player (nearest first) - used for progressive loading */
+        /**
+         * Sorted by distance from player (nearest first) - used for progressive loading
+         */
         private volatile java.util.List<Long> cachedTargetSorted = null;
         private volatile int cachedTargetMapChunkX = Integer.MIN_VALUE;
         private volatile int cachedTargetMapChunkZ = Integer.MIN_VALUE;
-        
-        /** Flag to prevent concurrent cave overlay processing */
+
+        /**
+         * Flag to prevent concurrent cave overlay processing
+         */
         private volatile boolean caveProcessingInProgress = false;
-        
+
         public boolean isDynamicModeEnabled() {
             return dynamicModeEnabled;
         }
-        
+
         public void setDynamicModeEnabled(boolean enabled) {
             this.dynamicModeEnabled = enabled;
         }
-        
+
         public boolean needsLayerRefresh() {
             return needsLayerRefresh;
         }
-        
+
         public void setNeedsLayerRefresh(boolean needs) {
             this.needsLayerRefresh = needs;
         }
-        
+
         public boolean isLayerChanged() {
             return layerChanged;
         }
-        
+
         public void setLayerChanged(boolean changed) {
             this.layerChanged = changed;
         }
-        
+
         public int getPreviousLayer() {
             return previousLayer;
         }
-        
+
         public void setPreviousLayer(int layer) {
             this.previousLayer = layer;
         }
-        
+
         public boolean isCurrentlyUnderground() {
             return currentlyUnderground;
         }
-        
+
         public void setCurrentlyUnderground(boolean underground) {
             this.currentlyUnderground = underground;
         }
-        
+
         public int getPlayerY() {
             return playerY;
         }
-        
+
         public void setPlayerY(int y) {
             this.playerY = y;
         }
-        
+
         public int getCurrentLayer() {
             return currentLayer;
         }
-        
+
         public void setCurrentLayer(int layer) {
             if (this.currentLayer != layer) {
                 this.lastLayerChangeTime = System.currentTimeMillis();
             }
             this.currentLayer = layer;
         }
-        
+
         public int getLastUndergroundLayer() {
             return lastUndergroundLayer;
         }
-        
+
         public void setLastUndergroundLayer(int layer) {
             this.lastUndergroundLayer = layer;
         }
-        
+
         public int getCaveRadius() {
             return caveRadius;
         }
-        
+
         public void setCaveRadius(int radius) {
             int clamped = Math.max(1, Math.min(radius, 16));
             if (this.caveRadius != clamped) {
@@ -530,36 +535,37 @@ public class CaveModeManager {
             }
             this.caveRadius = clamped;
         }
-        
+
         public long getLastLayerChangeTime() {
             return lastLayerChangeTime;
         }
-                
+
         public int getLayerSize() {
             return layerSize;
         }
-        
+
         public void setLayerSize(int size) {
             this.layerSize = Math.max(1, Math.min(size, 20));
         }
-        
+
         public int getUndergroundThreshold() {
             return undergroundThreshold;
         }
-        
+
         public void setUndergroundThreshold(int threshold) {
             this.undergroundThreshold = Math.max(0, Math.min(threshold, 319));
         }
-        
+
         /**
          * Gets all explored cave chunks (flat set, no layer separation).
          */
         public Set<Long> getExploredCaveChunks() {
             return exploredCaveChunks;
         }
-        
+
         /**
          * Loads persisted cave exploration data.
+         *
          * @param chunks Set of explored chunk indices
          */
         public void loadExploredChunks(Set<Long> chunks) {
@@ -567,18 +573,18 @@ public class CaveModeManager {
                 exploredCaveChunks.addAll(chunks);
             }
         }
-        
+
         /**
          * Marks a chunk as explored in caves.
          */
         public void markCaveChunkExplored(long chunkIdx) {
             exploredCaveChunks.add(chunkIdx);
         }
-        
+
         public Set<Long> getLoadedCaveChunks() {
             return loadedCaveChunks;
         }
-        
+
         public Set<Long> getPendingCaveChunks() {
             return pendingCaveChunks;
         }
@@ -603,26 +609,37 @@ public class CaveModeManager {
             this.lastOverlayMapChunkX = mapChunkX;
             this.lastOverlayMapChunkZ = mapChunkZ;
         }
-        
-        public Set<Long> getCachedTargetChunks() { return cachedTargetChunks; }
-        public void setCachedTargetChunks(Set<Long> targets) { this.cachedTargetChunks = targets; }
-        /** Gets target chunks sorted nearest-first for progressive loading */
-        public java.util.List<Long> getCachedTargetSorted() { return cachedTargetSorted; }
-        public void setCachedTargetSorted(java.util.List<Long> sorted) { this.cachedTargetSorted = sorted; }
-        public int getCachedTargetMapChunkX() { return cachedTargetMapChunkX; }
-        public int getCachedTargetMapChunkZ() { return cachedTargetMapChunkZ; }
+
+        public Set<Long> getCachedTargetChunks() {return cachedTargetChunks;}
+
+        public void setCachedTargetChunks(Set<Long> targets) {this.cachedTargetChunks = targets;}
+
+        /**
+         * Gets target chunks sorted nearest-first for progressive loading
+         */
+        public java.util.List<Long> getCachedTargetSorted() {return cachedTargetSorted;}
+
+        public void setCachedTargetSorted(java.util.List<Long> sorted) {this.cachedTargetSorted = sorted;}
+
+        public int getCachedTargetMapChunkX() {return cachedTargetMapChunkX;}
+
+        public int getCachedTargetMapChunkZ() {return cachedTargetMapChunkZ;}
+
         public void setCachedTargetPosition(int mx, int mz) {
             this.cachedTargetMapChunkX = mx;
             this.cachedTargetMapChunkZ = mz;
         }
+
         public void invalidateTargetCache() {
             this.cachedTargetChunks = null;
             this.cachedTargetSorted = null;
             this.cachedTargetMapChunkX = Integer.MIN_VALUE;
             this.cachedTargetMapChunkZ = Integer.MIN_VALUE;
         }
-        public boolean isCaveProcessingInProgress() { return caveProcessingInProgress; }
-        public void setCaveProcessingInProgress(boolean inProgress) { this.caveProcessingInProgress = inProgress; }
+
+        public boolean isCaveProcessingInProgress() {return caveProcessingInProgress;}
+
+        public void setCaveProcessingInProgress(boolean inProgress) {this.caveProcessingInProgress = inProgress;}
 
         /**
          * Clears loaded cave chunks (when transitioning to surface).
@@ -632,14 +649,14 @@ public class CaveModeManager {
             pendingCaveChunks.clear();
             invalidateTargetCache();
         }
-        
+
         /**
          * Gets the Y level for rendering (middle of layer + offset based on player position).
          */
         public int getRenderYLevel() {
             return playerY;
         }
-        
+
         /**
          * Gets the vertical range for the layer.
          */

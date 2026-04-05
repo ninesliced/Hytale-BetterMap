@@ -63,7 +63,7 @@ public class PlayerMinScaleCommand extends AbstractCommand {
                 world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                 context.sendMessage(Message.raw("Set player min scale to " + scale).color(Color.GREEN));
             } else {
-                 context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));
+                context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));
             }
         });
     }

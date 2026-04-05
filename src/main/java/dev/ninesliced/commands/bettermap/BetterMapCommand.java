@@ -1,29 +1,12 @@
 package dev.ninesliced.commands.bettermap;
 
-import java.awt.Color;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-
-import dev.ninesliced.commands.PlayerHiddenPoiCommand;
-import dev.ninesliced.commands.PlayerHideAllPoiCommand;
-import dev.ninesliced.commands.PlayerHideAllWarpsCommand;
-import dev.ninesliced.commands.PlayerHideDeathCommand;
-import dev.ninesliced.commands.PlayerHideGlobalWaypointsCommand;
-import dev.ninesliced.commands.PlayerHideOtherWarpsCommand;
-import dev.ninesliced.commands.PlayerHidePersonalWaypointsCommand;
-import dev.ninesliced.commands.PlayerHidePlayersCommand;
-import dev.ninesliced.commands.PlayerHideSpawnCommand;
-import dev.ninesliced.commands.PlayerResetPrivacyCommand;
+import dev.ninesliced.commands.*;
 import dev.ninesliced.commands.bettermap.config.ConfigCommand;
 import dev.ninesliced.commands.bettermap.waypoint.WaypointCommand;
 import dev.ninesliced.configs.ModConfig;
@@ -31,6 +14,12 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.ui.ConfigMenuPage;
 import dev.ninesliced.utils.PermissionsUtil;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
 /**
  * Main command for the BetterMap mod.
@@ -139,20 +128,21 @@ public class BetterMapCommand extends AbstractCommand {
             int hiddenCount = config.getHiddenPoiNames() != null ? config.getHiddenPoiNames().size() : 0;
             context.sendMessage(Message.raw("Hidden POI Names: ").color(Color.YELLOW).insert(Message.raw(hiddenCount + " entries").color(Color.WHITE)));
             context.sendMessage(Message.raw("World Border: ").color(Color.YELLOW).insert(Message.raw(config.isWorldBorderEnabled() ? "Enabled" : "Disabled").color(Color.WHITE)));
-        context.sendMessage(Message.raw("World Border Radius: ").color(Color.YELLOW).insert(Message.raw(config.getWorldBorderRadius() + " blocks").color(Color.WHITE)));
-        context.sendMessage(Message.raw("World Border Offset: ").color(Color.YELLOW).insert(Message.raw("X: " + config.getWorldBorderOffsetX() + ", Z: " + config.getWorldBorderOffsetZ()).color(Color.WHITE)));
-        context.sendMessage(Message.raw("NOTE: The server must be restarted for map quality/max chunks changes to take effect."));}
+            context.sendMessage(Message.raw("World Border Radius: ").color(Color.YELLOW).insert(Message.raw(config.getWorldBorderRadius() + " blocks").color(Color.WHITE)));
+            context.sendMessage(Message.raw("World Border Offset: ").color(Color.YELLOW).insert(Message.raw("X: " + config.getWorldBorderOffsetX() + ", Z: " + config.getWorldBorderOffsetZ()).color(Color.WHITE)));
+            context.sendMessage(Message.raw("NOTE: The server must be restarted for map quality/max chunks changes to take effect."));
+        }
 
         if (player != null) {
             PlayerConfig playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(((CommandSender) player).getUuid());
             if (playerConfig != null) {
                 boolean hasAnyOverride = isAdmin
-                    || PermissionsUtil.canOverridePoi(player)
-                    || PermissionsUtil.canOverrideSpawn(player)
-                    || PermissionsUtil.canOverrideDeath(player)
-                    || PermissionsUtil.canOverridePlayers(player)
-                    || PermissionsUtil.canOverrideWarps(player)
-                    || PermissionsUtil.canOverrideWaypoints(player);
+                        || PermissionsUtil.canOverridePoi(player)
+                        || PermissionsUtil.canOverrideSpawn(player)
+                        || PermissionsUtil.canOverrideDeath(player)
+                        || PermissionsUtil.canOverridePlayers(player)
+                        || PermissionsUtil.canOverrideWarps(player)
+                        || PermissionsUtil.canOverrideWaypoints(player);
 
                 if (hasAnyOverride) {
                     context.sendMessage(Message.raw("=== Your Override Settings ===").color(Color.CYAN));
@@ -160,44 +150,44 @@ public class BetterMapCommand extends AbstractCommand {
                     if (isAdmin || PermissionsUtil.canOverridePoi(player)) {
                         String poiOverride = playerConfig.isOverrideGlobalPoiHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide All POI: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideAllPoiOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + poiOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideAllPoiOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + poiOverride).color(Color.GREEN)));
                     }
                     if (isAdmin || PermissionsUtil.canOverrideSpawn(player)) {
                         String spawnOverride = playerConfig.isOverrideGlobalSpawnHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide Spawn: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideSpawnOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + spawnOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideSpawnOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + spawnOverride).color(Color.GREEN)));
                     }
                     if (isAdmin || PermissionsUtil.canOverrideDeath(player)) {
                         String deathOverride = playerConfig.isOverrideGlobalDeathHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide Death: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideDeathMarkerOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + deathOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideDeathMarkerOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + deathOverride).color(Color.GREEN)));
                     }
                     if (isAdmin || PermissionsUtil.canOverridePlayers(player)) {
                         String playersOverride = playerConfig.isOverrideGlobalPlayersHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide Players: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHidePlayersOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + playersOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHidePlayersOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + playersOverride).color(Color.GREEN)));
                     }
                     if (isAdmin || PermissionsUtil.canOverrideWarps(player)) {
                         String allWarpsOverride = playerConfig.isOverrideGlobalAllWarpsHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide All Warps: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideAllWarpsOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + allWarpsOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideAllWarpsOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + allWarpsOverride).color(Color.GREEN)));
                         String otherWarpsOverride = playerConfig.isOverrideGlobalOtherWarpsHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide Other Warps: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideOtherWarpsOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + otherWarpsOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideOtherWarpsOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + otherWarpsOverride).color(Color.GREEN)));
                     }
                     if (isAdmin || PermissionsUtil.canOverrideWaypoints(player)) {
                         String waypointOverride = playerConfig.isOverrideGlobalWaypointHide() ? "[OVERRIDE]" : "";
                         context.sendMessage(Message.raw("Hide Global Waypoints: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHideGlobalWaypointsOnMap() ? "Yes" : "No").color(Color.WHITE))
-                            .insert(Message.raw(" " + waypointOverride).color(Color.GREEN)));
+                                .insert(Message.raw(playerConfig.isHideGlobalWaypointsOnMap() ? "Yes" : "No").color(Color.WHITE))
+                                .insert(Message.raw(" " + waypointOverride).color(Color.GREEN)));
                         context.sendMessage(Message.raw("Hide Personal Waypoints: ").color(Color.YELLOW)
-                            .insert(Message.raw(playerConfig.isHidePersonalWaypointsOnMap() ? "Yes" : "No").color(Color.WHITE)));
+                                .insert(Message.raw(playerConfig.isHidePersonalWaypointsOnMap() ? "Yes" : "No").color(Color.WHITE)));
                     }
                 }
             }

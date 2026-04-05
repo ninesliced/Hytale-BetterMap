@@ -1,26 +1,24 @@
 package dev.ninesliced.commands;
 
-import java.awt.Color;
-import java.util.ArrayList;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
-
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class PlayerResetPrivacyCommand extends AbstractCommand {
 

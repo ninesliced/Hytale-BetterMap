@@ -5,11 +5,12 @@ import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MarkersCollector;
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -20,15 +21,11 @@ import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
+
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 
 public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProvider {
     public static final String PROVIDER_ID = "blockMapMarkers";
@@ -39,7 +36,7 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
     public void update(World world, Player viewer, MarkersCollector collector) {
         try {
             BlockMapMarkersResource resource = world.getChunkStore().getStore()
-                .getResource(BlockMapMarkersResource.getResourceType());
+                    .getResource(BlockMapMarkersResource.getResourceType());
             if (resource == null) {
                 return;
             }
@@ -58,11 +55,11 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }
             boolean overrideEnabled = canOverridePoi
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean overrideUnexploredEnabled = canOverrideUnexplored
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean hideAll = globalConfig.isHideAllPoiOnMap() && !overrideEnabled;
             boolean hideUnexplored = globalConfig.isHideUnexploredPoiOnMap() && !overrideUnexploredEnabled;
 
@@ -127,12 +124,12 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 displayName.rawText = name;
 
                 MapMarker marker = new MapMarker(
-                    markerData.getMarkerId(),
-                    displayName,
-                    icon,
-                    transform,
-                    null,
-                    null
+                        markerData.getMarkerId(),
+                        displayName,
+                        icon,
+                        transform,
+                        null,
+                        null
                 );
                 MarkerTeleportUtil.injectTeleportContextMenu(marker, viewer, PermissionsUtil.MarkerType.POI);
                 collector.add(marker);

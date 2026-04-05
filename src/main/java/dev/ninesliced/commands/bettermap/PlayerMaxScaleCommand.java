@@ -63,7 +63,7 @@ public class PlayerMaxScaleCommand extends AbstractCommand {
                 world.execute(() -> WorldMapHook.sendMapSettingsToPlayer(player));
                 context.sendMessage(Message.raw("Set player max scale to " + scale).color(Color.GREEN));
             } else {
-                 context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));
+                context.sendMessage(Message.raw("Could not load player config.").color(Color.RED));
             }
         } catch (Exception e) {
             context.sendMessage(Message.raw("Error setting max scale: " + e.getMessage()).color(Color.RED));

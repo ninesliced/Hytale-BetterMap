@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 public class ExtendedTeleportIntegration {
     private static final Logger LOGGER = Logger.getLogger(ExtendedTeleportIntegration.class.getName());
     private static ExtendedTeleportIntegration instance;
-    
+
     private boolean available = false;
     private boolean initializationAttempted = false;
     private Method getInstanceMethod;
@@ -31,23 +31,23 @@ public class ExtendedTeleportIntegration {
             return;
         }
         initializationAttempted = true;
-        
+
         try {
             Class<?> managerClass = Class.forName("com.hytale.extendedteleport.TeleporterManager");
-            
+
             getInstanceMethod = managerClass.getMethod("getInstance");
-            
+
             Object manager = getInstanceMethod.invoke(null);
             if (manager == null) {
                 initializationAttempted = false;
                 return;
             }
-            
+
             getTeleporterByWarpNameMethod = managerClass.getMethod("getTeleporterByWarpName", String.class);
-            
+
             Class<?> teleporterInfoClass = Class.forName("com.hytale.extendedteleport.data.TeleporterInfo");
             isOwnerMethod = teleporterInfoClass.getMethod("isOwner", UUID.class);
-            
+
             getOwnerUuidMethod = teleporterInfoClass.getMethod("getOwnerUuid");
 
             available = true;

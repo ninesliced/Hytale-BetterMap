@@ -11,12 +11,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChunkUtil {
     private static final int CHUNK_SIZE = 16;
-    
+
     /**
      * Cache of pre-computed circular offsets for each radius.
      */
     private static final Map<Integer, int[][]> CIRCULAR_OFFSETS_CACHE = new ConcurrentHashMap<>();
-    
+
     /**
      * Thread-local reusable set to avoid creating new HashSets.
      */
@@ -24,7 +24,7 @@ public class ChunkUtil {
 
     /**
      * Packs chunk coordinates into a long index.
-     *  
+     *
      * @param chunkX Chunk X.
      * @param chunkZ Chunk Z.
      * @return Packed index.
@@ -35,7 +35,7 @@ public class ChunkUtil {
 
     /**
      * Extracts X coordinate from packed index.
-     * 
+     *
      * @param index Packed index.
      * @return Chunk X.
      */
@@ -45,7 +45,7 @@ public class ChunkUtil {
 
     /**
      * Extracts Z coordinate from packed index.
-     * 
+     *
      * @param index Packed index.
      * @return Chunk Z.
      */
@@ -55,6 +55,7 @@ public class ChunkUtil {
 
     /**
      * Converts a block coordinate to a chunk coordinate.
+     *
      * @param blockCoord Block coordinate.
      * @return Chunk coordinate.
      */
@@ -73,9 +74,9 @@ public class ChunkUtil {
     @Nonnull
     public static Set<Long> getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks) {
         int[][] offsets = getCircularOffsets(radiusChunks);
-        
+
         Set<Long> chunks = new HashSet<>(offsets.length + offsets.length / 3);
-        
+
         for (int[] offset : offsets) {
             int chunkX = saturatedAdd(centerChunkX, offset[0]);
             int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
@@ -84,21 +85,21 @@ public class ChunkUtil {
 
         return chunks;
     }
-    
+
     /**
      * Gets a set of chunk indices within a circular radius, reusing the provided set.
      */
     public static void getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks, @Nonnull Set<Long> targetSet) {
         targetSet.clear();
         int[][] offsets = getCircularOffsets(radiusChunks);
-        
+
         for (int[] offset : offsets) {
             int chunkX = saturatedAdd(centerChunkX, offset[0]);
             int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
             targetSet.add(chunkCoordsToIndex(chunkX, chunkZ));
         }
     }
-    
+
     /**
      * Gets or computes the circular offsets for a given radius.
      */
@@ -114,9 +115,9 @@ public class ChunkUtil {
             CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
             return offsets;
         }
-        
+
         long radiusSquared = (long) radiusChunks * radiusChunks;
-        
+
         int count = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
@@ -127,7 +128,7 @@ public class ChunkUtil {
                 }
             }
         }
-        
+
         int[][] offsets = new int[count][2];
         int index = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
@@ -141,11 +142,11 @@ public class ChunkUtil {
                 }
             }
         }
-        
+
         CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
         return offsets;
     }
-    
+
     /**
      * Gets a thread-local reusable set for temporary chunk operations.
      */

@@ -10,7 +10,6 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.UserMarkerProviderManager;
-import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;
@@ -50,8 +49,8 @@ public class PlayerHideGlobalWaypointsCommand extends AbstractCommand {
 
         return CompletableFuture.runAsync(() -> {
             boolean newWantsVisible = determineNewVisibilityState(
-                config.isOverrideGlobalWaypointHide() && !config.isHideGlobalWaypointsOnMap(),
-                config.isHideGlobalWaypointsOnMap()
+                    config.isOverrideGlobalWaypointHide() && !config.isHideGlobalWaypointsOnMap(),
+                    config.isHideGlobalWaypointsOnMap()
             );
 
             config.setOverrideGlobalWaypointHide(newWantsVisible);
@@ -72,9 +71,6 @@ public class PlayerHideGlobalWaypointsCommand extends AbstractCommand {
     private boolean determineNewVisibilityState(boolean currentlyWantsVisible, boolean currentlyWantsHidden) {
         if (currentlyWantsVisible) {
             return false;
-        } else if (currentlyWantsHidden) {
-            return true;
-        }
-        return false;
+        } else return currentlyWantsHidden;
     }
 }

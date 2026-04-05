@@ -24,7 +24,7 @@ import java.util.logging.Logger;
 public final class WaypointYPersistence {
     private static final Logger LOGGER = Logger.getLogger(WaypointYPersistence.class.getName());
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Type FILE_TYPE = new TypeToken<Map<String, Double>>() { }.getType();
+    private static final Type FILE_TYPE = new TypeToken<Map<String, Double>>() {}.getType();
 
     private static final WaypointYPersistence INSTANCE = new WaypointYPersistence();
 

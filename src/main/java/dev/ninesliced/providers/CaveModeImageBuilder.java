@@ -20,7 +20,7 @@ import java.util.logging.Logger;
 
 /**
  * Advanced cave mode image builder inspired by Xaero's Minimap layered cave rendering.
- * 
+ * <p>
  * Key features:
  * - Multi-layer scanning: Scans a range of Y levels and composites them
  * - Depth-based coloring: Deeper areas are darker, shallower areas brighter (legible cave maps)
@@ -32,7 +32,7 @@ import java.util.logging.Logger;
  */
 public class CaveModeImageBuilder {
     private static final Logger LOGGER = Logger.getLogger(CaveModeImageBuilder.class.getName());
-    
+
     private static final int COLOR_FLOOR_HIGH = packColor(120, 106, 92, 255);
     private static final int COLOR_FLOOR_MID = packColor(92, 80, 70, 255);
     private static final int COLOR_FLOOR_LOW = packColor(66, 56, 49, 255);
@@ -42,18 +42,18 @@ public class CaveModeImageBuilder {
 
     private static final int COLOR_AIR_SPACE = packColor(26, 24, 33, 230);
     private static final int COLOR_UNEXPLORED = packColor(8, 9, 14, 255);
-    
+
     private static final int COLOR_LAVA_CORE = packColor(255, 132, 30, 255);
     private static final int COLOR_LAVA_EDGE = packColor(255, 72, 14, 255);
     private static final int COLOR_WATER_DEEP = packColor(30, 80, 160, 230);
     private static final int COLOR_WATER_SHALLOW = packColor(70, 150, 220, 200);
-    
+
     private static final int COLOR_CAVE_TINY = packColor(64, 56, 50, 255);
     private static final int COLOR_CAVE_SMALL = packColor(84, 73, 64, 255);
     private static final int COLOR_CAVE_MEDIUM = packColor(110, 97, 84, 255);
     private static final int COLOR_CAVE_LARGE = packColor(136, 121, 103, 255);
     private static final int COLOR_CAVE_HUGE = packColor(165, 146, 125, 255);
-    
+
     private final long index;
     private final World world;
     @Nonnull
@@ -65,16 +65,17 @@ public class CaveModeImageBuilder {
     private final int blockStepZ;
     private final int targetYLevel;
     private final int verticalRange;
-    
-    @Nonnull private final CaveColumnData[] columnData;
-    
+
+    @Nonnull
+    private final CaveColumnData[] columnData;
+
     private final Color outColor = new Color();
     private final Color scratchColorA = new Color();
     private final Color scratchColorB = new Color();
     @Nullable
     private WorldChunk worldChunk;
     private FluidSection[] fluidSections;
-    
+
     /**
      * Creates a new cave mode image builder.
      */
@@ -89,52 +90,52 @@ public class CaveModeImageBuilder {
         this.blockStepZ = Math.max(1, 32 / imageHeight);
         this.targetYLevel = yLevel;
         this.verticalRange = Math.max(range, 12);
-        
+
         this.columnData = new CaveColumnData[sampleWidth * sampleHeight];
         for (int i = 0; i < columnData.length; i++) {
             columnData[i] = new CaveColumnData();
         }
     }
-    
+
     public long getIndex() {
         return index;
     }
-    
+
     @Nonnull
     public MapImage getImage() {
         return image;
     }
-    
+
     @Nonnull
     private CompletableFuture<CaveModeImageBuilder> fetchChunk() {
         return world.getChunkStore().getChunkReferenceAsync(index)
-            .thenApplyAsync(ref -> {
-                try {
-                    if (ref != null && ref.isValid()) {
-                        this.worldChunk = ref.getStore().getComponent((Ref<ChunkStore>) ref, WorldChunk.getComponentType());
-                        ChunkColumn chunkColumn = ref.getStore().getComponent((Ref<ChunkStore>) ref, ChunkColumn.getComponentType());
-                        this.fluidSections = new FluidSection[10];
-                        
-                        for (int y = 0; y < 10; y++) {
-                            Ref<ChunkStore> sectionRef = chunkColumn.getSection(y);
-                            this.fluidSections[y] = world.getChunkStore().getStore().getComponent(sectionRef, FluidSection.getComponentType());
+                .thenApplyAsync(ref -> {
+                    try {
+                        if (ref != null && ref.isValid()) {
+                            this.worldChunk = ref.getStore().getComponent(ref, WorldChunk.getComponentType());
+                            ChunkColumn chunkColumn = ref.getStore().getComponent(ref, ChunkColumn.getComponentType());
+                            this.fluidSections = new FluidSection[10];
+
+                            for (int y = 0; y < 10; y++) {
+                                Ref<ChunkStore> sectionRef = chunkColumn.getSection(y);
+                                this.fluidSections[y] = world.getChunkStore().getStore().getComponent(sectionRef, FluidSection.getComponentType());
+                            }
+
+                            return this;
+                        } else {
+                            return null;
                         }
-                        
-                        return this;
-                    } else {
+                    } catch (Exception e) {
+                        LOGGER.fine("Failed to fetch chunk " + index + ": " + e.getMessage());
                         return null;
                     }
-                } catch (Exception e) {
-                    LOGGER.fine("Failed to fetch chunk " + index + ": " + e.getMessage());
+                }, world)
+                .exceptionally(ex -> {
+                    LOGGER.fine("Exception fetching chunk " + index + ": " + ex.getMessage());
                     return null;
-                }
-            }, world)
-            .exceptionally(ex -> {
-                LOGGER.fine("Exception fetching chunk " + index + ": " + ex.getMessage());
-                return null;
-            });
+                });
     }
-    
+
     /**
      * Generates the cave map image using multi-layer analysis.
      */
@@ -148,21 +149,21 @@ public class CaveModeImageBuilder {
             this.image = MapImageCompat.fromRawPixels(image.width, image.height, rawPixels);
             return this;
         }
-        
+
         for (int ix = 0; ix < sampleWidth; ix++) {
             for (int iz = 0; iz < sampleHeight; iz++) {
                 int sampleIndex = iz * sampleWidth + ix;
                 int x = ix * blockStepX;
                 int z = iz * blockStepZ;
-                
+
                 scanColumnMultiLayer(x, z, columnData[sampleIndex]);
             }
         }
-        
+
         int globalMinFloorY = Integer.MAX_VALUE;
         int globalMaxFloorY = Integer.MIN_VALUE;
         int globalMaxCaveHeight = 0;
-        
+
         for (CaveColumnData col : columnData) {
             if (col.hasValidFloor) {
                 globalMinFloorY = Math.min(globalMinFloorY, col.floorY);
@@ -170,58 +171,58 @@ public class CaveModeImageBuilder {
                 globalMaxCaveHeight = Math.max(globalMaxCaveHeight, col.caveHeight);
             }
         }
-        
+
         if (globalMinFloorY == Integer.MAX_VALUE) {
             globalMinFloorY = targetYLevel - verticalRange;
             globalMaxFloorY = targetYLevel + verticalRange;
         }
-        
+
         int heightRange = Math.max(1, globalMaxFloorY - globalMinFloorY);
         int maxCaveHeightNorm = Math.max(1, globalMaxCaveHeight);
-        
+
         float imageToSampleRatioWidth = (float) sampleWidth / image.width;
         float imageToSampleRatioHeight = (float) sampleHeight / image.height;
-        
+
         for (int ix = 0; ix < image.width; ix++) {
             for (int iz = 0; iz < image.height; iz++) {
                 int sampleX = Math.min((int) (ix * imageToSampleRatioWidth), sampleWidth - 1);
                 int sampleZ = Math.min((int) (iz * imageToSampleRatioHeight), sampleHeight - 1);
                 int sampleIndex = sampleZ * sampleWidth + sampleX;
-                
+
                 CaveColumnData col = columnData[sampleIndex];
                 renderColumn(col, globalMinFloorY, heightRange, maxCaveHeightNorm, sampleX, sampleZ, ix, iz);
             }
         }
-        
+
         this.image = MapImageCompat.fromRawPixels(image.width, image.height, rawPixels);
         return this;
     }
-    
+
     /**
      * Scans a column using multi-layer analysis for better cave detection.
      * Instead of just finding one floor, we analyze the entire vertical slice.
      */
     private void scanColumnMultiLayer(int x, int z, CaveColumnData result) {
         result.reset();
-        
+
         int minY = Math.max(0, targetYLevel - verticalRange);
         int maxY = Math.min(319, targetYLevel + verticalRange);
-        
+
         int airCount = 0;
         int solidCount = 0;
         int totalBlocks = maxY - minY + 1;
-        
+
         int lowestAirY = -1;
         int highestAirY = -1;
         int bestFloorY = -1;
         int bestFloorBlock = 0;
         int ceilingY = -1;
-        
+
         boolean inCave = false;
         int currentCaveFloorY = -1;
         int currentCaveCeilingY = -1;
         int bestCaveSize = 0;
-        
+
         for (int y = minY; y <= maxY; y++) {
             int blockId = worldChunk.getBlock(x, y, z);
             boolean isAir = isAirOrPassable(blockId);
@@ -231,7 +232,7 @@ public class CaveModeImageBuilder {
                 result.highestNonAirY = y;
                 result.highestNonAirBlockId = blockId;
             }
-            
+
             int fluidId = getFluidAt(x, y, z);
             if (fluidId != 0) {
                 if (result.primaryFluidId == 0) {
@@ -247,12 +248,12 @@ public class CaveModeImageBuilder {
                 }
                 result.hasFluid = true;
             }
-            
+
             if (isAir) {
                 airCount++;
                 if (lowestAirY == -1) lowestAirY = y;
                 highestAirY = y;
-                
+
                 if (!inCave) {
                     inCave = true;
                     currentCaveFloorY = y - 1;
@@ -260,14 +261,14 @@ public class CaveModeImageBuilder {
                 currentCaveCeilingY = y;
             } else {
                 solidCount++;
-                
+
                 if (inCave) {
                     int caveSize = currentCaveCeilingY - currentCaveFloorY;
-                    
+
                     boolean containsTarget = currentCaveFloorY <= targetYLevel && currentCaveCeilingY >= targetYLevel;
-                    boolean bestContainsTarget = bestFloorY != -1 && 
-                        bestFloorY <= targetYLevel && (bestFloorY + bestCaveSize) >= targetYLevel;
-                    
+                    boolean bestContainsTarget = bestFloorY != -1 &&
+                            bestFloorY <= targetYLevel && (bestFloorY + bestCaveSize) >= targetYLevel;
+
                     if (containsTarget && !bestContainsTarget) {
                         bestFloorY = currentCaveFloorY;
                         bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
@@ -279,12 +280,12 @@ public class CaveModeImageBuilder {
                         ceilingY = currentCaveCeilingY + 1;
                         bestCaveSize = caveSize;
                     }
-                    
+
                     inCave = false;
                 }
             }
         }
-        
+
         if (inCave && currentCaveFloorY != -1) {
             int caveSize = currentCaveCeilingY - currentCaveFloorY;
             if (caveSize > bestCaveSize) {
@@ -294,10 +295,10 @@ public class CaveModeImageBuilder {
                 bestCaveSize = caveSize;
             }
         }
-        
+
         result.openness = (float) airCount / totalBlocks;
         result.totalAirBlocks = airCount;
-        
+
         if (bestFloorY >= 0 && bestCaveSize >= 2) {
             result.hasValidFloor = true;
             result.floorY = bestFloorY;
@@ -310,31 +311,31 @@ public class CaveModeImageBuilder {
             result.floorBlockId = worldChunk.getBlock(x, Math.max(0, result.floorY), z);
             result.caveHeight = highestAirY - lowestAirY + 1;
         }
-        
+
         int targetBlock = worldChunk.getBlock(x, targetYLevel, z);
         result.isWallAtTarget = !isAirOrPassable(targetBlock);
         result.targetBlockId = targetBlock;
-        
+
         result.lightLevel = Math.max(
-            worldChunk.getBlockChunk().getBlockLight(x, targetYLevel, z),
-            worldChunk.getBlockChunk().getSkyLight(x, targetYLevel, z)
+                worldChunk.getBlockChunk().getBlockLight(x, targetYLevel, z),
+                worldChunk.getBlockChunk().getSkyLight(x, targetYLevel, z)
         );
-        
+
         if (result.hasValidFloor && result.floorY >= 0 && result.floorY < 320) {
             int floorLight = Math.max(
-                worldChunk.getBlockChunk().getBlockLight(x, result.floorY + 1, z),
-                worldChunk.getBlockChunk().getSkyLight(x, result.floorY + 1, z)
+                    worldChunk.getBlockChunk().getBlockLight(x, result.floorY + 1, z),
+                    worldChunk.getBlockChunk().getSkyLight(x, result.floorY + 1, z)
             );
             result.lightLevel = Math.max(result.lightLevel, floorLight);
         }
     }
-    
+
     /**
      * Renders a single column to the output image.
      */
     private void renderColumn(CaveColumnData col, int minFloorY, int heightRange,
                               int maxCaveHeight, int sampleX, int sampleZ, int imageX, int imageZ) {
-        
+
         if (col.hasFluid && col.primaryFluidId != 0) {
             if (shouldRenderHighestNonAirOverFluid(col)) {
                 renderHighestNonAir(col);
@@ -350,7 +351,7 @@ public class CaveModeImageBuilder {
             rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
-        
+
         if (col.isWallAtTarget && col.openness < 0.15f) {
             renderWall(col.targetBlockId, col.openness);
             applyLightContrast(col.lightLevel, 0.60f, 1.14f);
@@ -358,7 +359,7 @@ public class CaveModeImageBuilder {
             rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
-        
+
         if (col.hasValidFloor) {
             renderCaveBySize(col, minFloorY, heightRange, maxCaveHeight);
             applyLightContrast(col.lightLevel, 0.58f, 1.24f);
@@ -366,7 +367,7 @@ public class CaveModeImageBuilder {
             rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
-        
+
         if (col.openness > 0.1f) {
             renderPartialCave(col, maxCaveHeight);
             applyLightContrast(col.lightLevel, 0.62f, 1.14f);
@@ -374,17 +375,17 @@ public class CaveModeImageBuilder {
             rawPixels[imageZ * image.width + imageX] = outColor.pack();
             return;
         }
-        
+
         rawPixels[imageZ * image.width + imageX] = COLOR_WALL_SOLID;
     }
-    
+
     /**
      * Renders a cave based on its SIZE - the main visual indicator.
      * Larger caves = brighter/warmer colors, small caves = darker.
      */
     private void renderCaveBySize(CaveColumnData col, int minFloorY, int heightRange, int maxCaveHeight) {
         int caveHeight = col.caveHeight;
-        
+
         if (caveHeight <= 3) {
             unpackColor(COLOR_CAVE_TINY, outColor);
         } else if (caveHeight <= 6) {
@@ -401,8 +402,8 @@ public class CaveModeImageBuilder {
             lerpColor(COLOR_CAVE_LARGE, COLOR_CAVE_HUGE, t, outColor);
             outColor.r = Math.min(255, outColor.r + 10);
         }
-        
-        float depthFactor = (float)(col.floorY - minFloorY) / heightRange;
+
+        float depthFactor = (float) (col.floorY - minFloorY) / heightRange;
         depthFactor = Math.max(0, Math.min(1, depthFactor));
         float brightness = 0.62f + 0.50f * depthFactor;
         outColor.multiply(brightness);
@@ -413,26 +414,26 @@ public class CaveModeImageBuilder {
             outColor.lerpTo(scratchColorA, blockBlend);
         }
 
-        float caveHeightNorm = Math.min(1.0f, caveHeight / (float)Math.max(1, maxCaveHeight));
+        float caveHeightNorm = Math.min(1.0f, caveHeight / (float) Math.max(1, maxCaveHeight));
         if (col.openness > 0.4f) {
             outColor.brighten(0.07f * col.openness + 0.07f * caveHeightNorm);
         }
     }
-    
+
     /**
      * Renders a partial cave (some air space but no clear floor/ceiling).
      */
     private void renderPartialCave(CaveColumnData col, int maxCaveHeight) {
         float openFactor = Math.min(1.0f, col.openness * 2.5f);
-        
+
         int wallR = (COLOR_WALL_SOLID >> 24) & 0xFF;
         int wallG = (COLOR_WALL_SOLID >> 16) & 0xFF;
         int wallB = (COLOR_WALL_SOLID >> 8) & 0xFF;
-        
+
         int caveR = (COLOR_CAVE_SMALL >> 24) & 0xFF;
         int caveG = (COLOR_CAVE_SMALL >> 16) & 0xFF;
         int caveB = (COLOR_CAVE_SMALL >> 8) & 0xFF;
-        
+
         outColor.r = (int) lerp(wallR, caveR, openFactor);
         outColor.g = (int) lerp(wallG, caveG, openFactor);
         outColor.b = (int) lerp(wallB, caveB, openFactor);
@@ -443,17 +444,17 @@ public class CaveModeImageBuilder {
             outColor.lerpTo(scratchColorA, 0.12f + openFactor * 0.18f);
         }
 
-        float caveHeightNorm = Math.min(1.0f, col.caveHeight / (float)Math.max(1, maxCaveHeight));
+        float caveHeightNorm = Math.min(1.0f, col.caveHeight / (float) Math.max(1, maxCaveHeight));
         outColor.multiply(0.75f + 0.30f * openFactor + 0.15f * caveHeightNorm);
     }
-    
+
     /**
      * Renders fluid with depth-based coloring.
      * Deeper pools = darker/more saturated, shallow = lighter.
      */
     private void renderFluid(int fluidId, int fluidY, int caveHeight, int fluidDepth) {
         Fluid fluid = Fluid.getAssetMap().getAsset(fluidId);
-        
+
         if (fluid != null && fluid.hasEffect(ShaderType.Lava)) {
             float depthIntensity = Math.min(1.0f, fluidDepth / 10.0f);
             lerpColor(COLOR_LAVA_CORE, COLOR_LAVA_EDGE, depthIntensity, outColor);
@@ -462,7 +463,7 @@ public class CaveModeImageBuilder {
             outColor.g = Math.min(255, outColor.g + 8);
             outColor.b = Math.max(0, outColor.b - 6);
             outColor.a = 255;
-            
+
             if (fluidDepth <= 2) {
                 outColor.brighten(0.05f);
             } else if (fluidDepth > 6) {
@@ -470,18 +471,18 @@ public class CaveModeImageBuilder {
             }
         } else {
             float depthFactor = Math.min(1.0f, fluidDepth / 10.0f);
-            
+
             outColor.r = (int) lerp(80, 20, depthFactor);
             outColor.g = (int) lerp(180, 60, depthFactor);
             outColor.b = (int) lerp(230, 140, depthFactor);
             outColor.a = (int) lerp(180, 240, depthFactor);
-            
+
             if (fluidDepth > 6) {
                 outColor.b = Math.min(255, outColor.b + 20);
             }
         }
     }
-    
+
     /**
      * Lerps between two packed colors and stores in outColor.
      */
@@ -490,18 +491,18 @@ public class CaveModeImageBuilder {
         int aG = (colorA >> 16) & 0xFF;
         int aB = (colorA >> 8) & 0xFF;
         int aA = colorA & 0xFF;
-        
+
         int bR = (colorB >> 24) & 0xFF;
         int bG = (colorB >> 16) & 0xFF;
         int bB = (colorB >> 8) & 0xFF;
         int bA = colorB & 0xFF;
-        
+
         out.r = (int) lerp(aR, bR, t);
         out.g = (int) lerp(aG, bG, t);
         out.b = (int) lerp(aB, bB, t);
         out.a = (int) lerp(aA, bA, t);
     }
-    
+
     /**
      * Renders wall/solid blocks.
      */
@@ -635,7 +636,7 @@ public class CaveModeImageBuilder {
         }
         return targetYLevel + 2;
     }
-    
+
     /**
      * Gets floor color based on block type (used for subtle block-based tinting).
      */
@@ -647,7 +648,7 @@ public class CaveModeImageBuilder {
             outColor.a = 255;
             return;
         }
-        
+
         BlockType block = BlockType.getAssetMap().getAsset(blockId);
         if (block == null) {
             outColor.r = 90;
@@ -684,19 +685,19 @@ public class CaveModeImageBuilder {
         outColor.b = Math.min(255, Math.max(0, outColor.b));
         outColor.a = 255;
     }
-    
+
     /**
      * Checks if a block is air or passable.
      */
     private boolean isAirOrPassable(int blockId) {
         if (blockId == 0) return true;
-        
+
         BlockType block = BlockType.getAssetMap().getAsset(blockId);
         if (block == null) return true;
-        
+
         return block.getParticleColor() == null && block.getTintUp() == null;
     }
-    
+
     /**
      * Gets fluid ID at position.
      */
@@ -710,33 +711,33 @@ public class CaveModeImageBuilder {
         }
         return 0;
     }
-        
+
     private static int packColor(int r, int g, int b, int a) {
         return (r & 0xFF) << 24 | (g & 0xFF) << 16 | (b & 0xFF) << 8 | (a & 0xFF);
     }
-    
+
     private static void unpackColor(int color, Color out) {
         out.r = (color >> 24) & 0xFF;
         out.g = (color >> 16) & 0xFF;
         out.b = (color >> 8) & 0xFF;
         out.a = color & 0xFF;
     }
-    
+
     private static float lerp(float a, float b, float t) {
         return a + (b - a) * t;
     }
-    
+
     /**
      * Builds a cave mode map image asynchronously.
      */
     @Nonnull
     public static CompletableFuture<CaveModeImageBuilder> build(long index, int imageWidth, int imageHeight,
-                                                                  World world, int yLevel, int range) {
+                                                                World world, int yLevel, int range) {
         return CompletableFuture.completedFuture(new CaveModeImageBuilder(index, imageWidth, imageHeight, world, yLevel, range))
                 .thenCompose(CaveModeImageBuilder::fetchChunk)
                 .thenApplyAsync(builder -> builder != null ? builder.generateCaveImage() : null);
     }
-        
+
     /**
      * Stores analyzed data for a single column.
      */
@@ -750,19 +751,19 @@ public class CaveModeImageBuilder {
         boolean hasHighestNonAir = false;
         int highestNonAirY = -1;
         int highestNonAirBlockId = 0;
-        
+
         boolean hasFluid = false;
         int primaryFluidId = 0;
         int fluidY = -1;
         int fluidDepth = 0;
-        
+
         boolean isWallAtTarget = false;
         int targetBlockId = 0;
-        
+
         float openness = 0;
         int lightLevel = 0;
         int totalAirBlocks = 0;
-        
+
         void reset() {
             hasValidFloor = false;
             floorY = -1;
@@ -783,27 +784,27 @@ public class CaveModeImageBuilder {
             totalAirBlocks = 0;
         }
     }
-    
+
     /**
      * Simple color class for manipulation.
      */
     private static class Color {
         int r, g, b, a;
-        
+
         int pack() {
             return (r & 0xFF) << 24 | (g & 0xFF) << 16 | (b & 0xFF) << 8 | (a & 0xFF);
         }
-        
+
         void multiply(float value) {
-            r = Math.min(255, Math.max(0, (int)(r * value)));
-            g = Math.min(255, Math.max(0, (int)(g * value)));
-            b = Math.min(255, Math.max(0, (int)(b * value)));
+            r = Math.min(255, Math.max(0, (int) (r * value)));
+            g = Math.min(255, Math.max(0, (int) (g * value)));
+            b = Math.min(255, Math.max(0, (int) (b * value)));
         }
-        
+
         void brighten(float amount) {
-            r = Math.min(255, (int)(r + 255 * amount));
-            g = Math.min(255, (int)(g + 255 * amount));
-            b = Math.min(255, (int)(b + 255 * amount));
+            r = Math.min(255, (int) (r + 255 * amount));
+            g = Math.min(255, (int) (g + 255 * amount));
+            b = Math.min(255, (int) (b + 255 * amount));
         }
 
         void lerpTo(Color target, float t) {

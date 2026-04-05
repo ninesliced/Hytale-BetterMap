@@ -3,14 +3,13 @@ package dev.ninesliced.commands;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.PoiPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
-
-import com.hypixel.hytale.server.core.command.system.CommandSender;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -49,8 +48,8 @@ public class PlayerHideSpawnCommand extends AbstractCommand {
 
         return CompletableFuture.runAsync(() -> {
             boolean newWantsVisible = determineNewVisibilityState(
-                config.isOverrideGlobalSpawnHide() && !config.isHideSpawnOnMap(),
-                config.isHideSpawnOnMap()
+                    config.isOverrideGlobalSpawnHide() && !config.isHideSpawnOnMap(),
+                    config.isHideSpawnOnMap()
             );
 
             config.setOverrideGlobalSpawnHide(newWantsVisible);
@@ -70,9 +69,6 @@ public class PlayerHideSpawnCommand extends AbstractCommand {
     private boolean determineNewVisibilityState(boolean currentlyWantsVisible, boolean currentlyWantsHidden) {
         if (currentlyWantsVisible) {
             return false;
-        } else if (currentlyWantsHidden) {
-            return true;
-        }
-        return false;
+        } else return currentlyWantsHidden;
     }
 }

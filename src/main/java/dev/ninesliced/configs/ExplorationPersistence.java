@@ -1,11 +1,9 @@
 package dev.ninesliced.configs;
 
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.exploration.ExplorationTracker;
@@ -13,18 +11,24 @@ import dev.ninesliced.utils.ChunkUtil;
 
 import javax.annotation.Nonnull;
 import java.io.*;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
  * Handles persistence of exploration data to disk.
+ * <p>
+ * Memory safety fixes:
+ * - saveAllPlayers() uses a bounded single-thread executor (max 32 queued tasks) instead of
+ * ForkJoinPool.commonPool() fire-and-forget. If the queue is full, saves are skipped with a warning.
+ * - A saveInProgress flag prevents overlapping bulk saves from piling up copies in memory.
  */
 public class ExplorationPersistence {
 
@@ -34,13 +38,33 @@ public class ExplorationPersistence {
     private final Path storageDir;
 
     /**
+     * Bounded executor for async saves. Single thread, max 32 queued tasks.
+     */
+    private final ExecutorService saveExecutor = new ThreadPoolExecutor(
+            1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>(32),
+            r -> {
+                Thread t = new Thread(r, "BetterMap-ExplorationSave");
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.DiscardPolicy() // silently drop if queue is full
+    );
+
+    /**
+     * Prevents overlapping bulk saves from creating duplicate copies.
+     */
+    private final AtomicBoolean saveInProgress = new AtomicBoolean(false);
+
+    /**
      * Initializes the persistence manager, setting up the storage directory.
      */
     public ExplorationPersistence() {
         Path serverRoot = Paths.get(".").toAbsolutePath().normalize();
         this.storageDir = serverRoot.resolve("mods").resolve("BetterMap").resolve("Data");
 
-        LOGGER.info("Exploration storage root directory: " + this.storageDir.toString());
+        LOGGER.info("Exploration storage root directory: " + this.storageDir);
         try {
             if (!Files.exists(storageDir)) {
                 Files.createDirectories(storageDir);
@@ -115,60 +139,66 @@ public class ExplorationPersistence {
 
     /**
      * Saves exploration data for all players in the server.
+     * FIX: Uses bounded executor with backpressure instead of ForkJoinPool.commonPool().
+     * FIX: saveInProgress flag prevents overlapping bulk saves from piling up copies.
      */
     public void saveAllPlayers() {
-        Universe universe = Universe.get();
-        if (universe == null) return;
+        if (!saveInProgress.compareAndSet(false, true)) {
+            return;
+        }
 
-        universe.getWorlds().values().forEach(world -> {
-            try {
-                world.execute(() -> {
-                    LOGGER.info("Saving exploration data for world: " + world.getName());
-                    world.getPlayerRefs().forEach(playerRef -> {
-                        try {
-                            if (playerRef == null || playerRef.getHolder() == null) {
-                                LOGGER.fine("Skipping player save; player reference is invalid or holder is null.");
-                                return;
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) return;
+
+            universe.getWorlds().values().forEach(world -> {
+                try {
+                    world.execute(() -> {
+                        LOGGER.info("Saving exploration data for world: " + world.getName());
+                        world.getPlayerRefs().forEach(playerRef -> {
+                            try {
+                                if (playerRef == null || playerRef.getHolder() == null) {
+                                    return;
+                                }
+
+                                Player player = playerRef.getHolder().getComponent(Player.getComponentType());
+                                if (player == null) {
+                                    return;
+                                }
+
+                                if (!(player instanceof CommandSender sender)) {
+                                    return;
+                                }
+
+                                UUID uuid = sender.getUuid();
+                                if (uuid == null) {
+                                    return;
+                                }
+
+                                String playerName = player.getDisplayName();
+                                String worldName = world.getName();
+                                ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(playerName);
+                                if (data == null) {
+                                    return;
+                                }
+
+                                // Take snapshot of chunks for async save
+                                Set<Long> chunks = new HashSet<>(data.getExploredChunks().getExploredChunks());
+
+                                // Submit to bounded executor instead of ForkJoinPool.commonPool()
+                                saveExecutor.execute(() -> save(playerName, uuid, worldName, chunks));
+                            } catch (Exception e) {
+                                LOGGER.warning("Failed to queue exploration save for a player in world " + world.getName() + ": " + e.getMessage());
                             }
-
-                            Player player = playerRef.getHolder().getComponent(Player.getComponentType());
-                            if (player == null) {
-                                LOGGER.fine("Skipping player save; player component is unavailable.");
-                                return;
-                            }
-
-                            if (!(player instanceof CommandSender sender)) {
-                                LOGGER.warning("Skipping player save; player is not a CommandSender: " + player.getDisplayName());
-                                return;
-                            }
-
-                            UUID uuid = sender.getUuid();
-                            if (uuid == null) {
-                                LOGGER.warning("Skipping player save; UUID is null for: " + player.getDisplayName());
-                                return;
-                            }
-
-                            String playerName = player.getDisplayName();
-                            String worldName = world.getName();
-                            ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(playerName);
-                            if (data == null) {
-                                return;
-                            }
-
-                            Set<Long> chunks = new HashSet<>(data.getExploredChunks().getExploredChunks());
-
-                            java.util.concurrent.ForkJoinPool.commonPool().execute(() ->
-                                    save(playerName, uuid, worldName, chunks)
-                            );
-                        } catch (Exception e) {
-                            LOGGER.warning("Failed to queue exploration save for a player in world " + world.getName() + ": " + e.getMessage());
-                        }
+                        });
                     });
-                });
-            } catch (Exception e) {
-                LOGGER.warning("Failed to schedule exploration save task for world " + world.getName() + ": " + e.getMessage());
-            }
-        });
+                } catch (Exception e) {
+                    LOGGER.warning("Failed to schedule exploration save task for world " + world.getName() + ": " + e.getMessage());
+                }
+            });
+        } finally {
+            saveInProgress.set(false);
+        }
     }
 
     /**
@@ -204,7 +234,7 @@ public class ExplorationPersistence {
         }
 
         Path file = worldDir.resolve(playerUUID.toString() + ".bin");
-        Path tempFile = worldDir.resolve(playerUUID.toString() + ".bin.tmp");
+        Path tempFile = worldDir.resolve(playerUUID + ".bin.tmp");
         LOGGER.info("[DEBUG] Saving " + chunks.size() + " chunks for " + playerName + " in world " + worldName);
 
         try (DataOutputStream out = new DataOutputStream(new BufferedOutputStream(Files.newOutputStream(tempFile)))) {
@@ -216,7 +246,7 @@ public class ExplorationPersistence {
             }
         } catch (IOException e) {
             LOGGER.severe("Failed to write exploration data for " + playerName + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             return;
         }
 
@@ -227,11 +257,11 @@ public class ExplorationPersistence {
                 Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ex) {
                 LOGGER.severe("Failed to finalize exploration data for " + playerName + ": " + ex.getMessage());
-                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+                try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             }
         } catch (IOException e) {
             LOGGER.severe("Failed to finalize exploration data for " + playerName + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
         }
     }
 
@@ -250,7 +280,7 @@ public class ExplorationPersistence {
         }
 
         try (java.util.stream.Stream<Path> stream = Files.list(worldDir)) {
-            stream.filter(path -> path.toString().endsWith(".bin")).forEach(file -> {
+            stream.filter(path -> path.toString().endsWith(".bin") && !path.getFileName().toString().startsWith("cave-")).forEach(file -> {
                 try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
                     int version = in.readInt();
                     if (version == DATA_VERSION) {

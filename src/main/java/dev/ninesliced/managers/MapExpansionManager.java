@@ -17,8 +17,10 @@ public class MapExpansionManager {
     private int maxChunkX = Integer.MIN_VALUE;
     private int minChunkZ = Integer.MAX_VALUE;
     private int maxChunkZ = Integer.MIN_VALUE;
-    
-    /** Last position used for boundary update - avoids re-processing same chunks */
+
+    /**
+     * Last position used for boundary update - avoids re-processing same chunks
+     */
     private int lastUpdateChunkX = Integer.MAX_VALUE;
     private int lastUpdateChunkZ = Integer.MAX_VALUE;
     private int lastUpdateRadius = -1;
@@ -44,21 +46,21 @@ public class MapExpansionManager {
         if (playerChunkX == lastUpdateChunkX && playerChunkZ == lastUpdateChunkZ && viewRadius == lastUpdateRadius) {
             return;
         }
-        
+
         Set<Long> newChunks = ChunkUtil.getChunksInCircularArea(playerChunkX, playerChunkZ, viewRadius);
-        
+
         int newMinX = playerChunkX - viewRadius;
         int newMaxX = playerChunkX + viewRadius;
         int newMinZ = playerChunkZ - viewRadius;
         int newMaxZ = playerChunkZ + viewRadius;
-        
+
         minChunkX = Math.min(minChunkX, newMinX);
         maxChunkX = Math.max(maxChunkX, newMaxX);
         minChunkZ = Math.min(minChunkZ, newMinZ);
         maxChunkZ = Math.max(maxChunkZ, newMaxZ);
 
         exploredChunks.markChunksExplored(newChunks);
-        
+
         lastUpdateChunkX = playerChunkX;
         lastUpdateChunkZ = playerChunkZ;
         lastUpdateRadius = viewRadius;

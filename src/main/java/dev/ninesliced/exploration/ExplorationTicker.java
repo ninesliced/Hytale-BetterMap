@@ -31,8 +31,10 @@ public class ExplorationTicker {
         return t;
     });
     private boolean isRunning = false;
-    
-    /** Maximum time budget per world tick in nanoseconds (15ms) */
+
+    /**
+     * Maximum time budget per world tick in nanoseconds (15ms)
+     */
     private static final long MAX_TICK_BUDGET_NS = 15_000_000L;
 
     private ExplorationTicker() {
@@ -144,11 +146,11 @@ public class ExplorationTicker {
         try {
             for (PlayerRef ref : world.getPlayerRefs()) {
                 if (ref == null) continue;
-                
+
                 long elapsed = System.nanoTime() - startNs;
                 if (elapsed > MAX_TICK_BUDGET_NS) {
-                    LOGGER.fine("[TICK BUDGET] Exceeded " + (elapsed / 1_000_000) + "ms budget for world " + 
-                               world.getName() + ", deferring remaining players");
+                    LOGGER.fine("[TICK BUDGET] Exceeded " + (elapsed / 1_000_000) + "ms budget for world " +
+                            world.getName() + ", deferring remaining players");
                     break;
                 }
 
