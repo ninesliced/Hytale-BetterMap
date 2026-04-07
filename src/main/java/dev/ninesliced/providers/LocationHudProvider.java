@@ -48,6 +48,11 @@ public class LocationHudProvider {
      * Creates the HUD if it doesn't exist and attaches it using MultipleHUD when available.
      * Hides the HUD if the feature is disabled.
      *
+     * <p>Legacy entry point — re-resolves player/playerRef from the chunk. Prefer the
+     * 7-arg overload below where the caller already has them, to avoid an extra
+     * EntityUtils.toHolder() call per tick per player (this showed up in profiling
+     * as Holder.addComponentInternal() → Archetype.add() → Arrays.copyOf()).</p>
+     *
      * @param dt             time delta since last tick
      * @param index          entity index in the chunk
      * @param archetypeChunk chunk containing entity data
@@ -64,6 +69,17 @@ public class LocationHudProvider {
             return;
         }
 
+        showHud(dt, index, archetypeChunk, store, commandBuffer, player, playerRef);
+    }
+
+    /**
+     * Hot-path overload — accepts pre-resolved player and playerRef so this method
+     * does NOT call EntityUtils.toHolder() itself. Called by LocationSystem.tick()
+     * which already has both values from its own holder lookup.
+     */
+    public void showHud(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
+                        @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer,
+                        @Nonnull Player player, @Nonnull PlayerRef playerRef) {
         UUID playerUuid = playerRef.getUuid();
         PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
         boolean isEnabled = config != null && config.isLocationEffectivelyEnabled();

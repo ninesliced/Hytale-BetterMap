@@ -71,7 +71,11 @@ public class LocationSystem extends EntityTickingSystem<EntityStore> {
 
         LocationHudProvider provider = BetterMap.get().getLocationHudProvider();
         if (provider != null) {
-            provider.showHud(dt, index, archetypeChunk, store, commandBuffer);
+            // Pass the already-resolved player and playerRef so the provider doesn't need
+            // to call EntityUtils.toHolder() a second time. The duplicate toHolder() call
+            // was triggering Archetype.add() / Arrays.copyOf() per tick per player and
+            // showed up clearly in profiling.
+            provider.showHud(dt, index, archetypeChunk, store, commandBuffer, player, playerRef);
         }
     }
 }

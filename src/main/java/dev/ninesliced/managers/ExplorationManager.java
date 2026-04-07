@@ -7,6 +7,9 @@ import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.exploration.ExplorationTracker;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
@@ -50,12 +53,12 @@ public class ExplorationManager {
     });
     private ScheduledFuture<?> autoSaveTask;
 
-    // --- Surface exploration shared cache (version-based) ---
-    private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    // --- Surface exploration shared cache (version-based, primitive-backed) ---
+    private final Map<String, LongOpenHashSet> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
 
-    // --- Cave exploration shared cache (version-based) — FIX: was completely uncached ---
-    private final Map<String, Set<Long>> cachedAllCaveChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    // --- Cave exploration shared cache (version-based, primitive-backed) ---
+    private final Map<String, LongOpenHashSet> cachedAllCaveChunks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Long> cachedAllCaveVersion = new java.util.concurrent.ConcurrentHashMap<>();
 
     private ExplorationManager() {
@@ -181,15 +184,27 @@ public class ExplorationManager {
 
     /**
      * Gets all explored chunks for a given world, combining persistence and active data.
-     * Uses version-based caching to avoid repeated disk reads.
-     *
-     * @param worldName The world name.
-     * @return A set of all explored chunks.
+     * Uses version-based caching backed by a primitive LongOpenHashSet.
+     * <p>
+     * Returned set is a live unmodifiable view over the cache. The cache itself is rebuilt
+     * only when the version changes; it is NOT mutated in place.
      */
     public Set<Long> getAllExploredChunks(String worldName) {
+        return new ExploredChunkSetView(getAllExploredChunksLong(worldName));
+    }
+
+    /**
+     * Primitive variant of {@link #getAllExploredChunks(String)} for hot-path callers
+     * that want to avoid boxing.
+     */
+    @Nonnull
+    public LongSet getAllExploredChunksLong(String worldName) {
+        // Compute combined version in a single snapshot pass.
         long combinedVersion = 0;
         int playerCount = 0;
-        for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
+        Map<String, ExplorationTracker.PlayerExplorationData> snapshot =
+                ExplorationTracker.getInstance().getAllPlayerDataSnapshot();
+        for (ExplorationTracker.PlayerExplorationData data : snapshot.values()) {
             String dataWorld = data.getWorldName();
             if (dataWorld == null || !dataWorld.equals(worldName)) continue;
             combinedVersion += data.getExploredChunks().getVersion();
@@ -199,26 +214,30 @@ public class ExplorationManager {
 
         Long cachedVersion = cachedAllExploredVersion.get(worldName);
         if (cachedVersion != null && cachedVersion == combinedVersion) {
-            Set<Long> cached = cachedAllExploredChunks.get(worldName);
+            LongOpenHashSet cached = cachedAllExploredChunks.get(worldName);
             if (cached != null) {
                 return cached;
             }
         }
 
-        Set<Long> allChunks = new HashSet<>();
+        LongOpenHashSet allChunks = new LongOpenHashSet();
 
         if (persistenceEnabled && persistence != null) {
-            allChunks.addAll(persistence.loadAllChunks(worldName));
+            // loadAllChunks still returns Set<Long> for compat — fold it in.
+            Set<Long> persisted = persistence.loadAllChunks(worldName);
+            for (Long c : persisted) {
+                allChunks.add(c.longValue());
+            }
         }
 
-        Universe universe = Universe.get();
-        if (universe != null) {
-            for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
-                String dataWorld = data.getWorldName();
-                if (dataWorld == null || !dataWorld.equals(worldName)) {
-                    continue;
-                }
-                allChunks.addAll(data.getExploredChunks().getExploredChunks());
+        for (ExplorationTracker.PlayerExplorationData data : snapshot.values()) {
+            String dataWorld = data.getWorldName();
+            if (dataWorld == null || !dataWorld.equals(worldName)) {
+                continue;
+            }
+            LongIterator it = data.getExploredChunks().getRawSet().iterator();
+            while (it.hasNext()) {
+                allChunks.add(it.nextLong());
             }
         }
 
@@ -255,16 +274,18 @@ public class ExplorationManager {
 
         Long cachedVersion = cachedAllCaveVersion.get(worldName);
         if (cachedVersion != null && cachedVersion == combinedVersion) {
-            Set<Long> cached = cachedAllCaveChunks.get(worldName);
+            LongOpenHashSet cached = cachedAllCaveChunks.get(worldName);
             if (cached != null) {
-                return cached;
+                return new ExploredChunkSetView(cached);
             }
         }
 
-        Set<Long> allChunks = new HashSet<>();
+        LongOpenHashSet allChunks = new LongOpenHashSet();
 
         if (persistenceEnabled && cavePersistence != null) {
-            allChunks.addAll(cavePersistence.loadAllChunks(worldName));
+            for (Long c : cavePersistence.loadAllChunks(worldName)) {
+                allChunks.add(c.longValue());
+            }
         }
 
         if (universe != null && universe.getWorld(worldName) != null) {
@@ -273,7 +294,9 @@ public class ExplorationManager {
                 if (player != null) {
                     CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
                     if (state != null) {
-                        allChunks.addAll(state.getExploredCaveChunks());
+                        for (Long c : state.getExploredCaveChunks()) {
+                            allChunks.add(c.longValue());
+                        }
                     }
                 }
             });
@@ -281,7 +304,7 @@ public class ExplorationManager {
 
         cachedAllCaveChunks.put(worldName, allChunks);
         cachedAllCaveVersion.put(worldName, combinedVersion);
-        return allChunks;
+        return new ExploredChunkSetView(allChunks);
     }
 
     /**
@@ -639,6 +662,48 @@ public class ExplorationManager {
         public ExplorationManager build() {
             manager.initialize();
             return manager;
+        }
+    }
+
+    /**
+     * Lightweight unmodifiable Set<Long> view over a primitive LongSet. Avoids the
+     * historical pattern of allocating a HashSet<Long> copy on every getAllExploredChunks call.
+     */
+    static final class ExploredChunkSetView extends java.util.AbstractSet<Long> {
+        private final LongSet delegate;
+
+        ExploredChunkSetView(LongSet delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int size() {
+            return delegate.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return delegate.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            if (o instanceof Long) {
+                return delegate.contains(((Long) o).longValue());
+            }
+            return false;
+        }
+
+        @Override
+        public java.util.Iterator<Long> iterator() {
+            final LongIterator it = delegate.iterator();
+            return new java.util.Iterator<Long>() {
+                @Override
+                public boolean hasNext() {return it.hasNext();}
+
+                @Override
+                public Long next() {return it.nextLong();}
+            };
         }
     }
 }
