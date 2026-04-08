@@ -5,6 +5,10 @@ import com.hypixel.hytale.codec.KeyedCodec;
 import com.hypixel.hytale.codec.builder.BuilderCodec;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.util.MathUtil;
+import com.hypixel.hytale.math.vector.Vector3d;
+import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
@@ -18,21 +22,18 @@ import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
+import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+
+import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import javax.annotation.Nonnull;
 
 public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.WaypointGuiData> {
 
@@ -53,38 +54,38 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
         ui.set("#AdminConfigButton.Visible", isAdmin);
 
         events.addEventBinding(
-            CustomUIEventBindingType.Activating,
-            "#CreateButton",
-            new EventData().put(WaypointGuiData.KEY_ACTION, Action.CREATE.name()),
-            false
+                CustomUIEventBindingType.Activating,
+                "#CreateButton",
+                new EventData().put(WaypointGuiData.KEY_ACTION, Action.CREATE.name()),
+                false
         );
         events.addEventBinding(
-            CustomUIEventBindingType.Activating,
-            "#CloseButton",
-            new EventData().put(WaypointGuiData.KEY_ACTION, Action.CLOSE.name()),
-            false
+                CustomUIEventBindingType.Activating,
+                "#CloseButton",
+                new EventData().put(WaypointGuiData.KEY_ACTION, Action.CLOSE.name()),
+                false
         );
         events.addEventBinding(
-            CustomUIEventBindingType.Activating,
-            "#ConfigButton",
-            new EventData().put(WaypointGuiData.KEY_ACTION, Action.CONFIG.name()),
-            false
+                CustomUIEventBindingType.Activating,
+                "#ConfigButton",
+                new EventData().put(WaypointGuiData.KEY_ACTION, Action.CONFIG.name()),
+                false
         );
         events.addEventBinding(
-            CustomUIEventBindingType.Activating,
-            "#AdminConfigButton",
-            new EventData().put(WaypointGuiData.KEY_ACTION, Action.ADMIN_CONFIG.name()),
-            false
+                CustomUIEventBindingType.Activating,
+                "#AdminConfigButton",
+                new EventData().put(WaypointGuiData.KEY_ACTION, Action.ADMIN_CONFIG.name()),
+                false
         );
 
         buildWaypointList(ref, store, ui, events);
     }
 
     private void buildWaypointList(
-        @Nonnull Ref<EntityStore> ref,
-        @Nonnull Store<EntityStore> store,
-        @Nonnull UICommandBuilder ui,
-        @Nonnull UIEventBuilder events
+            @Nonnull Ref<EntityStore> ref,
+            @Nonnull Store<EntityStore> store,
+            @Nonnull UICommandBuilder ui,
+            @Nonnull UIEventBuilder events
     ) {
         ui.clear(WAYPOINT_LIST_PATH);
 
@@ -100,19 +101,19 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
 
         List<UserMapMarker> sortedMarkers = new ArrayList<>(markers);
         sortedMarkers.sort(
-            Comparator.comparing(
-                marker -> {
-                    String name = marker.getName();
-                    if (name == null || name.isBlank()) {
-                        return "~";
-                    }
-                    return name.toLowerCase(Locale.ROOT);
-                }
-            )
+                Comparator.comparing(
+                        marker -> {
+                            String name = marker.getName();
+                            if (name == null || name.isBlank()) {
+                                return "~";
+                            }
+                            return name.toLowerCase(Locale.ROOT);
+                        }
+                )
         );
 
         boolean canTeleport = PermissionsUtil.canTeleport(player)
-            && ModConfig.getInstance().isAllowWaypointTeleports();
+                && ModConfig.getInstance().isAllowWaypointTeleports();
 
         int index = 0;
         for (UserMapMarker marker : sortedMarkers) {
@@ -126,7 +127,7 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
 
             String name = marker.getName();
             ui.set(itemPath + " #NameLabel.Text", name != null && !name.isEmpty() ? name : "Unnamed");
-            
+
             String icon = marker.getIcon();
 
             boolean isShared = WaypointManager.isSharedId(marker.getId());
@@ -140,8 +141,8 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
 
             ui.set(itemPath + " #XValue.Text", String.format(Locale.ROOT, "%.1f", marker.getX()));
             double markerY = player.getWorld() != null
-                ? WaypointManager.getMarkerYOrDefault(player.getWorld(), player, marker.getId(), 100.0)
-                : 100.0;
+                    ? WaypointManager.getMarkerYOrDefault(player.getWorld(), player, marker.getId(), 100.0)
+                    : 100.0;
             ui.set(itemPath + " #YValue.Text", String.format(Locale.ROOT, "%.1f", markerY));
             ui.set(itemPath + " #ZValue.Text", String.format(Locale.ROOT, "%.1f", marker.getZ()));
 
@@ -158,12 +159,12 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             ui.set(itemPath + " #TeleportButton.Visible", canTeleport);
             if (canTeleport) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #TeleportButton",
-                    new EventData()
-                        .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
-                        .put(WaypointGuiData.KEY_ACTION, Action.TELEPORT.name()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #TeleportButton",
+                        new EventData()
+                                .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
+                                .put(WaypointGuiData.KEY_ACTION, Action.TELEPORT.name()),
+                        false
                 );
             }
 
@@ -171,24 +172,24 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
             ui.set(itemPath + " #EditButton.Visible", canEdit);
             if (canEdit) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #EditButton",
-                    new EventData()
-                        .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
-                        .put(WaypointGuiData.KEY_ACTION, Action.EDIT.name()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #EditButton",
+                        new EventData()
+                                .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
+                                .put(WaypointGuiData.KEY_ACTION, Action.EDIT.name()),
+                        false
                 );
             }
 
             ui.set(itemPath + " #DeleteButton.Visible", canEdit);
             if (canEdit) {
                 events.addEventBinding(
-                    CustomUIEventBindingType.Activating,
-                    itemPath + " #DeleteButton",
-                    new EventData()
-                        .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
-                        .put(WaypointGuiData.KEY_ACTION, Action.DELETE.name()),
-                    false
+                        CustomUIEventBindingType.Activating,
+                        itemPath + " #DeleteButton",
+                        new EventData()
+                                .put(WaypointGuiData.KEY_TARGET_ID, marker.getId())
+                                .put(WaypointGuiData.KEY_ACTION, Action.DELETE.name()),
+                        false
                 );
             }
 
@@ -257,18 +258,18 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                             return;
                         }
                     }
-                     player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(this.playerRef, data.targetId));
+                    player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(this.playerRef, data.targetId));
                 }
             }
             case TELEPORT -> {
                 if (!ModConfig.getInstance().isAllowWaypointTeleports()
-                    && !PermissionsUtil.canTeleportToWaypoints(player)) {
+                        && !PermissionsUtil.canTeleportToWaypoints(player)) {
                     return;
                 }
                 if (data.targetId != null && !data.targetId.isEmpty()) {
                     UserMapMarker marker = WaypointManager.getMarker(player, data.targetId);
                     if (marker != null) {
-                        World world = ((EntityStore) store.getExternalData()).getWorld();
+                        World world = store.getExternalData().getWorld();
                         if (world == null) {
                             return;
                         }
@@ -342,13 +343,13 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
         static final String KEY_ACTION = "Action";
         static final String KEY_TARGET_ID = "TargetId";
 
-        public static final BuilderCodec<WaypointGuiData> CODEC = BuilderCodec.<WaypointGuiData>builder(
-                WaypointGuiData.class,
-                WaypointGuiData::new
-            )
-            .append(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action).add()
-            .append(new KeyedCodec<>(KEY_TARGET_ID, Codec.STRING), (data, value) -> data.targetId = value, data -> data.targetId).add()
-            .build();
+        public static final BuilderCodec<WaypointGuiData> CODEC = BuilderCodec.builder(
+                        WaypointGuiData.class,
+                        WaypointGuiData::new
+                )
+                .append(new KeyedCodec<>(KEY_ACTION, Codec.STRING), (data, value) -> data.action = value, data -> data.action).add()
+                .append(new KeyedCodec<>(KEY_TARGET_ID, Codec.STRING), (data, value) -> data.targetId = value, data -> data.targetId).add()
+                .build();
 
         private String action;
         private String targetId;

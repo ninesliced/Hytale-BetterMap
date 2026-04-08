@@ -1,16 +1,5 @@
 package dev.ninesliced.managers;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.WeakHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
-
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
@@ -22,12 +11,15 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
-
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
+
+import java.util.*;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Manages player privacy on the map by hiding players if configured.
@@ -123,8 +115,8 @@ public class MapPrivacyManager {
 
                             UUID playerUuid = playerRef.getUuid();
                             PlayerConfig playerConfig = playerUuid != null
-                                ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
-                                : null;
+                                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+                                    : null;
                             boolean hide = globalHide && !canBypassGlobalHidePlayers(player, playerConfig);
                             if (!hide && playerConfig != null && playerConfig.isHidePlayersOnMap()) {
                                 hide = true;
@@ -203,8 +195,8 @@ public class MapPrivacyManager {
 
         UUID playerUuid = ((CommandSender) player).getUuid();
         PlayerConfig playerConfig = playerUuid != null
-            ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
-            : null;
+                ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+                : null;
         boolean hide = globalHide && !canBypassGlobalHidePlayers(player, playerConfig);
         if (!hide && playerConfig != null && playerConfig.isHidePlayersOnMap()) {
             hide = true;
@@ -346,8 +338,8 @@ public class MapPrivacyManager {
 
                 UUID playerUuid = ((CommandSender) player).getUuid();
                 PlayerConfig playerConfig = playerUuid != null
-                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
-                    : null;
+                        ? PlayerConfigManager.getInstance().getPlayerConfig(playerUuid)
+                        : null;
                 if (canBypassGlobalHidePlayers(player, playerConfig)) {
                     return true;
                 }
@@ -365,8 +357,8 @@ public class MapPrivacyManager {
         }
 
         return playerConfig != null
-            && playerConfig.isOverrideGlobalPlayersHide()
-            && PermissionsUtil.canOverridePlayers(player);
+                && playerConfig.isOverrideGlobalPlayersHide()
+                && PermissionsUtil.canOverridePlayers(player);
     }
 
     private void syncTeleportOverrides(Player player) {

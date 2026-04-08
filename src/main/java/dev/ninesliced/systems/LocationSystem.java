@@ -60,7 +60,7 @@ public class LocationSystem extends EntityTickingSystem<EntityStore> {
      */
     @Override
     public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
-                    @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+                     @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         Holder<EntityStore> holder = EntityUtils.toHolder(index, archetypeChunk);
         Player player = holder.getComponent(Player.getComponentType());
         PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
@@ -71,7 +71,11 @@ public class LocationSystem extends EntityTickingSystem<EntityStore> {
 
         LocationHudProvider provider = BetterMap.get().getLocationHudProvider();
         if (provider != null) {
-            provider.showHud(dt, index, archetypeChunk, store, commandBuffer);
+            // Pass the already-resolved player and playerRef so the provider doesn't need
+            // to call EntityUtils.toHolder() a second time. The duplicate toHolder() call
+            // was triggering Archetype.add() / Arrays.copyOf() per tick per player and
+            // showed up clearly in profiling.
+            provider.showHud(dt, index, archetypeChunk, store, commandBuffer, player, playerRef);
         }
     }
 }

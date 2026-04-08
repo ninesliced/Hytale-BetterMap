@@ -30,6 +30,7 @@ public class MapMinScaleCommand extends AbstractCommand {
     protected boolean canGeneratePermission() {
         return false;
     }
+
     /**
      * Executes the min scale command, validating and updating the configuration.
      *

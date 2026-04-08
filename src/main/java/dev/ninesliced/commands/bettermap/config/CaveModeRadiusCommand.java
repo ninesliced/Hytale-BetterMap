@@ -29,7 +29,7 @@ import java.util.logging.Logger;
  */
 public class CaveModeRadiusCommand extends AbstractCommand {
     private static final Logger LOGGER = Logger.getLogger(CaveModeRadiusCommand.class.getName());
-    
+
     private final OptionalArg<Integer> radiusArg = this.withOptionalArg("radius", "Radius in chunks (1-16)", ArgTypes.INTEGER);
 
     public CaveModeRadiusCommand() {

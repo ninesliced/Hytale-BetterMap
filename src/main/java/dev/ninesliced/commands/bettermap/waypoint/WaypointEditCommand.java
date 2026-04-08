@@ -23,30 +23,30 @@ import javax.annotation.Nonnull;
  * Used by the context menu "Edit" option on map markers.
  */
 public class WaypointEditCommand extends AbstractPlayerCommand {
-    
+
     private final RequiredArg<String> idArg = this.withRequiredArg("id", "The waypoint ID to edit", ArgTypes.STRING);
-    
+
     public WaypointEditCommand() {
         super("edit", "Edit a waypoint");
     }
-    
+
     @Override
     protected boolean canGeneratePermission() {
         return false;
     }
-    
+
     @Override
     protected String generatePermissionNode() {
         return "";
     }
-    
+
     @Override
     protected void execute(@Nonnull CommandContext context, @Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref, @Nonnull PlayerRef playerRef, @Nonnull World world) {
         Player player = store.getComponent(ref, Player.getComponentType());
         if (player == null) return;
-        
+
         String id = this.idArg.get(context);
-        
+
         UserMapMarker marker = WaypointManager.getMarker(player, id);
         if (marker == null) {
             context.sendMessage(Message.raw("Waypoint not found: " + id).color("#FF4444"));
@@ -57,7 +57,7 @@ public class WaypointEditCommand extends AbstractPlayerCommand {
             context.sendMessage(Message.raw("You do not have permission to edit shared waypoints.").color("#FF4444"));
             return;
         }
-        
+
         WaypointEditPage editPage = new WaypointEditPage(playerRef, id);
         player.getPageManager().openCustomPage(ref, store, editPage);
     }

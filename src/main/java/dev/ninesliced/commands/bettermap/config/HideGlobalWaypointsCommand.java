@@ -1,14 +1,5 @@
 package dev.ninesliced.commands.bettermap.config;
 
-import java.awt.Color;
-import java.util.concurrent.CompletableFuture;
-
-import dev.ninesliced.commands.bettermap.config.ConfigCommand;
-import dev.ninesliced.managers.MapPrivacyManager;
-import dev.ninesliced.utils.WorldMapHook;
-import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
-import org.checkerframework.checker.nullness.compatqual.NullableDecl;
-
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -17,12 +8,17 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.UserMarkerProviderManager;
-import dev.ninesliced.managers.WaypointManager;
+import dev.ninesliced.utils.WorldMapHook;
+import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
+import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+
+import java.awt.*;
+import java.util.concurrent.CompletableFuture;
 
 public class HideGlobalWaypointsCommand extends AbstractCommand {
 
@@ -65,8 +61,8 @@ public class HideGlobalWaypointsCommand extends AbstractCommand {
             config.setHideGlobalWaypointsOnMap(newState);
 
             PlayerConfig playerConfig = playerRef.getUuid() != null
-                ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
-                : null;
+                    ? PlayerConfigManager.getInstance().getPlayerConfig(playerRef.getUuid())
+                    : null;
             if (playerConfig != null) {
                 playerConfig.setHideGlobalWaypointsOnMap(false);
                 playerConfig.setOverrideGlobalWaypointHide(false);

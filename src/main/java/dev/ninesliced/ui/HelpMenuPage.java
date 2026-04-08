@@ -8,14 +8,14 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.Page;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.InteractiveCustomUIPage;
-import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.ui.builder.UICommandBuilder;
 import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
-import com.hypixel.hytale.server.core.ui.builder.EventData;
-import com.hypixel.hytale.server.core.Message;
+import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.utils.PermissionsUtil;
 
 import javax.annotation.Nonnull;
@@ -27,16 +27,16 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
     private static final String LAYOUT_PATH = "Pages/BetterMap/HelpMenu.ui";
 
     private static final String[] ALL_DETAIL_PANELS = {
-        "#DetailMapSettings",
-        "#DetailLocationHud",
-        "#DetailPlayerCaveMode",
-        "#DetailGlobalMap",
-        "#DetailFeatureToggles",
-        "#DetailRadar",
-        "#DetailHideMarkers",
-        "#DetailWorldSettings",
-        "#DetailCaveMode",
-        "#DetailWorldBorder"
+            "#DetailMapSettings",
+            "#DetailLocationHud",
+            "#DetailPlayerCaveMode",
+            "#DetailGlobalMap",
+            "#DetailFeatureToggles",
+            "#DetailRadar",
+            "#DetailHideMarkers",
+            "#DetailWorldSettings",
+            "#DetailCaveMode",
+            "#DetailWorldBorder"
     };
 
     private String openPanel = null;
@@ -83,8 +83,8 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
 
     private void bindClick(UIEventBuilder events, String elementId, String action) {
         events.addEventBinding(CustomUIEventBindingType.Activating, elementId,
-            new EventData().put("Action", action),
-            false
+                new EventData().put("Action", action),
+                false
         );
     }
 
@@ -104,9 +104,9 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
             case "need_more_help" -> {
                 String url = "https://discord.gg/8q7NCUm4xw";
                 Message helpMessage = Message.raw("")
-                    .insert(Message.raw("[BetterMap] ").color("#F38043").bold(true))
-                    .insert(Message.raw("Need help? Join our Discord and open a ticket:\n").color("#ffffff"))
-                    .insert(Message.raw(url).color("#4c9cff").link(url));
+                        .insert(Message.raw("[BetterMap] ").color("#F38043").bold(true))
+                        .insert(Message.raw("Need help? Join our Discord and open a ticket:\n").color("#ffffff"))
+                        .insert(Message.raw(url).color("#4c9cff").link(url));
                 player.sendMessage(helpMessage);
                 player.getPageManager().setPage(ref, store, Page.None);
                 return;
@@ -142,7 +142,7 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
                 if (!PermissionsUtil.isAdmin(player)) return;
                 togglePanel(ui, "#DetailWorldBorder");
             }
-            default -> { return; }
+            default -> {return;}
         }
 
         sendUpdate(ui, events, false);
@@ -171,7 +171,7 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
 
         @SuppressWarnings("deprecation")
         public static final BuilderCodec<HelpEventData> CODEC = BuilderCodec.builder(HelpEventData.class, HelpEventData::new)
-            .addField(new KeyedCodec<>("Action", Codec.STRING), (o, v) -> o.action = v, o -> o.action)
-            .build();
+                .addField(new KeyedCodec<>("Action", Codec.STRING), (o, v) -> o.action = v, o -> o.action)
+                .build();
     }
 }

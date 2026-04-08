@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -21,18 +22,11 @@ import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+
+import javax.annotation.Nullable;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 
 public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
     public static final String PROVIDER_ID = "playerMarkers";
@@ -74,11 +68,11 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }
             boolean overrideEnabled = canOverridePoi
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean overrideUnexploredEnabled = canOverrideUnexplored
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalPoiHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalPoiHide();
             boolean hideAll = globalConfig.isHideAllPoiOnMap() && !overrideEnabled;
             boolean hideUnexplored = globalConfig.isHideUnexploredPoiOnMap() && !overrideUnexploredEnabled;
 
@@ -182,19 +176,19 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
     private static MapMarker convertToMapMarker(World world, Player viewer, UserMapMarker marker) {
         double markerY = WaypointManager.getMarkerYOrDefault(world, viewer, marker.getId(), 100.0);
         com.hypixel.hytale.protocol.Transform packetTransform = PositionUtil.toTransformPacket(
-            new Transform(marker.getX(), markerY, marker.getZ())
+                new Transform(marker.getX(), markerY, marker.getZ())
         );
 
         FormattedMessage displayName = new FormattedMessage();
         displayName.rawText = marker.getName();
 
         MapMarker result = new MapMarker(
-            marker.getId(),
-            displayName,
-            marker.getIcon(),
-            packetTransform,
-            null,
-            null
+                marker.getId(),
+                displayName,
+                marker.getIcon(),
+                packetTransform,
+                null,
+                null
         );
         MarkerTeleportUtil.injectTeleportContextMenu(result, viewer, PermissionsUtil.MarkerType.POI);
         return result;
@@ -215,8 +209,8 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
                 continue;
             }
             if (normalizedHidden.equals(normalizedName)
-                || normalizedHidden.equals(normalizedId)
-                || normalizedHidden.equals(normalizedImage)) {
+                    || normalizedHidden.equals(normalizedId)
+                    || normalizedHidden.equals(normalizedImage)) {
                 return true;
             }
         }

@@ -9,11 +9,8 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import dev.ninesliced.BetterMap;
 import dev.ninesliced.configs.ModConfig;
-import dev.ninesliced.providers.BlockMapMarkerPrivacyProvider;
-import dev.ninesliced.providers.DeathPrivacyProvider;
-import dev.ninesliced.providers.PoiPlayerMarkerProvider;
-import dev.ninesliced.providers.PoiPrivacyProvider;
-import dev.ninesliced.providers.SpawnPrivacyProvider;
+import dev.ninesliced.providers.*;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +36,7 @@ public class PoiPrivacyManager {
     private final SpawnPrivacyProvider spawnPrivacyProvider = new SpawnPrivacyProvider();
     private final BlockMapMarkerPrivacyProvider blockMapMarkerPrivacyProvider = new BlockMapMarkerPrivacyProvider();
     private final DeathPrivacyProvider deathPrivacyProvider = new DeathPrivacyProvider();
+
     private PoiPrivacyManager() {
     }
 
@@ -65,7 +63,7 @@ public class PoiPrivacyManager {
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, event -> {
             if (PlayerConfigManager.getInstance() != null) {
                 PlayerConfigManager.getInstance().getPlayerConfig(
-                    ((com.hypixel.hytale.server.core.command.system.CommandSender) event.getPlayer()).getUuid()
+                        ((com.hypixel.hytale.server.core.command.system.CommandSender) event.getPlayer()).getUuid()
                 );
             }
             World world = event.getPlayer().getWorld();
@@ -290,11 +288,11 @@ public class PoiPrivacyManager {
         PlayerConfigManager playerConfigManager = PlayerConfigManager.getInstance();
         boolean hasPlayerFilters = playerConfigManager != null && playerConfigManager.hasPoiPrivacyOverrides();
         return config.isHideAllPoiOnMap()
-            || config.isHideUnexploredPoiOnMap()
-            || config.isHideSpawnOnMap()
-            || config.isHideDeathMarkerOnMap()
-            || config.isAnyMarkerTeleportEnabled()
-            || (config.getHiddenPoiNames() != null && !config.getHiddenPoiNames().isEmpty())
-            || hasPlayerFilters;
+                || config.isHideUnexploredPoiOnMap()
+                || config.isHideSpawnOnMap()
+                || config.isHideDeathMarkerOnMap()
+                || config.isAnyMarkerTeleportEnabled()
+                || (config.getHiddenPoiNames() != null && !config.getHiddenPoiNames().isEmpty())
+                || hasPlayerFilters;
     }
 }

@@ -2,7 +2,6 @@ package dev.ninesliced.commands.bettermap.waypoint;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.OptionalArg;
@@ -51,7 +50,7 @@ public class WaypointUpdateCommand extends AbstractPlayerCommand {
         }
 
         UserMapMarker marker = WaypointManager.findMarker(player, target);
-        
+
         if (marker != null) {
             if (WaypointManager.isSharedId(marker.getId()) && !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
                 context.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));

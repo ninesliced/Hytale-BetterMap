@@ -1,11 +1,5 @@
 package dev.ninesliced.commands.bettermap.config;
 
-import java.awt.Color;
-import java.util.concurrent.CompletableFuture;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
@@ -17,10 +11,14 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.awt.*;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Command to toggle map marker teleports.

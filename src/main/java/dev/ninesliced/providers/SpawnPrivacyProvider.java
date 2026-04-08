@@ -6,6 +6,7 @@ import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.spawn.ISpawnProvider;
@@ -17,7 +18,7 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
@@ -43,8 +44,8 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
 
             boolean canOverrideSpawn = PermissionsUtil.canOverrideSpawn(player);
             boolean overrideEnabled = canOverrideSpawn
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalSpawnHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalSpawnHide();
 
             if (globalConfig.isHideSpawnOnMap() && !overrideEnabled) {
                 return;
@@ -101,12 +102,12 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
             displayName.rawText = "Spawn";
 
             MapMarker marker = new MapMarker(
-                "Spawn",
-                displayName,
-                "Spawn.png",
-                PositionUtil.toTransformPacket(new Transform(position)),
-                null,
-                null
+                    "Spawn",
+                    displayName,
+                    "Spawn.png",
+                    PositionUtil.toTransformPacket(new Transform(position)),
+                    null,
+                    null
             );
             MarkerTeleportUtil.injectTeleportContextMenu(marker, player, PermissionsUtil.MarkerType.SPAWN);
             collector.add(marker);

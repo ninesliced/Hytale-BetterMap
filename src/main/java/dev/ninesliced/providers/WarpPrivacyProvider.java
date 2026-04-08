@@ -4,10 +4,10 @@ import com.hypixel.hytale.builtin.teleport.TeleportPlugin;
 import com.hypixel.hytale.builtin.teleport.Warp;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.vector.Transform;
-import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -25,14 +25,14 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.server.core.command.system.CommandSender;
+
+import javax.annotation.Nullable;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
 
 /**
  * Provides warp markers on the world map while optionally hiding other players' warps.
@@ -76,19 +76,19 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
                 }
             }
             boolean overrideAllEnabled = canOverrideWarps
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalAllWarpsHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalAllWarpsHide();
             boolean overrideOtherEnabled = canOverrideWarps
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalOtherWarpsHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalOtherWarpsHide();
 
             boolean extendedTeleportAvailable = ExtendedTeleportIntegration.getInstance().isAvailable();
             boolean overrideUnexploredEnabled = canOverrideUnexplored
-                && playerConfig != null
-                && playerConfig.isOverrideGlobalAllWarpsHide();
+                    && playerConfig != null
+                    && playerConfig.isOverrideGlobalAllWarpsHide();
             boolean hideAllWarps = globalConfig.isHideAllWarpsOnMap() && !overrideAllEnabled;
             boolean hideOtherWarps = extendedTeleportAvailable
-                && globalConfig.isHideOtherWarpsOnMap() && !overrideOtherEnabled;
+                    && globalConfig.isHideOtherWarpsOnMap() && !overrideOtherEnabled;
             boolean hideUnexploredWarps = globalConfig.isHideUnexploredWarpsOnMap() && !overrideUnexploredEnabled;
 
             if (playerConfig != null) {
@@ -204,9 +204,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return true;
             }
             String compactUuid = uuid.replace("-", "");
-            if (normalizedCreator.equals(compactUuid)) {
-                return true;
-            }
+            return normalizedCreator.equals(compactUuid);
         }
 
         return false;
@@ -271,10 +269,10 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
     private static MapMarker createMarker(String id, String name, Warp warp, float yaw) {
         Transform transform = warp.getTransform();
         com.hypixel.hytale.protocol.Transform packetTransform = PositionUtil.toTransformPacket(
-            new com.hypixel.hytale.math.vector.Transform(
-                transform.getPosition(),
-                new Vector3f(0, yaw, 0)
-            )
+                new com.hypixel.hytale.math.vector.Transform(
+                        transform.getPosition(),
+                        new Vector3f(0, yaw, 0)
+                )
         );
 
         FormattedMessage displayName = new FormattedMessage();

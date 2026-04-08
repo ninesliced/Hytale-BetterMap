@@ -1,5 +1,7 @@
 package dev.ninesliced.configs;
 
+import com.google.gson.*;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -13,12 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 /**
  * Configuration manager for the BetterMap mod.
@@ -68,7 +64,7 @@ public class ModConfig {
     private int maxPersonalMarkersPerPlayer = 12;
     private int maxSharedMarkersPerPlayer = 12;
     private List<String> allowedWorlds = new ArrayList<>(DEFAULT_ALLOWED_WORLDS);
-    
+
     private boolean caveModeEnabled = true;
     private int caveModeLayerSize = 10;
     private int caveModeUndergroundThreshold = 100;
@@ -369,37 +365,37 @@ public class ModConfig {
                         this.maxSharedMarkersPerPlayer = 12;
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("caveModeEnabled")) {
                         this.caveModeEnabled = loaded.caveModeEnabled;
                     } else {
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("caveModeLayerSize")) {
                         this.caveModeLayerSize = loaded.caveModeLayerSize;
                     } else {
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("caveModeUndergroundThreshold")) {
                         this.caveModeUndergroundThreshold = loaded.caveModeUndergroundThreshold;
                     } else {
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("caveModeRadius")) {
                         this.caveModeRadius = loaded.caveModeRadius;
                     } else {
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("discoverSurfaceUnderground")) {
                         this.discoverSurfaceUnderground = loaded.discoverSurfaceUnderground;
                     } else {
                         needsSave = true;
                     }
-                    
+
                     if (jsonObject.has("caveFogOfWar")) {
                         this.caveFogOfWar = loaded.caveFogOfWar;
                     } else {
@@ -509,7 +505,7 @@ public class ModConfig {
             GSON.toJson(this, writer);
         } catch (IOException e) {
             LOGGER.severe("Failed to write configuration: " + e.getMessage());
-            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempPath);} catch (IOException ignored) {}
             return;
         }
         try {
@@ -521,11 +517,11 @@ public class ModConfig {
                 LOGGER.info("Configuration saved to " + configPath);
             } catch (IOException ex) {
                 LOGGER.severe("Failed to finalize configuration: " + ex.getMessage());
-                try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+                try {Files.deleteIfExists(tempPath);} catch (IOException ignored) {}
             }
         } catch (IOException e) {
             LOGGER.severe("Failed to finalize configuration: " + e.getMessage());
-            try { Files.deleteIfExists(tempPath); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempPath);} catch (IOException ignored) {}
         }
     }
 
@@ -574,7 +570,8 @@ public class ModConfig {
         return activeMapQuality != null ? activeMapQuality : mapQuality;
     }
 
-    /**currently active max chunks to load.
+    /**
+     * currently active max chunks to load.
      *
      * @return The active max chunks.
      */
@@ -1114,7 +1111,7 @@ public class ModConfig {
         this.radarRange = radarRange;
         save();
     }
-    
+
     /**
      * Gets the list of allowed worlds.
      *
@@ -1288,7 +1285,7 @@ public class ModConfig {
     public void setFirstLaunch(boolean firstLaunch) {
         this.firstLaunch = firstLaunch;
     }
-    
+
     /**
      * Checks if cave mode feature is enabled.
      *
@@ -1297,7 +1294,7 @@ public class ModConfig {
     public boolean isCaveModeEnabled() {
         return caveModeEnabled;
     }
-    
+
     /**
      * Sets whether cave mode feature is enabled.
      *
@@ -1307,7 +1304,7 @@ public class ModConfig {
         this.caveModeEnabled = enabled;
         save();
     }
-    
+
     /**
      * Gets the cave mode layer size (Y blocks per layer).
      *
@@ -1316,7 +1313,7 @@ public class ModConfig {
     public int getCaveModeLayerSize() {
         return caveModeLayerSize;
     }
-    
+
     /**
      * Sets the cave mode layer size.
      *
@@ -1326,7 +1323,7 @@ public class ModConfig {
         this.caveModeLayerSize = Math.max(1, Math.min(layerSize, 20));
         save();
     }
-    
+
     /**
      * Gets the underground threshold Y level.
      *
@@ -1335,7 +1332,7 @@ public class ModConfig {
     public int getCaveModeUndergroundThreshold() {
         return caveModeUndergroundThreshold;
     }
-    
+
     /**
      * Sets the underground threshold Y level.
      *
@@ -1345,7 +1342,7 @@ public class ModConfig {
         this.caveModeUndergroundThreshold = Math.max(0, Math.min(threshold, 319));
         save();
     }
-    
+
     /**
      * Gets the cave view radius in chunks.
      *
@@ -1354,7 +1351,7 @@ public class ModConfig {
     public int getCaveModeRadius() {
         return caveModeRadius;
     }
-    
+
     /**
      * Sets the cave view radius in chunks.
      *

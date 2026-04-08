@@ -1,7 +1,5 @@
 package dev.ninesliced.commands.bettermap;
 
-import javax.annotation.Nonnull;
-
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
@@ -22,11 +20,11 @@ import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.PermissionsUtil;
+
+import javax.annotation.Nonnull;
 
 public class MarkerTeleportContextCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> markerIdArg = this.withRequiredArg("markerId", "Marker ID", ArgTypes.STRING);
@@ -85,7 +83,7 @@ public class MarkerTeleportContextCommand extends AbstractPlayerCommand {
             double destinationY = fallbackY;
             try {
                 BlockChunk blockChunk = world.getChunkStore().getStore()
-                    .getComponent((Ref<ChunkStore>) chunkRef, BlockChunk.getComponentType());
+                        .getComponent(chunkRef, BlockChunk.getComponentType());
                 if (blockChunk != null) {
                     destinationY = blockChunk.getHeight(blockX, blockZ) + 1.0;
                 }

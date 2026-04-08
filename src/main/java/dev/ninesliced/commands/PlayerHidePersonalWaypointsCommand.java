@@ -10,7 +10,6 @@ import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.UserMarkerProviderManager;
-import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.WorldMapHook;
 
 import javax.annotation.Nonnull;

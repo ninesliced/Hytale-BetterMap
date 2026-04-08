@@ -1,23 +1,8 @@
 package dev.ninesliced.utils;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.iterator.CircleSpiralIterator;
 import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.protocol.ToClientPacket;
@@ -35,21 +20,27 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapSettings;
-
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.configs.PlayerConfig;
+import dev.ninesliced.exploration.ExplorationTicker;
 import dev.ninesliced.exploration.ExplorationTracker;
-import dev.ninesliced.managers.CaveModeManager;
-import dev.ninesliced.managers.ChunkStreamingManager;
-import dev.ninesliced.managers.ExplorationManager;
-import dev.ninesliced.managers.MapExpansionManager;
-import dev.ninesliced.managers.PlayerConfigManager;
-import dev.ninesliced.managers.WorldBorderManager;
+import dev.ninesliced.managers.*;
 import dev.ninesliced.providers.CaveModeImageBuilder;
+import it.unimi.dsi.fastutil.longs.*;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.logging.Logger;
 
 /**
  * Hooks into the Hytale WorldMap system to provide custom exploration behavior.
- *
+ * <p>
  * DYNAMIC CAVE MODE SYSTEM:
  * - Automatically detects when player goes underground (below Y=100 with ceiling)
  * - Shows cave view in a radius (default 8 chunks) around the player
@@ -62,83 +53,133 @@ import dev.ninesliced.providers.CaveModeImageBuilder;
 public class WorldMapHook {
     private static final Logger LOGGER = Logger.getLogger(WorldMapHook.class.getName());
 
-    private static final Map<String, Set<Long>> caveModeLoadedChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<Long>> caveModeLoadedChunks = new ConcurrentHashMap<>();
 
-    private static final Map<String, Set<Long>> caveModeFailedChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<Long>> caveModeFailedChunks = new ConcurrentHashMap<>();
 
-    private static final Map<String, Set<Long>> caveModeTargetChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<Long>> caveModeTargetChunks = new ConcurrentHashMap<>();
 
-    private static final Map<String, Set<Long>> caveModePendingChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<Long>> caveModePendingChunks = new ConcurrentHashMap<>();
 
-    private static final Map<String, CompletableFuture<CaveModeImageBuilder>> pendingCaveModeFutures = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, CompletableFuture<CaveModeImageBuilder>> pendingCaveModeFutures = new ConcurrentHashMap<>();
 
-    private static final Map<String, Integer> caveModeRetryCounter = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Integer> caveModeRetryCounter = new ConcurrentHashMap<>();
+
+    /**
+     * Per-player cap on cave mode tracking sets. Beyond this, each player's set is trimmed
+     * back to the most-recently-touched entries. Prevents unbounded growth on long sessions.
+     * Note: this is a defensive bound on top of the existing target/loaded radius logic —
+     * normal cave play stays well below it.
+     */
+    private static final int MAX_CAVE_MODE_CHUNKS_PER_PLAYER = 20_000;
+
+    /**
+     * Per-world cap on the shared cave exploration cache. Bounded so a world that's been
+     * online for days does not grow forever.
+     */
+    private static final int MAX_SHARED_CAVE_CHUNKS_PER_WORLD = 200_000;
 
     /**
      * Tracks last observed shared cave chunk count per player.
      * Used to detect shared exploration updates and force target recomputation.
      */
-    private static final Map<String, Integer> caveModeLastSharedCount = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Integer> caveModeLastSharedCount = new ConcurrentHashMap<>();
 
     /**
      * Tracks whether share-all-exploration was enabled for the player's last cave tick.
      * Used to force recompute when toggled on/off while underground.
      */
-    private static final Map<String, Boolean> caveModeLastShareEnabled = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Boolean> caveModeLastShareEnabled = new ConcurrentHashMap<>();
 
-    private static final Map<String, Set<Long>> sharedCaveExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, Set<Long>> sharedCaveExploredChunks = new ConcurrentHashMap<>();
 
     /**
      * Pending mutations to the WorldMapTracker's drained and applied on the WorldMap thread
      * inside {@link #updateExplorationState} to safely modify the `loaded` set without concurrency issues.
      */
-    private static final Map<String, java.util.concurrent.ConcurrentLinkedQueue<Runnable>> pendingTrackerModifications =
-            new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, ConcurrentLinkedQueue<Runnable>> pendingTrackerModifications =
+            new ConcurrentHashMap<>();
+
+    /**
+     * Helper: synchronized LongOpenHashSet wrapper. fastutil's primitive sets are NOT
+     * thread-safe, so the outer Collections.synchronizedSet handles concurrent access.
+     */
+    private static Set<Long> newSyncLongChunkSet() {
+        return Collections.synchronizedSet(new LongOpenHashSet());
+    }
+
+    /**
+     * Trims a cave-mode chunk set down to a size cap. Removes oldest-iteration entries
+     * (effectively LRU-by-insertion-order, which is acceptable for these defensive bounds).
+     */
+    private static void enforceChunkSetCap(@Nullable Set<Long> set, int cap, @Nonnull String label, @Nonnull String playerName) {
+        if (set == null) return;
+        synchronized (set) {
+            int size = set.size();
+            if (size <= cap) return;
+            int toRemove = size - cap;
+            Iterator<Long> it = set.iterator();
+            int removed = 0;
+            while (it.hasNext() && removed < toRemove) {
+                it.next();
+                it.remove();
+                removed++;
+            }
+            LOGGER.fine("[" + label + " CAP] Trimmed " + removed + " entries for " + playerName + " (was " + size + ")");
+        }
+    }
 
     /**
      * Gets or creates the cave mode loaded chunks set for a player.
      */
     private static Set<Long> getCaveModeLoadedChunks(String playerName) {
-        return caveModeLoadedChunks.computeIfAbsent(playerName, k -> java.util.Collections.synchronizedSet(new HashSet<>()));
+        return caveModeLoadedChunks.computeIfAbsent(playerName, k -> newSyncLongChunkSet());
     }
 
     /**
      * Gets or creates the cave mode failed chunks set for a player (for retry).
      */
     private static Set<Long> getCaveModeFailedChunks(String playerName) {
-        return caveModeFailedChunks.computeIfAbsent(playerName, k -> java.util.Collections.synchronizedSet(new HashSet<>()));
+        return caveModeFailedChunks.computeIfAbsent(playerName, k -> newSyncLongChunkSet());
     }
 
     /**
      * Gets or creates the cave mode target chunks set for a player.
      */
     private static Set<Long> getCaveModeTargetChunks(String playerName) {
-        return caveModeTargetChunks.computeIfAbsent(playerName, k -> java.util.Collections.synchronizedSet(new HashSet<>()));
+        return caveModeTargetChunks.computeIfAbsent(playerName, k -> newSyncLongChunkSet());
     }
 
     /**
      * Gets or creates the cave mode pending chunks set for a player.
      */
     private static Set<Long> getCaveModePendingChunks(String playerName) {
-        return caveModePendingChunks.computeIfAbsent(playerName, k -> java.util.Collections.synchronizedSet(new HashSet<>()));
+        return caveModePendingChunks.computeIfAbsent(playerName, k -> newSyncLongChunkSet());
     }
 
     private static Set<Long> getSharedCaveExploredChunks(@Nonnull String worldName) {
-        return sharedCaveExploredChunks.computeIfAbsent(worldName, k -> java.util.Collections.synchronizedSet(new HashSet<>()));
+        return sharedCaveExploredChunks.computeIfAbsent(worldName, k -> newSyncLongChunkSet());
     }
 
     /**
      * Gets shared cave explored chunks and lazily hydrates the cache from persisted/active data.
      * This keeps cave sharing working after restarts and for players who are not currently underground.
+     * Bounded to MAX_SHARED_CAVE_CHUNKS_PER_WORLD to prevent unbounded growth.
      */
     private static Set<Long> getHydratedSharedCaveExploredChunks(@Nonnull String worldName) {
         Set<Long> shared = getSharedCaveExploredChunks(worldName);
         if (shared.isEmpty()) {
             Set<Long> allKnown = ExplorationManager.getInstance().getAllExploredCaveChunks(worldName);
             if (!allKnown.isEmpty()) {
-                shared.addAll(allKnown);
+                synchronized (shared) {
+                    for (Long c : allKnown) {
+                        shared.add(c);
+                        if (shared.size() >= MAX_SHARED_CAVE_CHUNKS_PER_WORLD) break;
+                    }
+                }
             }
         }
+        enforceChunkSetCap(shared, MAX_SHARED_CAVE_CHUNKS_PER_WORLD, "SHARED CAVE", worldName);
         return shared;
     }
 
@@ -200,7 +241,7 @@ public class WorldMapHook {
     }
 
     public static void cleanupCaveModeOnDrain(@Nonnull Player player, @Nonnull World world,
-                                               @Nonnull WorldMapTracker tracker) {
+                                              @Nonnull WorldMapTracker tracker) {
         String playerName = player.getDisplayName();
 
         CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
@@ -216,7 +257,7 @@ public class WorldMapHook {
                             trackerLoaded.remove(caveIdx);
                         }
                         LOGGER.info("[CAVE DRAIN] Removed " + loadedCave.size() +
-                                   " cave chunk indices from tracker.loaded for " + playerName);
+                                " cave chunk indices from tracker.loaded for " + playerName);
                     }
                 } catch (Exception e) {
                     LOGGER.fine("[CAVE DRAIN] Could not clean tracker.loaded: " + e.getMessage());
@@ -227,8 +268,8 @@ public class WorldMapHook {
             state.clearLoadedCaveChunks();
         }
 
-        for (Long pendingIdx : new java.util.ArrayList<>(
-                caveModePendingChunks.getOrDefault(playerName, java.util.Collections.emptySet()))) {
+        for (Long pendingIdx : new ArrayList<>(
+                caveModePendingChunks.getOrDefault(playerName, Collections.emptySet()))) {
             CompletableFuture<CaveModeImageBuilder> future = pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
             if (future != null && !future.isDone()) {
                 future.cancel(false);
@@ -397,11 +438,11 @@ public class WorldMapHook {
     /**
      * Updates the exploration state for a player, updating boundaries and forcing a tracker update if moved.
      * Now uses DYNAMIC cave mode - automatically shows cave view when underground.
-     *
+     * <p>
      * When cave mode is active and player is underground:
      * - Only cave chunks are marked as explored (not normal surface chunks)
      * - Only cave chunks are loaded (not normal chunks)
-     *
+     * <p>
      * When cave mode is disabled globally:
      * - Normal chunks are always marked as explored (even when underground)
      * - Cave chunks are never saved
@@ -413,12 +454,12 @@ public class WorldMapHook {
      */
     public static void updateExplorationState(@Nonnull Player player, @Nonnull WorldMapTracker tracker, double x, double z) {
         try {
-            java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
+            ConcurrentLinkedQueue<Runnable> pendingMods =
                     pendingTrackerModifications.get(player.getDisplayName());
             if (pendingMods != null) {
                 Runnable mod;
                 while ((mod = pendingMods.poll()) != null) {
-                    try { mod.run(); } catch (Exception e) {
+                    try {mod.run();} catch (Exception e) {
                         LOGGER.fine("[CAVE] Error applying pending tracker mod: " + e.getMessage());
                     }
                 }
@@ -447,7 +488,7 @@ public class WorldMapHook {
             CaveModeManager caveManager = CaveModeManager.getInstance();
             boolean caveModeGloballyEnabled = ModConfig.getInstance().isCaveModeEnabled();
             boolean caveModeEnabledForPlayer = caveModeGloballyEnabled
-                && CaveModeManager.isEffectivelyEnabledForPlayer(player);
+                    && CaveModeManager.isEffectivelyEnabledForPlayer(player);
 
             boolean stateChanged = false;
             boolean isUnderground = false;
@@ -455,8 +496,8 @@ public class WorldMapHook {
             if (caveModeEnabledForPlayer) {
                 Ref<EntityStore> playerRef = player.getReference();
                 TransformComponent transform = (playerRef != null && playerRef.isValid())
-                    ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
-                    : null;
+                        ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
+                        : null;
                 int playerY = transform != null ? (int) transform.getPosition().y : 100;
                 boolean hasCeiling = checkForCeiling(world, player, x, playerY, z);
 
@@ -485,7 +526,7 @@ public class WorldMapHook {
 
                     if (isUnderground) {
                         LOGGER.info("[DYNAMIC CAVE] Activating cave overlay for " + player.getDisplayName() +
-                                   " at layer " + state.getCurrentLayer() + "-" + (state.getCurrentLayer() + state.getLayerSize()));
+                                " at layer " + state.getCurrentLayer() + "-" + (state.getCurrentLayer() + state.getLayerSize()));
 
                         if (fogOfWar) {
                             LOGGER.info("[DYNAMIC CAVE] Fog of war enabled - refreshing map for cave entry");
@@ -511,7 +552,7 @@ public class WorldMapHook {
                     int currentLayer = state.getCurrentLayer();
 
                     LOGGER.info("[DYNAMIC CAVE] Layer change: " + previousLayer + " -> " + currentLayer +
-                               ". Will regenerate cave images for new Y level.");
+                            ". Will regenerate cave images for new Y level.");
 
                     state.setNeedsLayerRefresh(true);
 
@@ -544,7 +585,7 @@ public class WorldMapHook {
     /**
      * Checks if there's a ceiling (solid blocks) above the player.
      * Used to detect if player is actually underground vs just at low Y.
-     *
+     * <p>
      * For now, we use a simplified approach: if player is below the threshold,
      * we assume they're in a cave. A more sophisticated check would scan actual blocks.
      */
@@ -567,14 +608,14 @@ public class WorldMapHook {
      * Schedules cave overlay update to run OFF the world thread.
      * Called from the world thread - reads tracker state (fast), then dispatches heavy work
      * to the ticker thread. This prevents the world thread from being blocked by cave processing.
-     *
+     * <p>
      * Like Hytale's WorldMapManager which runs on its own 10 TPS thread, cave overlay
      * computation runs on the BetterMap ticker thread, with only packet sending on the world thread.
      */
     private static void scheduleCaveOverlayUpdate(@Nonnull Player player, @Nonnull World world,
-                                                    @Nonnull WorldMapTracker tracker,
-                                                    double playerX, double playerZ,
-                                                    @Nonnull CaveModeManager.DynamicCaveModeState state) {
+                                                  @Nonnull WorldMapTracker tracker,
+                                                  double playerX, double playerZ,
+                                                  @Nonnull CaveModeManager.DynamicCaveModeState state) {
         if (state.isCaveProcessingInProgress()) {
             return;
         }
@@ -595,7 +636,7 @@ public class WorldMapHook {
         Set<Long> trackerLoaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : null;
 
         state.setCaveProcessingInProgress(true);
-        dev.ninesliced.exploration.ExplorationTicker.getInstance().scheduleUpdate(() -> {
+        ExplorationTicker.getInstance().scheduleUpdate(() -> {
             try {
                 processCaveOverlayAsync(player, world, tracker, trackerLoaded, playerX, playerZ, state, imageSize);
             } finally {
@@ -610,18 +651,18 @@ public class WorldMapHook {
      * Only packet sending and tracker state updates are dispatched to the world thread.
      */
     private static void processCaveOverlayAsync(@Nonnull Player player, @Nonnull World world,
-                                                  @Nonnull WorldMapTracker tracker,
-                                                  @Nullable Set<Long> trackerLoaded,
-                                                  double playerX, double playerZ,
-                                                  @Nonnull CaveModeManager.DynamicCaveModeState state,
-                                                  int imageSize) {
+                                                @Nonnull WorldMapTracker tracker,
+                                                @Nullable Set<Long> trackerLoaded,
+                                                double playerX, double playerZ,
+                                                @Nonnull CaveModeManager.DynamicCaveModeState state,
+                                                int imageSize) {
         try {
             int playerMapChunkX = ((int) Math.floor(playerX)) >> 5;
             int playerMapChunkZ = ((int) Math.floor(playerZ)) >> 5;
 
             long nowMs = System.currentTimeMillis();
             boolean movedMapChunk = playerMapChunkX != state.getLastOverlayMapChunkX() ||
-                                    playerMapChunkZ != state.getLastOverlayMapChunkZ();
+                    playerMapChunkZ != state.getLastOverlayMapChunkZ();
             boolean needsRefresh = state.needsLayerRefresh();
             boolean hasPending = !state.getPendingCaveChunks().isEmpty();
             if (!movedMapChunk && !needsRefresh && !hasPending) {
@@ -645,14 +686,16 @@ public class WorldMapHook {
             Set<Long> sharedExplored = shareCaves ? getHydratedSharedCaveExploredChunks(world.getName()) : null;
 
             if (shareCaves && sharedExplored != null && !exploredCaveChunks.isEmpty()) {
-                sharedExplored.addAll(exploredCaveChunks);
+                synchronized (sharedExplored) {
+                    sharedExplored.addAll(exploredCaveChunks);
+                }
             }
 
             String playerName = player.getDisplayName();
             Set<Long> failedChunks = getCaveModeFailedChunks(playerName);
             List<MapChunk> chunksToSend = new ArrayList<>();
-            Set<Long> trackerToAdd = new HashSet<>();
-            Set<Long> trackerToRemove = new HashSet<>();
+            LongOpenHashSet trackerToAdd = new LongOpenHashSet();
+            LongOpenHashSet trackerToRemove = new LongOpenHashSet();
 
             boolean shareModeChanged = false;
             Boolean previousShareEnabled = caveModeLastShareEnabled.get(playerName);
@@ -710,7 +753,7 @@ public class WorldMapHook {
                 int scanRadius = caveRadius + 2;
                 int scanRadiusSq = scanRadius * scanRadius;
 
-                Set<Long> candidateSet = new HashSet<>();
+                LongOpenHashSet candidateSet = new LongOpenHashSet();
                 List<long[]> candidateChunksWithDist = new ArrayList<>();
 
                 for (int dx = -scanRadius; dx <= scanRadius; dx++) {
@@ -740,8 +783,8 @@ public class WorldMapHook {
                 }
 
                 for (Long exploredIdx : exploredCaveChunks) {
-                    if (!candidateSet.contains(exploredIdx)) {
-                        candidateSet.add(exploredIdx);
+                    if (!candidateSet.contains(exploredIdx.longValue())) {
+                        candidateSet.add(exploredIdx.longValue());
                         int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(exploredIdx);
                         int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(exploredIdx);
                         long ddx = (long) mx - playerMapChunkX;
@@ -750,14 +793,16 @@ public class WorldMapHook {
                     }
                 }
                 if (shareCaves && sharedExplored != null) {
-                    for (Long sharedIdx : sharedExplored) {
-                        if (!candidateSet.contains(sharedIdx)) {
-                            candidateSet.add(sharedIdx);
-                            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(sharedIdx);
-                            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(sharedIdx);
-                            long ddx = (long) mx - playerMapChunkX;
-                            long ddz = (long) mz - playerMapChunkZ;
-                            candidateChunksWithDist.add(new long[]{sharedIdx, ddx * ddx + ddz * ddz});
+                    synchronized (sharedExplored) {
+                        for (Long sharedIdx : sharedExplored) {
+                            if (!candidateSet.contains(sharedIdx.longValue())) {
+                                candidateSet.add(sharedIdx.longValue());
+                                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(sharedIdx);
+                                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(sharedIdx);
+                                long ddx = (long) mx - playerMapChunkX;
+                                long ddz = (long) mz - playerMapChunkZ;
+                                candidateChunksWithDist.add(new long[]{sharedIdx, ddx * ddx + ddz * ddz});
+                            }
                         }
                     }
                 }
@@ -767,13 +812,14 @@ public class WorldMapHook {
                 int caveChunksAllowed = maxChunks * 3 / 4;
                 int targetCount = Math.min(candidateChunksWithDist.size(), caveChunksAllowed);
 
-                targetCaveChunks = new HashSet<>(targetCount * 2);
+                LongOpenHashSet targetCaveChunksLong = new LongOpenHashSet(targetCount * 2);
                 List<Long> sortedTargets = new ArrayList<>(targetCount);
                 for (int i = 0; i < targetCount; i++) {
                     long chunkId = candidateChunksWithDist.get(i)[0];
-                    targetCaveChunks.add(chunkId);
+                    targetCaveChunksLong.add(chunkId);
                     sortedTargets.add(chunkId);
                 }
+                targetCaveChunks = targetCaveChunksLong;
 
                 state.setCachedTargetChunks(targetCaveChunks);
                 state.setCachedTargetSorted(sortedTargets);
@@ -806,7 +852,7 @@ public class WorldMapHook {
                     if (pendingCaveChunks.contains(chunkIdx)) continue;
 
                     CompletableFuture<CaveModeImageBuilder> future = CaveModeImageBuilder.build(
-                        chunkIdx, imageSize, imageSize, world, yLevel, verticalRange);
+                            chunkIdx, imageSize, imageSize, world, yLevel, verticalRange);
 
                     if (future.isDone()) {
                         CaveModeImageBuilder builder = future.getNow(null);
@@ -837,7 +883,7 @@ public class WorldMapHook {
                     if (loadedCaveChunks.contains(chunkIdx) || pendingCaveChunks.contains(chunkIdx)) continue;
 
                     CompletableFuture<CaveModeImageBuilder> future = CaveModeImageBuilder.build(
-                        chunkIdx, imageSize, imageSize, world, yLevel, verticalRange);
+                            chunkIdx, imageSize, imageSize, world, yLevel, verticalRange);
 
                     if (future.isDone() && immediateLoads < maxImmediateLoads) {
                         CaveModeImageBuilder builder = future.getNow(null);
@@ -885,28 +931,33 @@ public class WorldMapHook {
 
             final List<MapChunk> finalChunksToSend = chunksToSend;
             final List<MapChunk> finalChunksToUnload = chunksToUnload;
-            final Set<Long> finalTrackerToAdd = trackerToAdd;
-            final Set<Long> finalTrackerToRemove = trackerToRemove;
+            final LongOpenHashSet finalTrackerToAdd = trackerToAdd;
+            final LongOpenHashSet finalTrackerToRemove = trackerToRemove;
 
             // Queue trackerLoaded mutations to be applied on the WorldMap thread.
             if (trackerLoaded != null && (!finalTrackerToRemove.isEmpty() || !finalTrackerToAdd.isEmpty())) {
                 final String pName = player.getDisplayName();
-                final Set<Long> frozenCaveChunks = new HashSet<>(loadedCaveChunks);
+                final LongOpenHashSet frozenCaveChunks = new LongOpenHashSet(loadedCaveChunks.size() * 2);
+                synchronized (loadedCaveChunks) {
+                    for (Long c : loadedCaveChunks) frozenCaveChunks.add(c.longValue());
+                }
                 pendingTrackerModifications
-                        .computeIfAbsent(pName, k -> new java.util.concurrent.ConcurrentLinkedQueue<>())
+                        .computeIfAbsent(pName, k -> new ConcurrentLinkedQueue<>())
                         .add(() -> {
-                            for (Long idx : finalTrackerToRemove) {
-                                trackerLoaded.remove(idx);
+                            LongIterator removeIt = finalTrackerToRemove.iterator();
+                            while (removeIt.hasNext()) {
+                                trackerLoaded.remove(removeIt.nextLong());
                             }
-                            for (Long idx : finalTrackerToAdd) {
-                                trackerLoaded.add(idx);
+                            LongIterator addIt = finalTrackerToAdd.iterator();
+                            while (addIt.hasNext()) {
+                                trackerLoaded.add(addIt.nextLong());
                             }
                             // Evict excess surface chunks to keep the set bounded.
                             int totalLoaded = trackerLoaded.size();
                             if (totalLoaded > maxChunks) {
                                 List<Long> surfaceToEvict = new ArrayList<>();
                                 for (Long idx : trackerLoaded) {
-                                    if (!frozenCaveChunks.contains(idx)) {
+                                    if (!frozenCaveChunks.contains(idx.longValue())) {
                                         surfaceToEvict.add(idx);
                                     }
                                 }
@@ -950,6 +1001,15 @@ public class WorldMapHook {
                     }
                 });
             }
+
+            // Defensive bounds — keep per-player cave tracking sets from growing without limit
+            // on long sessions. The radius/target logic above normally keeps these small, but
+            // if anything leaks an entry these caps will catch it.
+            enforceChunkSetCap(loadedCaveChunks, MAX_CAVE_MODE_CHUNKS_PER_PLAYER, "CAVE LOADED", playerName);
+            enforceChunkSetCap(failedChunks, MAX_CAVE_MODE_CHUNKS_PER_PLAYER, "CAVE FAILED", playerName);
+            enforceChunkSetCap(pendingCaveChunks, MAX_CAVE_MODE_CHUNKS_PER_PLAYER, "CAVE PENDING", playerName);
+            enforceChunkSetCap(getCaveModeLoadedChunks(playerName), MAX_CAVE_MODE_CHUNKS_PER_PLAYER, "CAVE STATIC LOADED", playerName);
+            enforceChunkSetCap(getCaveModeTargetChunks(playerName), MAX_CAVE_MODE_CHUNKS_PER_PLAYER, "CAVE STATIC TARGET", playerName);
         } catch (Exception e) {
             LOGGER.warning("[DYNAMIC CAVE] Error processing overlay async: " + e.getMessage());
         }
@@ -960,12 +1020,16 @@ public class WorldMapHook {
      * Sends unload packets (null images) for all loaded cave chunks, then forces normal map refresh.
      */
     private static void clearCaveModeOverlay(@Nonnull Player player, @Nonnull World world,
-                                              @Nonnull WorldMapTracker tracker) {
+                                             @Nonnull WorldMapTracker tracker) {
         try {
             CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
             if (state == null) return;
 
-            Set<Long> loadedCaveChunks = new HashSet<>(state.getLoadedCaveChunks());
+            Set<Long> sourceLoaded = state.getLoadedCaveChunks();
+            LongOpenHashSet loadedCaveChunks = new LongOpenHashSet(sourceLoaded.size());
+            synchronized (sourceLoaded) {
+                for (Long c : sourceLoaded) loadedCaveChunks.add(c.longValue());
+            }
             String playerName = player.getDisplayName();
 
             for (Long pendingIdx : state.getPendingCaveChunks()) {
@@ -975,10 +1039,12 @@ public class WorldMapHook {
 
             Object loadedObj = ReflectionHelper.getFieldValueRecursive(tracker, "loaded");
             @SuppressWarnings("unchecked")
-            Set<Long> trackerLoaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new HashSet<>();
+            Set<Long> trackerLoaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new LongOpenHashSet();
 
-            List<MapChunk> chunksToUnload = new ArrayList<>();
-            for (Long caveChunkIdx : loadedCaveChunks) {
+            List<MapChunk> chunksToUnload = new ArrayList<>(loadedCaveChunks.size());
+            LongIterator caveIt = loadedCaveChunks.iterator();
+            while (caveIt.hasNext()) {
+                long caveChunkIdx = caveIt.nextLong();
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(caveChunkIdx);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(caveChunkIdx);
                 chunksToUnload.add(new MapChunk(mx, mz, null));
@@ -1006,8 +1072,8 @@ public class WorldMapHook {
 
             Ref<EntityStore> playerRef = player.getReference();
             TransformComponent transform = (playerRef != null && playerRef.isValid())
-                ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
-                : null;
+                    ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
+                    : null;
             if (transform != null) {
                 var pos = transform.getPosition();
                 forceTrackerUpdate(player, tracker, pos.x, pos.z);
@@ -1033,7 +1099,7 @@ public class WorldMapHook {
             Object loadedObj = ReflectionHelper.getFieldValueRecursive(tracker, "loaded");
             if (!(loadedObj instanceof Set))
                 return;
-            
+
             @SuppressWarnings("unchecked")
             Set<Long> loaded = (Set<Long>) loadedObj;
 
@@ -1041,31 +1107,66 @@ public class WorldMapHook {
             if (!(spiralIterator instanceof RestrictedSpiralIterator))
                 return;
 
-            List<Long> targetChunks = ((RestrictedSpiralIterator) spiralIterator).getTargetMapChunks();
-            Set<Long> targetSet = new HashSet<>(targetChunks);
-            
+            // The iterator now exposes its target list as a primitive LongArrayList — no boxing.
+            LongArrayList targetChunks = ((RestrictedSpiralIterator) spiralIterator).getTargetMapChunks();
+
+            // Build the membership set directly from primitives.
+            final LongOpenHashSet targetSet = new LongOpenHashSet(targetChunks.size() * 2);
+            LongIterator tcIt = targetChunks.iterator();
+            while (tcIt.hasNext()) targetSet.add(tcIt.nextLong());
+
+            // ChunkStreamingManager.computeDelta still uses a boxed Set<Long> on its API,
+            // so expose an AbstractSet view backed by the primitive set rather than copying again.
+            Set<Long> targetSetView = new AbstractSet<Long>() {
+                @Override
+                public int size() {return targetSet.size();}
+
+                @Override
+                public boolean contains(Object o) {
+                    return o instanceof Long && targetSet.contains(((Long) o).longValue());
+                }
+
+                @Override
+                public Iterator<Long> iterator() {
+                    final LongIterator it = targetSet.iterator();
+                    return new Iterator<Long>() {
+                        @Override
+                        public boolean hasNext() {return it.hasNext();}
+
+                        @Override
+                        public Long next() {return it.nextLong();}
+                    };
+                }
+            };
+
             String playerName = player.getDisplayName();
             ChunkStreamingManager streamingManager = ChunkStreamingManager.getInstance();
 
             ChunkStreamingManager.ChunkDelta delta = streamingManager.computeDelta(
-                playerName, targetSet, cx, cz
+                    playerName, targetSetView, cx, cz
             );
 
             if (!delta.toLoad.isEmpty()) {
                 streamingManager.queueChunksForLoading(playerName, delta.toLoad, cx, cz);
             }
-            
+
             if (!delta.toUnload.isEmpty()) {
                 streamingManager.queueChunksForUnloading(playerName, delta.toUnload);
             }
 
             streamingManager.processLoadQueue(player);
 
-            List<Long> loadedSnapshot = new ArrayList<>(loaded);
+            // Snapshot loaded as a primitive long[] so we can mutate `loaded` while iterating.
+            long[] loadedSnapshot;
+            synchronized (loaded) {
+                loadedSnapshot = new long[loaded.size()];
+                int i = 0;
+                for (Long l : loaded) loadedSnapshot[i++] = l.longValue();
+            }
+
             List<Long> toUnload = new ArrayList<>();
             List<MapChunk> unloadPackets = new ArrayList<>();
-
-            for (Long idx : loadedSnapshot) {
+            for (long idx : loadedSnapshot) {
                 if (!targetSet.contains(idx)) {
                     toUnload.add(idx);
                     int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
@@ -1100,7 +1201,7 @@ public class WorldMapHook {
         try {
             Ref<EntityStore> ref = player.getReference();
             if (ref == null || !ref.isValid()) return;
-            com.hypixel.hytale.component.Store<EntityStore> store = ref.getStore();
+            Store<EntityStore> store = ref.getStore();
             PlayerRef playerRef = store.getComponent(ref, PlayerRef.getComponentType());
             if (playerRef == null) return;
             playerRef.getPacketHandler().write(packet);
@@ -1146,7 +1247,7 @@ public class WorldMapHook {
             boolean caveModeEnabled = ModConfig.getInstance().isCaveModeEnabled();
 
             LOGGER.info("[MAP REFRESH] Starting full map refresh for " + player.getDisplayName() +
-                       " (underground: " + isUnderground + ", fogOfWar: " + fogOfWar + ")");
+                    " (underground: " + isUnderground + ", fogOfWar: " + fogOfWar + ")");
 
             String playerName = player.getDisplayName();
             clearCaveModeLoadedChunks(playerName);
@@ -1160,13 +1261,13 @@ public class WorldMapHook {
             try {
                 Object pendingReloadChunks = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
                 if (pendingReloadChunks != null) {
-                    java.lang.reflect.Method clearMethod = pendingReloadChunks.getClass().getMethod("clear");
+                    Method clearMethod = pendingReloadChunks.getClass().getMethod("clear");
                     clearMethod.invoke(pendingReloadChunks);
                     LOGGER.info("[MAP REFRESH] Cleared pendingReloadChunks");
                 }
                 Object pendingReloadFutures = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
                 if (pendingReloadFutures != null) {
-                    java.lang.reflect.Method clearMethod = pendingReloadFutures.getClass().getMethod("clear");
+                    Method clearMethod = pendingReloadFutures.getClass().getMethod("clear");
                     clearMethod.invoke(pendingReloadFutures);
                     LOGGER.info("[MAP REFRESH] Cleared pendingReloadFutures");
                 }
@@ -1187,8 +1288,8 @@ public class WorldMapHook {
 
             Ref<EntityStore> playerRef = player.getReference();
             TransformComponent transform = (playerRef != null && playerRef.isValid())
-                ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
-                : null;
+                    ? playerRef.getStore().getComponent(playerRef, TransformComponent.getComponentType())
+                    : null;
             if (transform != null) {
                 var pos = transform.getPosition();
                 int chunkX = (int) Math.floor(pos.x) >> 5;
@@ -1220,20 +1321,20 @@ public class WorldMapHook {
      * Works like the base map: only sends chunks that are ready, skips those that aren't.
      * This prevents freezing by not waiting for all futures to complete.
      *
-     * @param player  The player.
-     * @param world   The world.
-     * @param tracker The world map tracker.
-     * @param playerX Player X position.
-     * @param playerZ Player Z position.
-     * @param yLevel  The Y level for cave mode.
-     * @param range   The vertical range.
+     * @param player        The player.
+     * @param world         The world.
+     * @param tracker       The world map tracker.
+     * @param playerX       Player X position.
+     * @param playerZ       Player Z position.
+     * @param yLevel        The Y level for cave mode.
+     * @param range         The vertical range.
      * @param maxGeneration Maximum number of pending generations allowed (like base map)
      * @return Number of remaining generation slots
      */
     private static int generateCaveModeImagesProgressive(@Nonnull Player player, @Nonnull World world,
-                                                          @Nonnull WorldMapTracker tracker,
-                                                          double playerX, double playerZ,
-                                                          int yLevel, int range, int maxGeneration) {
+                                                         @Nonnull WorldMapTracker tracker,
+                                                         double playerX, double playerZ,
+                                                         int yLevel, int range, int maxGeneration) {
         try {
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
             float imageScale = settings.getImageScale();
@@ -1243,8 +1344,7 @@ public class WorldMapHook {
             int playerMapChunkZ = ((int) Math.floor(playerZ)) >> 5;
 
             Object loadedObj = ReflectionHelper.getFieldValueRecursive(tracker, "loaded");
-            @SuppressWarnings("unchecked")
-            final Set<Long> loaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new HashSet<>();
+            @SuppressWarnings("unchecked") final Set<Long> loaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new LongOpenHashSet();
 
             String playerName = player.getDisplayName();
             Set<Long> caveModeLoaded = getCaveModeLoadedChunks(playerName);
@@ -1257,26 +1357,36 @@ public class WorldMapHook {
                 return maxGeneration;
             }
 
-            Set<Long> exploredWorldChunks;
+            // Build a primitive working set of explored cave chunks for this pass.
             CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
             boolean shareCaves = ModConfig.getInstance().isShareAllExploration();
+            LongOpenHashSet exploredWorldChunks = new LongOpenHashSet();
             if (state != null) {
-                exploredWorldChunks = new HashSet<>(state.getExploredCaveChunks());
+                Set<Long> playerExplored = state.getExploredCaveChunks();
+                synchronized (playerExplored) {
+                    for (Long c : playerExplored) exploredWorldChunks.add(c.longValue());
+                }
                 if (shareCaves) {
-                    exploredWorldChunks.addAll(getHydratedSharedCaveExploredChunks(world.getName()));
+                    Set<Long> shared = getHydratedSharedCaveExploredChunks(world.getName());
+                    synchronized (shared) {
+                        for (Long c : shared) exploredWorldChunks.add(c.longValue());
+                    }
                 }
             } else if (shareCaves) {
-                exploredWorldChunks = getHydratedSharedCaveExploredChunks(world.getName());
-            } else {
-                exploredWorldChunks = Collections.emptySet();
+                Set<Long> shared = getHydratedSharedCaveExploredChunks(world.getName());
+                synchronized (shared) {
+                    for (Long c : shared) exploredWorldChunks.add(c.longValue());
+                }
             }
 
             if (exploredWorldChunks.isEmpty()) {
                 return maxGeneration;
             }
 
-            Set<Long> mapChunksSet = new HashSet<>();
-            for (Long chunkIdx : exploredWorldChunks) {
+            LongOpenHashSet mapChunksSet = new LongOpenHashSet(exploredWorldChunks.size());
+            LongIterator chunkIt = exploredWorldChunks.iterator();
+            while (chunkIt.hasNext()) {
+                long chunkIdx = chunkIt.nextLong();
                 int wx = ChunkUtil.indexToChunkX(chunkIdx);
                 int wz = ChunkUtil.indexToChunkZ(chunkIdx);
                 int mx = wx >> 1;
@@ -1285,7 +1395,11 @@ public class WorldMapHook {
                 mapChunksSet.add(mapChunkIdx);
             }
 
-            List<Long> sortedChunks = new ArrayList<>(mapChunksSet);
+            List<Long> sortedChunks = new ArrayList<>(mapChunksSet.size());
+            LongIterator mcsIt = mapChunksSet.iterator();
+            while (mcsIt.hasNext()) {
+                sortedChunks.add(mcsIt.nextLong());
+            }
             sortedChunks.sort(Comparator.comparingLong(idx -> {
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
@@ -1294,8 +1408,13 @@ public class WorldMapHook {
                 return dx * dx + dz * dz;
             }));
 
-            caveModeTarget.clear();
-            caveModeTarget.addAll(mapChunksSet);
+            synchronized (caveModeTarget) {
+                caveModeTarget.clear();
+                LongIterator addIt = mapChunksSet.iterator();
+                while (addIt.hasNext()) {
+                    caveModeTarget.add(addIt.nextLong());
+                }
+            }
 
             List<Long> completedPending = new ArrayList<>();
             List<MapChunk> chunksToSend = new ArrayList<>();
@@ -1334,7 +1453,7 @@ public class WorldMapHook {
                 }
 
                 CompletableFuture<CaveModeImageBuilder> future = CaveModeImageBuilder.build(
-                    chunkIdx, imageSize, imageSize, world, yLevel, range);
+                        chunkIdx, imageSize, imageSize, world, yLevel, range);
 
                 if (future.isDone()) {
                     CaveModeImageBuilder builder = future.getNow(null);
@@ -1426,7 +1545,7 @@ public class WorldMapHook {
     public static void broadcastMapSettings(@Nonnull World world) {
         try {
             Object mapManager = world.getWorldMapManager();
-            java.lang.reflect.Method sendSettings = mapManager.getClass().getMethod("sendSettings");
+            Method sendSettings = mapManager.getClass().getMethod("sendSettings");
             sendSettings.invoke(mapManager);
         } catch (Exception e) {
             LOGGER.fine("Could not invoke mapManager.sendSettings(): " + e.getMessage());
@@ -1585,7 +1704,7 @@ public class WorldMapHook {
                     Class<?> type = field.getType();
                     String typeName = type.getName();
                     if ("MapMarkerTracker".equals(type.getSimpleName())
-                        || typeName.endsWith(".MapMarkerTracker")) {
+                            || typeName.endsWith(".MapMarkerTracker")) {
                         Object value = field.get(tracker);
                         if (value != null) {
                             return value;
@@ -1620,13 +1739,31 @@ public class WorldMapHook {
 
     /**
      * Custom iterator that only returns chunks that have been explored or are within the persistent boundaries.
-     * Thread-safe implementation to prevent race conditions with the WorldMap thread.
+     * <p>
+     * Zero-allocation hot path: every per-instance buffer (target list, ranked list, boundary set,
+     * map-chunks set) is allocated once in the constructor and reused in place across all init() calls.
+     * The cache-hit path (player hasn't moved more than RESORT_DISTANCE_THRESHOLD map chunks and
+     * exploration version hasn't changed) does NO allocations at all.
      */
     public static class RestrictedSpiralIterator extends CircleSpiralIterator {
         private final ExplorationTracker.PlayerExplorationData data;
         private final WorldMapTracker tracker;
         private volatile Iterator<Long> currentIterator;
-        private volatile List<Long> targetMapChunks = new ArrayList<>();
+
+        // Reused in place. Never reallocated after construction (except on stop/reset).
+        // Field is final so the JIT can prove it never escapes / never changes identity.
+        private final LongArrayList targetMapChunks = new LongArrayList(512);
+
+        // Reused ranked-chunks buffer. Cleared and repopulated on resort, never reallocated.
+        private final LongArrayList cachedRankedChunks = new LongArrayList(2048);
+        private volatile boolean cachedRankedValid = false;
+
+        // Reused per-call boundary set. Cleared at the start of every init(), never reallocated.
+        private final LongOpenHashSet reusableBoundaryChunks = new LongOpenHashSet(8);
+
+        // Reused per-call map-chunks set for the shareAllExploration branch.
+        private final LongOpenHashSet reusableMapChunksSet = new LongOpenHashSet(2048);
+
         private volatile int currentGoalRadius;
         private volatile boolean stopped = false;
         private volatile boolean initialized = false;
@@ -1638,13 +1775,16 @@ public class WorldMapHook {
         private int pendingReloadCleanupTimer = 0;
         private final Object lock = new Object();
 
-        private volatile List<Long> cachedRankedChunks = null;
         private volatile int cachedCenterX = Integer.MIN_VALUE;
         private volatile int cachedCenterZ = Integer.MIN_VALUE;
         private volatile long cachedExploredVersion = -1;
-        private volatile Set<Long> cachedBoundaryChunks = null;
-        
-        private volatile Set<Long> cachedMapChunks = null;
+
+        // Replaces cachedBoundaryChunks LongOpenHashSet equality check with a cheap hash compare.
+        private volatile long cachedBoundaryHash = Long.MIN_VALUE;
+        private volatile int cachedBoundarySize = -1;
+        private volatile int cachedSearchLimit = -1;
+
+        private volatile LongOpenHashSet cachedMapChunks = null;
         private volatile long cachedMapChunksVersion = -1;
 
         private static final int RESORT_DISTANCE_THRESHOLD = 4;
@@ -1662,8 +1802,6 @@ public class WorldMapHook {
         /**
          * Enables or disables cave mode. When cave mode is active, this iterator
          * will return no chunks, allowing the cave mode system to handle map generation.
-         *
-         * @param active Whether cave mode should be active.
          */
         public void setCaveModeActive(boolean active) {
             synchronized (lock) {
@@ -1674,11 +1812,6 @@ public class WorldMapHook {
             }
         }
 
-        /**
-         * Checks if cave mode is active.
-         *
-         * @return true if cave mode is active.
-         */
         public boolean isCaveModeActive() {
             return caveModeActive;
         }
@@ -1687,11 +1820,15 @@ public class WorldMapHook {
             synchronized (lock) {
                 this.stopped = true;
                 this.currentIterator = Collections.emptyIterator();
-                this.cachedRankedChunks = null;
+                this.targetMapChunks.clear();
+                this.cachedRankedChunks.clear();
+                this.cachedRankedValid = false;
                 this.cachedCenterX = Integer.MIN_VALUE;
                 this.cachedCenterZ = Integer.MIN_VALUE;
                 this.cachedExploredVersion = -1;
-                this.cachedBoundaryChunks = null;
+                this.cachedBoundaryHash = Long.MIN_VALUE;
+                this.cachedBoundarySize = -1;
+                this.cachedSearchLimit = -1;
                 this.cachedMapChunks = null;
                 this.cachedMapChunksVersion = -1;
                 try {
@@ -1709,7 +1846,12 @@ public class WorldMapHook {
                 this.stopped = false;
                 this.initialized = true;
                 this.currentIterator = Collections.emptyIterator();
-                this.targetMapChunks = new ArrayList<>();
+                this.targetMapChunks.clear();
+                this.cachedRankedChunks.clear();
+                this.cachedRankedValid = false;
+                this.cachedBoundaryHash = Long.MIN_VALUE;
+                this.cachedBoundarySize = -1;
+                this.cachedSearchLimit = -1;
                 this.currentGoalRadius = 0;
                 this.currentRadius = 0;
                 this.cleanupTimer = 0;
@@ -1718,27 +1860,29 @@ public class WorldMapHook {
         }
 
         /**
-         * Gets the list of target chunks being iterated.
-         *
-         * @return List of chunk indices.
+         * Returns the live LongArrayList of target chunks. Callers should iterate via
+         * {@link LongArrayList#iterator()} which returns a {@link LongIterator} to avoid
+         * boxing. The returned list is the live backing store — do not mutate from outside.
          */
-        public List<Long> getTargetMapChunks() {
+        public LongArrayList getTargetMapChunks() {
             return targetMapChunks;
         }
-        
+
         /**
-         * Gets or rebuilds the map chunks set from explored world chunks.
-         * Uses version counter for O(1) staleness check instead of iterating all chunks.
+         * Cache key for the per-player explored map-chunks set, version-checked against
+         * the underlying explored chunks data so we only rebuild when something actually
+         * changed. Backed by a LongOpenHashSet — no boxing during iteration over the
+         * player's full explored set (potentially millions of entries).
          */
-        private Set<Long> getOrBuildMapChunks() {
+        private LongOpenHashSet getOrBuildMapChunks() {
             long currentVersion = data.getExploredChunks().getVersion();
-            Set<Long> cached = cachedMapChunks;
+            LongOpenHashSet cached = cachedMapChunks;
             if (cached != null && cachedMapChunksVersion == currentVersion) {
                 return cached;
             }
-            
-            Set<Long> mapChunks = new HashSet<>(1024);
-            data.getExploredChunks().forEachExploredChunk(chunkIdx -> {
+
+            final LongOpenHashSet mapChunks = new LongOpenHashSet(1024);
+            data.getExploredChunks().forEachExploredChunkLong(chunkIdx -> {
                 int wx = ChunkUtil.indexToChunkX(chunkIdx);
                 int wz = ChunkUtil.indexToChunkZ(chunkIdx);
                 int mx = wx >> 1;
@@ -1746,10 +1890,25 @@ public class WorldMapHook {
                 long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(mx, mz);
                 mapChunks.add(mapChunkIdx);
             });
-            
+
             cachedMapChunks = mapChunks;
             cachedMapChunksVersion = currentVersion;
             return mapChunks;
+        }
+
+        /**
+         * Computes a stable hash of the current bounds rect for cheap change detection.
+         * Avoids allocating a LongOpenHashSet of corner chunks just to .equals() it on every init().
+         * FNV-1a 64-bit, mixed across the four bound coords.
+         */
+        private static long computeBoundaryHash(MapExpansionManager.MapBoundaries bounds) {
+            if (bounds.minX == Integer.MAX_VALUE) return 0L;
+            long h = 1469598103934665603L; // FNV offset basis
+            h = (h ^ bounds.minX) * 1099511628211L;
+            h = (h ^ bounds.minZ) * 1099511628211L;
+            h = (h ^ bounds.maxX) * 1099511628211L;
+            h = (h ^ bounds.maxZ) * 1099511628211L;
+            return h;
         }
 
         @Override
@@ -1779,40 +1938,44 @@ public class WorldMapHook {
                     }
 
                     long currentExploredVersion;
-                    Set<Long> mapChunksSet;
-                    
-                    if (ModConfig.getInstance().isShareAllExploration()) {
+                    LongOpenHashSet mapChunksSet;
+                    boolean shareAll = ModConfig.getInstance().isShareAllExploration();
+
+                    if (shareAll) {
                         World world = player.getWorld();
                         String worldName = world != null ? world.getName() : "world";
-                        Set<Long> exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
+                        LongSet exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunksLong(worldName);
                         currentExploredVersion = exploredWorldChunks.size();
-                        
+
                         if (exploredWorldChunks.isEmpty()) {
                             bootstrapExploration(cx, cz);
-                            exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunks(worldName);
+                            exploredWorldChunks = ExplorationManager.getInstance().getAllExploredChunksLong(worldName);
                             currentExploredVersion = exploredWorldChunks.size();
                         }
-                        
-                        mapChunksSet = new HashSet<>(exploredWorldChunks.size() / 2);
-                        for (Long chunkIdx : exploredWorldChunks) {
+
+                        // Reuse the per-instance set instead of allocating one per call.
+                        reusableMapChunksSet.clear();
+                        LongIterator chunkIt = exploredWorldChunks.iterator();
+                        while (chunkIt.hasNext()) {
+                            long chunkIdx = chunkIt.nextLong();
                             int wx = ChunkUtil.indexToChunkX(chunkIdx);
                             int wz = ChunkUtil.indexToChunkZ(chunkIdx);
                             long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(wx >> 1, wz >> 1);
-                            mapChunksSet.add(mapChunkIdx);
+                            reusableMapChunksSet.add(mapChunkIdx);
                         }
+                        mapChunksSet = reusableMapChunksSet;
                     } else {
                         currentExploredVersion = data.getExploredChunks().getVersion();
-                        
                         if (data.getExploredChunks().getExploredCount() == 0) {
                             bootstrapExploration(cx, cz);
                             currentExploredVersion = data.getExploredChunks().getVersion();
                         }
-                        
                         mapChunksSet = getOrBuildMapChunks();
                     }
 
                     if (mapChunksSet.isEmpty()) {
                         this.currentIterator = Collections.emptyIterator();
+                        this.targetMapChunks.clear();
                         this.initialized = true;
                         return;
                     }
@@ -1821,82 +1984,122 @@ public class WorldMapHook {
                             Math.abs(cx - cachedCenterX) + Math.abs(cz - cachedCenterZ);
 
                     MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
-                    Set<Long> boundaryChunks = new HashSet<>(4);
+                    long boundaryHash = computeBoundaryHash(bounds);
 
+                    // Reuse the per-instance boundary set instead of allocating one per call.
+                    reusableBoundaryChunks.clear();
                     if (bounds.minX != Integer.MAX_VALUE) {
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
+                        reusableBoundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
                     }
+                    int boundarySize = reusableBoundaryChunks.size();
+                    boolean boundaryChanged = boundaryHash != cachedBoundaryHash || boundarySize != cachedBoundarySize;
 
-                    boolean boundaryChunksChanged = cachedBoundaryChunks == null ||
-                            !boundaryChunks.equals(cachedBoundaryChunks);
-
-                    boolean needsResort = cachedRankedChunks == null ||
+                    boolean needsResort = !cachedRankedValid ||
                             distanceFromCachedCenter > RESORT_DISTANCE_THRESHOLD ||
                             currentExploredVersion != cachedExploredVersion ||
-                            boundaryChunksChanged;
+                            boundaryChanged;
 
-                    List<Long> rankedChunks;
-                    
+                    int maxChunks = ModConfig.getInstance().getActiveMaxChunksToLoad();
+                    int searchLimit = maxChunks - boundarySize;
+                    if (searchLimit < 0) searchLimit = 0;
+
+                    boolean searchLimitChanged = searchLimit != cachedSearchLimit;
+                    boolean needsTargetRebuild = needsResort || searchLimitChanged;
+
                     if (needsResort) {
-                        rankedChunks = new ArrayList<>(mapChunksSet.size());
-                        
-                        for (Long chunk : mapChunksSet) {
-                            if (!boundaryChunks.contains(chunk)) {
-                                rankedChunks.add(chunk);
+                        // Rebuild cachedRankedChunks IN PLACE — no allocation.
+                        cachedRankedChunks.clear();
+                        cachedRankedChunks.ensureCapacity(mapChunksSet.size());
+
+                        LongIterator mapIt = mapChunksSet.iterator();
+                        while (mapIt.hasNext()) {
+                            long chunk = mapIt.nextLong();
+                            if (!reusableBoundaryChunks.contains(chunk)) {
+                                cachedRankedChunks.add(chunk);
                             }
                         }
 
+                        // Sort the primitive array directly with a LongComparator — no boxing.
                         final int sortCenterX = cx;
                         final int sortCenterZ = cz;
-                        rankedChunks.sort(Comparator.comparingLong(idx -> {
-                            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                            long dx = (long) mx - sortCenterX;
-                            long dz = (long) mz - sortCenterZ;
-                            return dx * dx + dz * dz;
-                        }));
+                        long[] elements = cachedRankedChunks.elements();
+                        int size = cachedRankedChunks.size();
+                        LongComparator distComparator = (a, b) -> {
+                            int amx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(a);
+                            int amz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(a);
+                            int bmx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(b);
+                            int bmz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(b);
+                            long adx = (long) amx - sortCenterX;
+                            long adz = (long) amz - sortCenterZ;
+                            long bdx = (long) bmx - sortCenterX;
+                            long bdz = (long) bmz - sortCenterZ;
+                            return Long.compare(adx * adx + adz * adz, bdx * bdx + bdz * bdz);
+                        };
+                        LongArrays.quickSort(elements, 0, size, distComparator);
 
-                        this.cachedRankedChunks = rankedChunks;
                         this.cachedCenterX = cx;
                         this.cachedCenterZ = cz;
                         this.cachedExploredVersion = currentExploredVersion;
-                        this.cachedBoundaryChunks = new HashSet<>(boundaryChunks);
-                    } else {
-                        rankedChunks = cachedRankedChunks;
+                        this.cachedBoundaryHash = boundaryHash;
+                        this.cachedBoundarySize = boundarySize;
+                        this.cachedRankedValid = true;
                     }
 
-                    int maxChunks = ModConfig.getInstance().getActiveMaxChunksToLoad();
-                    int searchLimit = maxChunks - boundaryChunks.size();
-                    if (searchLimit < 0) searchLimit = 0;
+                    if (needsTargetRebuild) {
+                        // Rebuild targetMapChunks IN PLACE — no allocation.
+                        int rankedTake = Math.min(searchLimit, cachedRankedChunks.size());
+                        targetMapChunks.clear();
+                        targetMapChunks.ensureCapacity(boundarySize + rankedTake);
 
-                    List<Long> limitedRankedChunks;
-                    if (rankedChunks.size() > searchLimit) {
-                        limitedRankedChunks = new ArrayList<>(searchLimit);
-                        for (int i = 0; i < searchLimit; i++) {
-                            limitedRankedChunks.add(rankedChunks.get(i));
+                        LongIterator boundIt = reusableBoundaryChunks.iterator();
+                        while (boundIt.hasNext()) {
+                            targetMapChunks.add(boundIt.nextLong());
                         }
-                    } else {
-                        limitedRankedChunks = rankedChunks;
+                        long[] rankedElements = cachedRankedChunks.elements();
+                        for (int i = 0; i < rankedTake; i++) {
+                            targetMapChunks.add(rankedElements[i]);
+                        }
+
+                        this.cachedSearchLimit = searchLimit;
                     }
 
-                    this.targetMapChunks = new ArrayList<>(boundaryChunks.size() + limitedRankedChunks.size());
-                    this.targetMapChunks.addAll(boundaryChunks);
-                    this.targetMapChunks.addAll(limitedRankedChunks);
+                    // The currentIterator field is Iterator<Long> (parent class signature),
+                    // so we wrap a LongIterator over the ranked-only portion of targetMapChunks.
+                    // This is one wrapper allocation per init() and one Long box per next() call,
+                    // which is unavoidable without changing the parent class. Everything else is
+                    // primitive end-to-end.
+                    final int rankedStart = boundarySize;
+                    final int rankedEnd = targetMapChunks.size();
+                    if (rankedStart >= rankedEnd) {
+                        this.currentIterator = Collections.emptyIterator();
+                    } else {
+                        final long[] elems = targetMapChunks.elements();
+                        this.currentIterator = new Iterator<Long>() {
+                            private int idx = rankedStart;
 
-                    this.currentIterator = limitedRankedChunks.iterator();
+                            @Override
+                            public boolean hasNext() {return idx < rankedEnd;}
+
+                            @Override
+                            public Long next() {
+                                if (idx >= rankedEnd) throw new NoSuchElementException();
+                                return elems[idx++];
+                            }
+                        };
+                    }
                     this.initialized = true;
 
                     if (++cleanupTimer > 100) {
                         cleanupTimer = 0;
-                        cleanupFarChunks(limitedRankedChunks);
+                        cleanupFarChunks(targetMapChunks);
                     }
 
                     if (++pendingReloadCleanupTimer > PENDING_RELOAD_CLEANUP_INTERVAL) {
                         pendingReloadCleanupTimer = 0;
-                        cleanupStalePendingReloads(this.targetMapChunks);
+                        cleanupStalePendingReloads(targetMapChunks);
                     }
                 } catch (Exception e) {
                     LOGGER.warning("Error in RestrictedSpiralIterator.init(): " + e.getMessage());
@@ -1905,7 +2108,7 @@ public class WorldMapHook {
                 }
             }
         }
-        
+
         /**
          * Bootstraps initial exploration chunks when none exist.
          */
@@ -1914,7 +2117,7 @@ public class WorldMapHook {
             int worldChunkZ = mapChunkToWorldChunk(cz);
             int bootstrapRadius = Math.max(0, ModConfig.getInstance().getExplorationRadius());
 
-            Set<Long> bootstrapChunks = ChunkUtil.getChunksInCircularArea(worldChunkX, worldChunkZ, bootstrapRadius);
+            LongOpenHashSet bootstrapChunks = ChunkUtil.getChunksInCircularAreaLong(worldChunkX, worldChunkZ, bootstrapRadius);
             data.getExploredChunks().markChunksExplored(bootstrapChunks);
             data.getMapExpansion().updateBoundaries(worldChunkX, worldChunkZ, bootstrapRadius);
 
@@ -1937,9 +2140,11 @@ public class WorldMapHook {
         }
 
         /**
-         * Removes stale entries from the tracker's pendingReloadChunks and pendingReloadFutures that are no longer in the current target chunks list.
+         * Removes stale entries from the tracker's pendingReloadChunks and pendingReloadFutures
+         * that are no longer in the current target chunks list. Iterates the LongArrayList
+         * via LongIterator — no boxing on the membership-set build.
          */
-        private void cleanupStalePendingReloads(List<Long> currentTargetChunks) {
+        private void cleanupStalePendingReloads(LongArrayList currentTargetChunks) {
             try {
                 Object pendingReloadChunksObj = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
                 Object pendingReloadFuturesObj = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
@@ -1948,7 +2153,9 @@ public class WorldMapHook {
                 boolean hasPendingFutures = pendingReloadFuturesObj instanceof Map<?, ?> futuresMap && !futuresMap.isEmpty();
                 if (!hasPendingChunks && !hasPendingFutures) return;
 
-                Set<Long> currentTargetSet = new HashSet<>(currentTargetChunks);
+                LongOpenHashSet currentTargetSet = new LongOpenHashSet(currentTargetChunks.size() * 2);
+                LongIterator tIt = currentTargetChunks.iterator();
+                while (tIt.hasNext()) currentTargetSet.add(tIt.nextLong());
 
                 int removedChunks = 0;
                 int removedFutures = 0;
@@ -1958,7 +2165,7 @@ public class WorldMapHook {
                     while (it.hasNext()) {
                         Object obj = it.next();
                         if (obj instanceof Long idx) {
-                            if (!currentTargetSet.contains(idx)) {
+                            if (!currentTargetSet.contains(idx.longValue())) {
                                 it.remove();
                                 removedChunks++;
                             }
@@ -1971,7 +2178,7 @@ public class WorldMapHook {
                     while (it.hasNext()) {
                         Map.Entry<?, ?> entry = it.next();
                         if (entry.getKey() instanceof Long idx) {
-                            if (!currentTargetSet.contains(idx)) {
+                            if (!currentTargetSet.contains(idx.longValue())) {
                                 it.remove();
                                 removedFutures++;
                             }
@@ -1987,19 +2194,22 @@ public class WorldMapHook {
             }
         }
 
-        private void cleanupFarChunks(List<Long> keepChunks) {
+        private void cleanupFarChunks(LongArrayList keepChunks) {
             try {
                 Object loadedObj = ReflectionHelper.getFieldValue(tracker, "loaded");
                 if (loadedObj instanceof Set<?> loadedSet) {
                     if (loadedSet.size() > 20000) {
-                        Set<Long> keepSet = new HashSet<>(keepChunks);
+                        LongOpenHashSet keepSet = new LongOpenHashSet(keepChunks.size() * 2);
+                        LongIterator kIt = keepChunks.iterator();
+                        while (kIt.hasNext()) keepSet.add(kIt.nextLong());
+
                         List<MapChunk> toRemovePackets = new ArrayList<>();
 
                         Iterator<?> it = loadedSet.iterator();
                         while (it.hasNext()) {
                             Object obj = it.next();
                             if (obj instanceof Long idx) {
-                                if (!keepSet.contains(idx)) {
+                                if (!keepSet.contains(idx.longValue())) {
                                     it.remove();
                                     int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
                                     int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
@@ -2046,13 +2256,13 @@ public class WorldMapHook {
                 long dx = (long) mx - centerX;
                 long dz = (long) mz - centerZ;
                 long distSquared = dx * dx + dz * dz;
-                this.currentRadius = (int) fastSqrt(distSquared);
+                this.currentRadius = fastSqrt(distSquared);
                 return next;
-            } catch (java.util.NoSuchElementException e) {
+            } catch (NoSuchElementException e) {
                 return 0;
             }
         }
-        
+
         /**
          * Fast integer square root using Newton's method.
          */

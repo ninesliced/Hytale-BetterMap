@@ -1,60 +1,34 @@
 package dev.ninesliced.managers;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-import java.util.regex.Pattern;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.annotations.SerializedName;
+import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.Transform;
-import com.hypixel.hytale.protocol.packets.worldmap.ContextMenuItem;
-import com.hypixel.hytale.component.Holder;
+import com.hypixel.hytale.math.util.ChunkUtil;
+import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.protocol.Color;
-import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
-
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
-import dev.ninesliced.configs.PlayerConfig;
 import dev.ninesliced.listeners.ExplorationListener;
 import dev.ninesliced.utils.ReflectionHelper;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import java.util.regex.Pattern;
 
 /**
  * Manages user map markers through Hytale's built-in UserMapMarkersStore system.
@@ -84,7 +58,7 @@ public class WaypointManager {
     @Nonnull
     public static List<UserMapMarker> getUserMarkers(@Nonnull Player player) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) {
+        if (!isTrackedWorld(world)) {
             return List.of();
         }
 
@@ -128,7 +102,7 @@ public class WaypointManager {
                                  @Nullable Color tint,
                                  boolean shared) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) return;
+        if (!isTrackedWorld(world)) return;
 
         UserMapMarkersStore store = resolveStore(world, player, shared);
         if (store == null) return;
@@ -160,7 +134,7 @@ public class WaypointManager {
      */
     public static boolean removeMarker(@Nonnull Player player, @Nonnull String idOrName) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) return false;
+        if (!isTrackedWorld(world)) return false;
 
         MarkerEntry entry = findMarkerEntry(player, world, idOrName);
         if (entry == null) {
@@ -204,7 +178,7 @@ public class WaypointManager {
                                        @Nullable Double newY,
                                        @Nullable Color newTint) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) return false;
+        if (!isTrackedWorld(world)) return false;
 
         MarkerEntry entry = findMarkerEntry(player, world, id);
         if (entry == null) {
@@ -214,7 +188,7 @@ public class WaypointManager {
         UserMapMarker existing = entry.marker;
 
         boolean positionChanging = newX != null && newZ != null &&
-            (Math.abs(existing.getX() - newX) > 0.01f || Math.abs(existing.getZ() - newZ) > 0.01f);
+                (Math.abs(existing.getX() - newX) > 0.01f || Math.abs(existing.getZ() - newZ) > 0.01f);
 
         if (positionChanging) {
             String finalName = (newName != null && !newName.trim().isEmpty()) ? newName.trim() : existing.getName();
@@ -321,9 +295,9 @@ public class WaypointManager {
             if (playerRef == null) return;
 
             playerRef.getPacketHandler().writeNoCache(new UpdateWorldMap(
-                null,
-                null,
-                new String[]{markerId}
+                    null,
+                    null,
+                    new String[]{markerId}
             ));
 
             ReflectionHelper.setFieldValueRecursive(markerTracker, "smallMovementsTimer", 0.0f);
@@ -355,7 +329,7 @@ public class WaypointManager {
     @Nullable
     public static UserMapMarker getMarker(@Nonnull Player player, @Nonnull String id) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) return null;
+        if (!isTrackedWorld(world)) return null;
 
         MarkerEntry entry = findMarkerEntry(player, world, id);
         return entry != null ? entry.marker : null;
@@ -367,7 +341,7 @@ public class WaypointManager {
     @Nullable
     public static UserMapMarker findMarker(@Nonnull Player player, @Nonnull String nameOrId) {
         World world = player.getWorld();
-        if (world == null || !isTrackedWorld(world)) return null;
+        if (!isTrackedWorld(world)) return null;
 
         MarkerEntry entry = findMarkerEntry(player, world, nameOrId);
         return entry != null ? entry.marker : null;

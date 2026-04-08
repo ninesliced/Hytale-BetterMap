@@ -63,7 +63,7 @@ public class CaveFogOfWarCommand extends AbstractCommand {
             }
 
             ModConfig config = ModConfig.getInstance();
-            
+
             if (!config.isCaveModeEnabled()) {
                 playerRef.sendMessage(Message.raw("Cave mode is disabled by the server. Fog of war requires cave mode.").color(Color.RED));
                 return;

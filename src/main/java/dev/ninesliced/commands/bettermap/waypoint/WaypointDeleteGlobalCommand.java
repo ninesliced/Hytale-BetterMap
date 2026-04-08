@@ -38,7 +38,7 @@ public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
         if (player == null) return;
 
         String target = this.targetArg.get(context);
-        
+
         UserMapMarker marker = WaypointManager.findMarker(player, target);
 
         if (marker == null) {
@@ -48,7 +48,7 @@ public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
             }
 
             boolean canDeleteUnknownShared = PermissionsUtil.canEditSharedWaypointByPermission(player)
-                || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
+                    || ModConfig.getInstance().isAllowGlobalWaypointEditsForEveryone();
             if (!canDeleteUnknownShared) {
                 context.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
                 return;

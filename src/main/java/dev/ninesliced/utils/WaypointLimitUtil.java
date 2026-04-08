@@ -1,14 +1,14 @@
 package dev.ninesliced.utils;
 
-import dev.ninesliced.configs.ModConfig;
+import com.hypixel.hytale.server.core.asset.type.gameplay.worldmap.UserMapMarkerConfig;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.asset.type.gameplay.worldmap.UserMapMarkerConfig;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
+import dev.ninesliced.configs.ModConfig;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -21,6 +21,7 @@ import java.util.logging.Logger;
  */
 public final class WaypointLimitUtil {
     private static final Logger LOGGER = Logger.getLogger(WaypointLimitUtil.class.getName());
+
     private WaypointLimitUtil() {
     }
 
@@ -98,8 +99,8 @@ public final class WaypointLimitUtil {
             }
             if (limit <= 0) {
                 return shared
-                    ? "Shared waypoint creation is disabled (limit 0)."
-                    : "Personal waypoint creation is disabled (limit 0).";
+                        ? "Shared waypoint creation is disabled (limit 0)."
+                        : "Personal waypoint creation is disabled (limit 0).";
             }
             int current = getCurrentMarkers(player, shared);
             if (current < 0) {

@@ -50,13 +50,13 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             }
 
             PlayerConfig playerConfig = viewerUuid != null
-                ? PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid)
-                : null;
+                    ? PlayerConfigManager.getInstance().getPlayerConfig(viewerUuid)
+                    : null;
 
             if (globalConfig.isHidePlayersOnMap()) {
                 boolean canBypass = playerConfig != null
-                    && playerConfig.isOverrideGlobalPlayersHide()
-                    && PermissionsUtil.canOverridePlayers(viewingPlayer);
+                        && playerConfig.isOverrideGlobalPlayersHide()
+                        && PermissionsUtil.canOverridePlayers(viewingPlayer);
                 if (!canBypass) {
                     return;
                 }
@@ -104,7 +104,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
                         if (playerRef != null) {
                             isHidden = playerRef.getHiddenPlayersManager().isPlayerHidden(viewerUuid);
                         }
-                    } catch (IllegalArgumentException e) { }
+                    } catch (IllegalArgumentException e) {}
 
                     if (isHidden) {
                         continue;
@@ -141,10 +141,10 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
      */
     private static MapMarker createMarker(String id, String name, RadarData data) {
         com.hypixel.hytale.protocol.Transform transform = PositionUtil.toTransformPacket(
-            new com.hypixel.hytale.math.vector.Transform(
-                data.position,
-                data.rotation != null ? data.rotation : Vector3f.ZERO
-            )
+                new com.hypixel.hytale.math.vector.Transform(
+                        data.position,
+                        data.rotation != null ? data.rotation : Vector3f.ZERO
+                )
         );
 
         FormattedMessage displayName = new FormattedMessage();

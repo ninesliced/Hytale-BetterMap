@@ -16,21 +16,28 @@ import dev.ninesliced.utils.ReflectionHelper;
 import dev.ninesliced.utils.WorldBorderRenderer;
 
 import javax.annotation.Nonnull;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
  * Manages world border rendering by modifying map chunk images in the WorldMapManager's cache.
+ * <p>
+ * Memory safety fix:
+ * - processedChunks per world is capped at MAX_PROCESSED_CHUNKS. When exceeded, the set is cleared
+ * (allowing re-processing of border chunks) rather than growing indefinitely.
  */
 public class WorldBorderManager {
 
     private static final Logger LOGGER = Logger.getLogger(WorldBorderManager.class.getName());
     private static WorldBorderManager instance;
+
+    /**
+     * Maximum processed chunks to track per world before clearing.
+     * Border chunks near the border are a small fraction of total; non-border chunks
+     * are added to skip them. If this grows too large, we just re-evaluate.
+     */
+    private static final int MAX_PROCESSED_CHUNKS = 100_000;
 
     private final Set<String> registeredWorlds = new HashSet<>();
     private final Map<String, Set<Long>> processedChunks = new ConcurrentHashMap<>();
@@ -39,11 +46,6 @@ public class WorldBorderManager {
     private WorldBorderManager() {
     }
 
-    /**
-     * Gets the singleton instance of the WorldBorderManager.
-     *
-     * @return The manager instance.
-     */
     public static synchronized WorldBorderManager getInstance() {
         if (instance == null) {
             instance = new WorldBorderManager();
@@ -51,11 +53,6 @@ public class WorldBorderManager {
         return instance;
     }
 
-    /**
-     * Registers border rendering for a player's world.
-     *
-     * @param player The player to register.
-     */
     public void registerForPlayer(@Nonnull Player player) {
         World world = player.getWorld();
         if (world != null) {
@@ -63,11 +60,6 @@ public class WorldBorderManager {
         }
     }
 
-    /**
-     * Registers border rendering for a specific world.
-     *
-     * @param world The world to register for.
-     */
     public void registerForWorld(@Nonnull World world) {
         String worldName = world.getName();
         if (!registeredWorlds.contains(worldName)) {
@@ -76,27 +68,16 @@ public class WorldBorderManager {
         }
     }
 
-    /**
-     * Clears all caches. Call when border settings change globally.
-     */
     public void clearAllCaches() {
         processedChunks.values().forEach(Set::clear);
     }
 
-    /**
-     * Cleans up all registered worlds.
-     */
     public void cleanup() {
         registeredWorlds.clear();
         processedChunks.clear();
         chunksToResend.clear();
     }
 
-    /**
-     * Hooks into a world's WorldMapManager to modify chunk images with the world border.
-     *
-     * @param world The world to process.
-     */
     public void hookWorldMapManager(@Nonnull World world) {
         ModConfig config = ModConfig.getInstance();
         if (!config.isWorldBorderEnabled()) {
@@ -106,6 +87,11 @@ public class WorldBorderManager {
         String worldName = world.getName();
         Set<Long> processed = processedChunks.computeIfAbsent(worldName, k -> ConcurrentHashMap.newKeySet());
         List<MapChunk> toResend = chunksToResend.computeIfAbsent(worldName, k -> new ArrayList<>());
+
+        // FIX: Cap the processed set to prevent unbounded growth
+        if (processed.size() > MAX_PROCESSED_CHUNKS) {
+            processed.clear();
+        }
 
         try {
             WorldMapManager mapManager = world.getWorldMapManager();

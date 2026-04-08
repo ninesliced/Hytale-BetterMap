@@ -1,6 +1,5 @@
 package dev.ninesliced.commands.bettermap.config;
 
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -14,7 +13,7 @@ import dev.ninesliced.utils.WorldMapHook;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
 
-import java.awt.Color;
+import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
 public class PlayerTeleportCommand extends AbstractCommand {

@@ -1,5 +1,7 @@
 package dev.ninesliced.utils;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import javax.annotation.Nonnull;
 import java.util.HashSet;
 import java.util.Map;
@@ -11,20 +13,26 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ChunkUtil {
     private static final int CHUNK_SIZE = 16;
-    
+
     /**
      * Cache of pre-computed circular offsets for each radius.
      */
     private static final Map<Integer, int[][]> CIRCULAR_OFFSETS_CACHE = new ConcurrentHashMap<>();
-    
+
     /**
      * Thread-local reusable set to avoid creating new HashSets.
      */
     private static final ThreadLocal<Set<Long>> REUSABLE_CHUNK_SET = ThreadLocal.withInitial(() -> new HashSet<>(1024));
 
     /**
+     * Thread-local reusable LongOpenHashSet to avoid allocation in hot paths.
+     */
+    private static final ThreadLocal<LongOpenHashSet> REUSABLE_LONG_CHUNK_SET =
+            ThreadLocal.withInitial(() -> new LongOpenHashSet(1024));
+
+    /**
      * Packs chunk coordinates into a long index.
-     *  
+     *
      * @param chunkX Chunk X.
      * @param chunkZ Chunk Z.
      * @return Packed index.
@@ -35,7 +43,7 @@ public class ChunkUtil {
 
     /**
      * Extracts X coordinate from packed index.
-     * 
+     *
      * @param index Packed index.
      * @return Chunk X.
      */
@@ -45,7 +53,7 @@ public class ChunkUtil {
 
     /**
      * Extracts Z coordinate from packed index.
-     * 
+     *
      * @param index Packed index.
      * @return Chunk Z.
      */
@@ -55,6 +63,7 @@ public class ChunkUtil {
 
     /**
      * Converts a block coordinate to a chunk coordinate.
+     *
      * @param blockCoord Block coordinate.
      * @return Chunk coordinate.
      */
@@ -73,9 +82,9 @@ public class ChunkUtil {
     @Nonnull
     public static Set<Long> getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks) {
         int[][] offsets = getCircularOffsets(radiusChunks);
-        
+
         Set<Long> chunks = new HashSet<>(offsets.length + offsets.length / 3);
-        
+
         for (int[] offset : offsets) {
             int chunkX = saturatedAdd(centerChunkX, offset[0]);
             int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
@@ -84,21 +93,51 @@ public class ChunkUtil {
 
         return chunks;
     }
-    
+
     /**
      * Gets a set of chunk indices within a circular radius, reusing the provided set.
      */
     public static void getChunksInCircularArea(int centerChunkX, int centerChunkZ, int radiusChunks, @Nonnull Set<Long> targetSet) {
         targetSet.clear();
         int[][] offsets = getCircularOffsets(radiusChunks);
-        
+
         for (int[] offset : offsets) {
             int chunkX = saturatedAdd(centerChunkX, offset[0]);
             int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
             targetSet.add(chunkCoordsToIndex(chunkX, chunkZ));
         }
     }
-    
+
+    /**
+     * Gets a LongOpenHashSet of chunk indices within a circular radius.
+     * Avoids boxing — use this in hot paths.
+     */
+    @Nonnull
+    public static LongOpenHashSet getChunksInCircularAreaLong(int centerChunkX, int centerChunkZ, int radiusChunks) {
+        int[][] offsets = getCircularOffsets(radiusChunks);
+        LongOpenHashSet chunks = new LongOpenHashSet(offsets.length + offsets.length / 3);
+        for (int[] offset : offsets) {
+            int chunkX = saturatedAdd(centerChunkX, offset[0]);
+            int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
+            chunks.add(chunkCoordsToIndex(chunkX, chunkZ));
+        }
+        return chunks;
+    }
+
+    /**
+     * Fills a LongOpenHashSet with chunk indices within a circular radius, reusing the provided set.
+     * Hot-path version — no allocation if the set is large enough.
+     */
+    public static void getChunksInCircularAreaLong(int centerChunkX, int centerChunkZ, int radiusChunks, @Nonnull LongOpenHashSet targetSet) {
+        targetSet.clear();
+        int[][] offsets = getCircularOffsets(radiusChunks);
+        for (int[] offset : offsets) {
+            int chunkX = saturatedAdd(centerChunkX, offset[0]);
+            int chunkZ = saturatedAdd(centerChunkZ, offset[1]);
+            targetSet.add(chunkCoordsToIndex(chunkX, chunkZ));
+        }
+    }
+
     /**
      * Gets or computes the circular offsets for a given radius.
      */
@@ -114,9 +153,9 @@ public class ChunkUtil {
             CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
             return offsets;
         }
-        
+
         long radiusSquared = (long) radiusChunks * radiusChunks;
-        
+
         int count = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
             for (int dz = -radiusChunks; dz <= radiusChunks; dz++) {
@@ -127,7 +166,7 @@ public class ChunkUtil {
                 }
             }
         }
-        
+
         int[][] offsets = new int[count][2];
         int index = 0;
         for (int dx = -radiusChunks; dx <= radiusChunks; dx++) {
@@ -141,17 +180,28 @@ public class ChunkUtil {
                 }
             }
         }
-        
+
         CIRCULAR_OFFSETS_CACHE.put(radiusChunks, offsets);
         return offsets;
     }
-    
+
     /**
      * Gets a thread-local reusable set for temporary chunk operations.
      */
     @Nonnull
     public static Set<Long> getReusableChunkSet() {
         Set<Long> set = REUSABLE_CHUNK_SET.get();
+        set.clear();
+        return set;
+    }
+
+    /**
+     * Gets a thread-local reusable LongOpenHashSet for temporary chunk operations.
+     * Use this in hot paths to avoid allocation and boxing.
+     */
+    @Nonnull
+    public static LongOpenHashSet getReusableLongChunkSet() {
+        LongOpenHashSet set = REUSABLE_LONG_CHUNK_SET.get();
         set.clear();
         return set;
     }

@@ -2,6 +2,7 @@ package dev.ninesliced.managers;
 
 import dev.ninesliced.exploration.ExploredChunksTracker;
 import dev.ninesliced.utils.ChunkUtil;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
@@ -9,6 +10,11 @@ import java.util.Set;
 
 /**
  * Manages the boundaries of the explored map area to optimize rendering.
+ * <p>
+ * Memory: uses a per-instance reusable LongOpenHashSet so the per-tick boundary update
+ * does not allocate. Old implementation allocated a fresh boxed HashSet of every chunk
+ * in the radius on every chunk move per player — that was the worst single allocation
+ * source in the plugin.
  */
 public class MapExpansionManager {
 
@@ -17,17 +23,19 @@ public class MapExpansionManager {
     private int maxChunkX = Integer.MIN_VALUE;
     private int minChunkZ = Integer.MAX_VALUE;
     private int maxChunkZ = Integer.MIN_VALUE;
-    
-    /** Last position used for boundary update - avoids re-processing same chunks */
+
+    /**
+     * Last position used for boundary update - avoids re-processing same chunks
+     */
     private int lastUpdateChunkX = Integer.MAX_VALUE;
     private int lastUpdateChunkZ = Integer.MAX_VALUE;
     private int lastUpdateRadius = -1;
 
     /**
-     * Constructs the manager with a reference to the chunk tracker.
-     *
-     * @param exploredChunks The tracker involved.
+     * Reusable scratch set — sized once on first use, then reused forever.
      */
+    private final LongOpenHashSet scratchChunks = new LongOpenHashSet(1024);
+
     public MapExpansionManager(@Nonnull ExploredChunksTracker exploredChunks) {
         this.exploredChunks = exploredChunks;
     }
@@ -35,40 +43,33 @@ public class MapExpansionManager {
     /**
      * Updates boundaries based on player position and view radius.
      * Marks new chunks as explored.
-     *
-     * @param playerChunkX Player chunk X.
-     * @param playerChunkZ Player chunk Z.
-     * @param viewRadius   Radius of view.
      */
     public void updateBoundaries(int playerChunkX, int playerChunkZ, int viewRadius) {
         if (playerChunkX == lastUpdateChunkX && playerChunkZ == lastUpdateChunkZ && viewRadius == lastUpdateRadius) {
             return;
         }
-        
-        Set<Long> newChunks = ChunkUtil.getChunksInCircularArea(playerChunkX, playerChunkZ, viewRadius);
-        
+
+        // Compute the chunks in the new radius into the reusable scratch set (no allocation).
+        ChunkUtil.getChunksInCircularAreaLong(playerChunkX, playerChunkZ, viewRadius, scratchChunks);
+
         int newMinX = playerChunkX - viewRadius;
         int newMaxX = playerChunkX + viewRadius;
         int newMinZ = playerChunkZ - viewRadius;
         int newMaxZ = playerChunkZ + viewRadius;
-        
+
         minChunkX = Math.min(minChunkX, newMinX);
         maxChunkX = Math.max(maxChunkX, newMaxX);
         minChunkZ = Math.min(minChunkZ, newMinZ);
         maxChunkZ = Math.max(maxChunkZ, newMaxZ);
 
-        exploredChunks.markChunksExplored(newChunks);
-        
+        // Mark via the primitive overload — no boxing, no extra HashSet copy on the receiver side.
+        exploredChunks.markChunksExplored(scratchChunks);
+
         lastUpdateChunkX = playerChunkX;
         lastUpdateChunkZ = playerChunkZ;
         lastUpdateRadius = viewRadius;
     }
 
-    /**
-     * Gets the current rectangular boundaries of explored area.
-     *
-     * @return The map boundaries.
-     */
     @Nonnull
     public MapBoundaries getCurrentBoundaries() {
         if (minChunkX == Integer.MAX_VALUE) {
@@ -80,8 +81,7 @@ public class MapExpansionManager {
     /**
      * Gets all chunks within the current bounding box.
      * Note: This returns the full rectangle, not just explored chunks.
-     *
-     * @return Set of chunks in the bounding rectangle.
+     * Kept on the boxed Set<Long> API for backwards compat — only used by external code.
      */
     @Nonnull
     public Set<Long> getExpandedMapChunks() {
@@ -91,11 +91,6 @@ public class MapExpansionManager {
         return ChunkUtil.getChunksInRectangularArea(minChunkX, maxChunkX, minChunkZ, maxChunkZ);
     }
 
-    /**
-     * Calculates the total area of the bounding box.
-     *
-     * @return The area in chunks.
-     */
     public long getTotalExploredArea() {
         if (minChunkX == Integer.MAX_VALUE) {
             return 0;
@@ -111,9 +106,6 @@ public class MapExpansionManager {
         return width * height;
     }
 
-    /**
-     * Resets the boundaries and clears tracked chunks.
-     */
     public void reset() {
         minChunkX = Integer.MAX_VALUE;
         maxChunkX = Integer.MIN_VALUE;
@@ -122,12 +114,11 @@ public class MapExpansionManager {
         lastUpdateChunkX = Integer.MAX_VALUE;
         lastUpdateChunkZ = Integer.MAX_VALUE;
         lastUpdateRadius = -1;
+        scratchChunks.clear();
+        scratchChunks.trim();
         exploredChunks.clear();
     }
 
-    /**
-     * Simple data class for map boundaries.
-     */
     public static class MapBoundaries {
         public final int minX;
         public final int maxX;

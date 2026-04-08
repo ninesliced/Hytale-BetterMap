@@ -3,6 +3,7 @@ package dev.ninesliced.commands;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
+import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.world.World;
 import dev.ninesliced.configs.PlayerConfig;
@@ -10,8 +11,6 @@ import dev.ninesliced.integration.ExtendedTeleportIntegration;
 import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.managers.WarpPrivacyManager;
 import dev.ninesliced.utils.WorldMapHook;
-
-import com.hypixel.hytale.server.core.command.system.CommandSender;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -57,8 +56,8 @@ public class PlayerHideOtherWarpsCommand extends AbstractCommand {
 
         return CompletableFuture.runAsync(() -> {
             boolean newWantsVisible = determineNewVisibilityState(
-                config.isOverrideGlobalOtherWarpsHide() && !config.isHideOtherWarpsOnMap(),
-                config.isHideOtherWarpsOnMap()
+                    config.isOverrideGlobalOtherWarpsHide() && !config.isHideOtherWarpsOnMap(),
+                    config.isHideOtherWarpsOnMap()
             );
 
             config.setOverrideGlobalOtherWarpsHide(newWantsVisible);
@@ -78,9 +77,6 @@ public class PlayerHideOtherWarpsCommand extends AbstractCommand {
     private boolean determineNewVisibilityState(boolean currentlyWantsVisible, boolean currentlyWantsHidden) {
         if (currentlyWantsVisible) {
             return false;
-        } else if (currentlyWantsHidden) {
-            return true;
-        }
-        return false;
+        } else return currentlyWantsHidden;
     }
 }

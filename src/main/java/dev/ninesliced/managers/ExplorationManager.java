@@ -5,30 +5,39 @@ import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.configs.CavePersistence;
 import dev.ninesliced.configs.ExplorationPersistence;
-import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.exploration.ExplorationTracker;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import javax.annotation.Nonnull;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Logger;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  * Singleton manager responsible for the lifecycle of the exploration system.
  * Handles initialization, configuration, and player data persistence.
+ * <p>
+ * Memory safety:
+ * - getAllExploredChunks() uses version-based caching to avoid repeated disk reads.
+ * - getAllExploredCaveChunks() now also uses version-based caching (was uncached before).
+ * - Shared caches are periodically trimmed and cleared on shutdown.
+ * - maxStoredChunksPerPlayer defaults to 1,000,000 (enforced in ExploredChunksTracker).
  */
 public class ExplorationManager {
     private static final Logger LOGGER = Logger.getLogger(ExplorationManager.class.getName());
     private static ExplorationManager INSTANCE;
 
     private boolean initialized = false;
-    private int maxStoredChunksPerPlayer = Integer.MAX_VALUE;
+    private int maxStoredChunksPerPlayer = 1_000_000;
     private float explorationUpdateRate = 0.5f;
     private boolean persistenceEnabled = true;
 
@@ -37,8 +46,20 @@ public class ExplorationManager {
 
     private String persistencePath = "universe/exploration_data";
 
-    private final ScheduledExecutorService autoSaveScheduler = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService autoSaveScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "BetterMap-AutoSave");
+        t.setDaemon(true);
+        return t;
+    });
     private ScheduledFuture<?> autoSaveTask;
+
+    // --- Surface exploration shared cache (version-based, primitive-backed) ---
+    private final Map<String, LongOpenHashSet> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // --- Cave exploration shared cache (version-based, primitive-backed) ---
+    private final Map<String, LongOpenHashSet> cachedAllCaveChunks = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, Long> cachedAllCaveVersion = new java.util.concurrent.ConcurrentHashMap<>();
 
     private ExplorationManager() {
     }
@@ -163,46 +184,60 @@ public class ExplorationManager {
 
     /**
      * Gets all explored chunks for a given world, combining persistence and active data.
-     *
-     * @param worldName The world name.
-     * @return A set of all explored chunks.
+     * Uses version-based caching backed by a primitive LongOpenHashSet.
+     * <p>
+     * Returned set is a live unmodifiable view over the cache. The cache itself is rebuilt
+     * only when the version changes; it is NOT mutated in place.
      */
-    private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
-    
-    public java.util.Set<Long> getAllExploredChunks(String worldName) {
+    public Set<Long> getAllExploredChunks(String worldName) {
+        return new ExploredChunkSetView(getAllExploredChunksLong(worldName));
+    }
+
+    /**
+     * Primitive variant of {@link #getAllExploredChunks(String)} for hot-path callers
+     * that want to avoid boxing.
+     */
+    @Nonnull
+    public LongSet getAllExploredChunksLong(String worldName) {
+        // Compute combined version in a single snapshot pass.
         long combinedVersion = 0;
         int playerCount = 0;
-        for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
+        Map<String, ExplorationTracker.PlayerExplorationData> snapshot =
+                ExplorationTracker.getInstance().getAllPlayerDataSnapshot();
+        for (ExplorationTracker.PlayerExplorationData data : snapshot.values()) {
             String dataWorld = data.getWorldName();
             if (dataWorld == null || !dataWorld.equals(worldName)) continue;
             combinedVersion += data.getExploredChunks().getVersion();
             playerCount++;
         }
         combinedVersion = combinedVersion * 31 + playerCount;
-        
+
         Long cachedVersion = cachedAllExploredVersion.get(worldName);
         if (cachedVersion != null && cachedVersion == combinedVersion) {
-            Set<Long> cached = cachedAllExploredChunks.get(worldName);
+            LongOpenHashSet cached = cachedAllExploredChunks.get(worldName);
             if (cached != null) {
                 return cached;
             }
         }
-        
-        Set<Long> allChunks = new HashSet<>();
 
-        if (persistenceEnabled) {
-            allChunks.addAll(persistence.loadAllChunks(worldName));
+        LongOpenHashSet allChunks = new LongOpenHashSet();
+
+        if (persistenceEnabled && persistence != null) {
+            // loadAllChunks still returns Set<Long> for compat — fold it in.
+            Set<Long> persisted = persistence.loadAllChunks(worldName);
+            for (Long c : persisted) {
+                allChunks.add(c.longValue());
+            }
         }
 
-        Universe universe = Universe.get();
-        if (universe != null) {
-            for (ExplorationTracker.PlayerExplorationData data : ExplorationTracker.getInstance().getAllPlayerDataSnapshot().values()) {
-                String dataWorld = data.getWorldName();
-                if (dataWorld == null || !dataWorld.equals(worldName)) {
-                    continue;
-                }
-                allChunks.addAll(data.getExploredChunks().getExploredChunks());
+        for (ExplorationTracker.PlayerExplorationData data : snapshot.values()) {
+            String dataWorld = data.getWorldName();
+            if (dataWorld == null || !dataWorld.equals(worldName)) {
+                continue;
+            }
+            LongIterator it = data.getExploredChunks().getRawSet().iterator();
+            while (it.hasNext()) {
+                allChunks.add(it.nextLong());
             }
         }
 
@@ -213,31 +248,81 @@ public class ExplorationManager {
 
     /**
      * Gets all explored cave chunks for a given world, combining persistence and active data.
+     * FIX: Now uses version-based caching (was previously uncached, causing disk reads every call).
      *
      * @param worldName The world name.
      * @return A set of all explored cave chunks.
      */
-    public java.util.Set<Long> getAllExploredCaveChunks(String worldName) {
-        Set<Long> allChunks = new HashSet<>();
+    public Set<Long> getAllExploredCaveChunks(String worldName) {
+        // Build version from active player cave state sizes
+        long combinedVersion = 0;
+        int playerCount = 0;
+        Universe universe = Universe.get();
+        if (universe != null && universe.getWorld(worldName) != null) {
+            for (PlayerRef playerRef : universe.getWorld(worldName).getPlayerRefs()) {
+                Player player = playerRef.getComponent(Player.getComponentType());
+                if (player != null) {
+                    CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
+                    if (state != null) {
+                        combinedVersion += state.getExploredCaveChunks().size();
+                        playerCount++;
+                    }
+                }
+            }
+        }
+        combinedVersion = combinedVersion * 31 + playerCount;
 
-        if (persistenceEnabled && cavePersistence != null) {
-            allChunks.addAll(cavePersistence.loadAllChunks(worldName));
+        Long cachedVersion = cachedAllCaveVersion.get(worldName);
+        if (cachedVersion != null && cachedVersion == combinedVersion) {
+            LongOpenHashSet cached = cachedAllCaveChunks.get(worldName);
+            if (cached != null) {
+                return new ExploredChunkSetView(cached);
+            }
         }
 
-        Universe universe = Universe.get();
+        LongOpenHashSet allChunks = new LongOpenHashSet();
+
+        if (persistenceEnabled && cavePersistence != null) {
+            for (Long c : cavePersistence.loadAllChunks(worldName)) {
+                allChunks.add(c.longValue());
+            }
+        }
+
         if (universe != null && universe.getWorld(worldName) != null) {
             universe.getWorld(worldName).getPlayerRefs().forEach(playerRef -> {
                 Player player = playerRef.getComponent(Player.getComponentType());
                 if (player != null) {
                     CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
                     if (state != null) {
-                        allChunks.addAll(state.getExploredCaveChunks());
+                        for (Long c : state.getExploredCaveChunks()) {
+                            allChunks.add(c.longValue());
+                        }
                     }
                 }
             });
         }
 
-        return allChunks;
+        cachedAllCaveChunks.put(worldName, allChunks);
+        cachedAllCaveVersion.put(worldName, combinedVersion);
+        return new ExploredChunkSetView(allChunks);
+    }
+
+    /**
+     * Invalidates cave exploration caches. Call when cave exploration is reset.
+     */
+    public void invalidateCaveCaches() {
+        cachedAllCaveChunks.clear();
+        cachedAllCaveVersion.clear();
+    }
+
+    /**
+     * Invalidates all shared exploration caches (surface and cave).
+     */
+    public void invalidateAllCaches() {
+        cachedAllExploredChunks.clear();
+        cachedAllExploredVersion.clear();
+        cachedAllCaveChunks.clear();
+        cachedAllCaveVersion.clear();
     }
 
     /**
@@ -245,7 +330,7 @@ public class ExplorationManager {
      *
      * @return The cave persistence, or null if not initialized.
      */
-    public dev.ninesliced.configs.CavePersistence getCavePersistence() {
+    public CavePersistence getCavePersistence() {
         return cavePersistence;
     }
 
@@ -264,8 +349,7 @@ public class ExplorationManager {
             runtimeResetCount++;
         }
 
-        cachedAllExploredChunks.clear();
-        cachedAllExploredVersion.clear();
+        invalidateAllCaches();
 
         int deletedFiles = 0;
         if (persistenceEnabled && persistence != null) {
@@ -283,6 +367,8 @@ public class ExplorationManager {
      */
     public int resetAllCaveExploration() {
         int runtimeResetCount = CaveModeManager.getInstance().clearAllCaveExploration();
+
+        invalidateCaveCaches();
 
         int deletedFiles = 0;
         if (persistenceEnabled && cavePersistence != null) {
@@ -338,8 +424,7 @@ public class ExplorationManager {
             }
         }
 
-        cachedAllExploredChunks.clear();
-        cachedAllExploredVersion.clear();
+        invalidateAllCaches();
         return deletedFiles;
     }
 
@@ -364,11 +449,13 @@ public class ExplorationManager {
             }
         }
 
+        invalidateCaveCaches();
         return deletedFiles;
     }
 
     /**
      * Shuts down the system and clears trackers.
+     * FIX: Also clears all shared caches to release memory immediately.
      */
     public synchronized void shutdown() {
         try {
@@ -384,6 +471,10 @@ public class ExplorationManager {
                 autoSaveScheduler.shutdownNow();
                 Thread.currentThread().interrupt();
             }
+
+            // Clear all caches to release memory
+            invalidateAllCaches();
+
             ExplorationTracker.getInstance().clear();
             LOGGER.info("Exploration System shutdown complete");
         } catch (Exception e) {
@@ -547,58 +638,72 @@ public class ExplorationManager {
     public static class ConfigBuilder {
         private final ExplorationManager manager = getInstance();
 
-        /**
-         * Sets the max chunks limitation.
-         *
-         * @param max Max chunks.
-         * @return The builder.
-         */
         public ConfigBuilder maxChunksPerPlayer(int max) {
             manager.setMaxStoredChunksPerPlayer(max);
             return this;
         }
 
-        /**
-         * Sets the update rate.
-         *
-         * @param seconds Rate in seconds.
-         * @return The builder.
-         */
         public ConfigBuilder updateRate(float seconds) {
             manager.setExplorationUpdateRate(seconds);
             return this;
         }
 
-        /**
-         * Enables persistence at the given path.
-         *
-         * @param path The path.
-         * @return The builder.
-         */
         public ConfigBuilder enablePersistence(String path) {
             manager.setPersistencePath(path);
             manager.setPersistenceEnabled(true);
             return this;
         }
 
-        /**
-         * Disables persistence.
-         *
-         * @return The builder.
-         */
         public ConfigBuilder disablePersistence() {
             manager.setPersistenceEnabled(false);
             return this;
         }
 
-        /**
-         * Builds (initializes) the manager.
-         *
-         * @return The initialized manager.
-         */
         public ExplorationManager build() {
             manager.initialize();
             return manager;
+        }
+    }
+
+    /**
+     * Lightweight unmodifiable Set<Long> view over a primitive LongSet. Avoids the
+     * historical pattern of allocating a HashSet<Long> copy on every getAllExploredChunks call.
+     */
+    static final class ExploredChunkSetView extends java.util.AbstractSet<Long> {
+        private final LongSet delegate;
+
+        ExploredChunkSetView(LongSet delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public int size() {
+            return delegate.size();
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return delegate.isEmpty();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            if (o instanceof Long) {
+                return delegate.contains(((Long) o).longValue());
+            }
+            return false;
+        }
+
+        @Override
+        public java.util.Iterator<Long> iterator() {
+            final LongIterator it = delegate.iterator();
+            return new java.util.Iterator<Long>() {
+                @Override
+                public boolean hasNext() {return it.hasNext();}
+
+                @Override
+                public Long next() {return it.nextLong();}
+            };
         }
     }
 }

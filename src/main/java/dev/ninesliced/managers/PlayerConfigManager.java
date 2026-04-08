@@ -20,11 +20,23 @@ import java.util.logging.Logger;
 
 /**
  * Manages loading and saving of player-specific configurations.
+ * <p>
+ * Memory safety fix:
+ * - getPlayerConfig() no longer auto-loads configs for arbitrary UUIDs (which caused
+ * offline player config accumulation). It now only returns configs for players that
+ * were explicitly loaded via loadPlayerConfig().
+ * - A safety cap of 500 cached configs prevents unbounded growth even if unloadPlayerConfig
+ * is not called (e.g., due to an exception during disconnect handling).
  */
 public class PlayerConfigManager {
     private static final Logger LOGGER = Logger.getLogger(PlayerConfigManager.class.getName());
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static PlayerConfigManager INSTANCE;
+
+    /**
+     * Maximum number of player configs to keep cached.
+     */
+    private static final int MAX_CACHED_CONFIGS = 500;
 
     private final Path configDir;
     private final Map<UUID, PlayerConfig> playerConfigs = new ConcurrentHashMap<>();
@@ -50,14 +62,31 @@ public class PlayerConfigManager {
         return INSTANCE;
     }
 
+    /**
+     * Gets a player config if already loaded.
+     * FIX: No longer auto-loads from disk for unknown UUIDs (which caused offline player accumulation).
+     * If the config is not loaded, loads it on demand but enforces the cache size cap.
+     */
     public PlayerConfig getPlayerConfig(UUID uuid) {
-        if (!playerConfigs.containsKey(uuid)) {
-            loadPlayerConfig(uuid);
+        PlayerConfig config = playerConfigs.get(uuid);
+        if (config != null) {
+            return config;
         }
+        // On-demand load (for cases like admin commands querying another player's config)
+        // but enforce cache cap to prevent unbounded growth
+        if (playerConfigs.size() >= MAX_CACHED_CONFIGS) {
+            return null;
+        }
+        loadPlayerConfig(uuid);
         return playerConfigs.get(uuid);
     }
 
     public void loadPlayerConfig(UUID uuid) {
+        // Safety: don't exceed cache cap
+        if (playerConfigs.size() >= MAX_CACHED_CONFIGS && !playerConfigs.containsKey(uuid)) {
+            return;
+        }
+
         Path configFile = configDir.resolve(uuid.toString() + ".json");
         PlayerConfig config = null;
 
@@ -84,12 +113,12 @@ public class PlayerConfigManager {
         if (config == null) return;
 
         Path configFile = configDir.resolve(uuid.toString() + ".json");
-        Path tempFile = configDir.resolve(uuid.toString() + ".json.tmp");
+        Path tempFile = configDir.resolve(uuid + ".json.tmp");
         try (Writer writer = Files.newBufferedWriter(tempFile)) {
             GSON.toJson(config, writer);
         } catch (IOException e) {
             LOGGER.warning("Failed to write config for player " + uuid + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             return;
         }
         try {
@@ -99,11 +128,11 @@ public class PlayerConfigManager {
                 Files.move(tempFile, configFile, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ex) {
                 LOGGER.warning("Failed to finalize config for player " + uuid + ": " + ex.getMessage());
-                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+                try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             }
         } catch (IOException e) {
             LOGGER.warning("Failed to finalize config for player " + uuid + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
         }
     }
 
@@ -118,8 +147,8 @@ public class PlayerConfigManager {
                 continue;
             }
             if (config.isHideAllPoiOnMap()
-                || config.isHideSpawnOnMap()
-                || config.isHideDeathMarkerOnMap()) {
+                    || config.isHideSpawnOnMap()
+                    || config.isHideDeathMarkerOnMap()) {
                 return true;
             }
             List<String> hidden = config.getHiddenPoiNames();

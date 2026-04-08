@@ -1,26 +1,32 @@
 package dev.ninesliced.configs;
 
-import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
+import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.managers.CaveModeManager;
 
 import javax.annotation.Nonnull;
 import java.io.*;
-import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
 
 /**
  * Handles persistence of cave exploration data to disk.
  * Cave data is stored per-player, per-world as a flat set of explored chunk indices.
  * Files are stored alongside base exploration data as cave-{playerUUID}.bin
+ * <p>
+ * Memory safety fixes:
+ * - saveAllPlayers() uses a bounded single-thread executor (max 32 queued tasks) instead of
+ * ForkJoinPool.commonPool() fire-and-forget.
+ * - saveInProgress flag prevents overlapping bulk saves from piling up copies in memory.
  */
 public class CavePersistence {
 
@@ -31,13 +37,33 @@ public class CavePersistence {
     private final Path storageDir;
 
     /**
+     * Bounded executor for async saves. Single thread, max 32 queued tasks.
+     */
+    private final ExecutorService saveExecutor = new ThreadPoolExecutor(
+            1, 1,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>(32),
+            r -> {
+                Thread t = new Thread(r, "BetterMap-CaveSave");
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.DiscardPolicy()
+    );
+
+    /**
+     * Prevents overlapping bulk saves from creating duplicate copies.
+     */
+    private final AtomicBoolean saveInProgress = new AtomicBoolean(false);
+
+    /**
      * Initializes the cave persistence manager, setting up the storage directory.
      */
     public CavePersistence() {
         Path serverRoot = Paths.get(".").toAbsolutePath().normalize();
         this.storageDir = serverRoot.resolve("mods").resolve("BetterMap").resolve("Data");
 
-        LOGGER.info("Cave exploration storage directory: " + this.storageDir.toString());
+        LOGGER.info("Cave exploration storage directory: " + this.storageDir);
         try {
             if (!Files.exists(storageDir)) {
                 Files.createDirectories(storageDir);
@@ -49,9 +75,6 @@ public class CavePersistence {
 
     /**
      * Loads cave exploration data for a player in a specific world.
-     *
-     * @param player    The player to load data for.
-     * @param worldName The name of the world to load data from.
      */
     public void load(@Nonnull Player player, @Nonnull String worldName) {
         UUID playerUUID = ((CommandSender) player).getUuid();
@@ -68,14 +91,14 @@ public class CavePersistence {
 
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
             int version = in.readInt();
-            
+
             if (version != DATA_VERSION) {
                 LOGGER.warning("Incompatible cave data version for player " + player.getDisplayName() + ": " + version + " (expected " + DATA_VERSION + ")");
                 return;
             }
-            
+
             CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getOrCreateState(player);
-            
+
             int chunkCount = in.readInt();
             Set<Long> chunks = state.getExploredCaveChunks();
             for (int i = 0; i < chunkCount; i++) {
@@ -90,61 +113,64 @@ public class CavePersistence {
 
     /**
      * Saves cave exploration data for a player in their current world.
-     *
-     * @param player The player to save data for.
      */
     public void save(@Nonnull Player player) {
         if (player.getWorld() == null) return;
-        
+
         UUID uuid = ((CommandSender) player).getUuid();
         if (uuid == null) return;
-        
+
         save(player.getDisplayName(), uuid, player.getWorld().getName());
     }
 
     /**
      * Saves cave exploration data for all players in the server.
+     * FIX: Uses bounded executor with backpressure instead of ForkJoinPool.commonPool().
      */
     public void saveAllPlayers() {
-        Universe universe = Universe.get();
-        if (universe == null) return;
+        if (!saveInProgress.compareAndSet(false, true)) {
+            return;
+        }
 
-        universe.getWorlds().values().forEach(world -> {
-            try {
-                world.execute(() -> {
-                    LOGGER.fine("Saving cave exploration data for world: " + world.getName());
-                    world.getPlayerRefs().forEach(playerRef -> {
-                        Player player = playerRef.getComponent(Player.getComponentType());
-                        if (player != null) {
-                            String playerName = player.getDisplayName();
-                            UUID uuid = ((CommandSender) player).getUuid();
-                            String worldName = world.getName();
+        try {
+            Universe universe = Universe.get();
+            if (universe == null) return;
 
-                            CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
-                            if (state != null && uuid != null) {
-                                Set<Long> chunks = new HashSet<>(state.getExploredCaveChunks());
-                                
-                                if (!chunks.isEmpty()) {
-                                    java.util.concurrent.ForkJoinPool.commonPool().execute(() -> 
-                                        save(playerName, uuid, worldName, chunks)
-                                    );
+            universe.getWorlds().values().forEach(world -> {
+                try {
+                    world.execute(() -> {
+                        LOGGER.fine("Saving cave exploration data for world: " + world.getName());
+                        world.getPlayerRefs().forEach(playerRef -> {
+                            Player player = playerRef.getComponent(Player.getComponentType());
+                            if (player != null) {
+                                String playerName = player.getDisplayName();
+                                UUID uuid = ((CommandSender) player).getUuid();
+                                String worldName = world.getName();
+
+                                CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
+                                if (state != null && uuid != null) {
+                                    Set<Long> chunks = new HashSet<>(state.getExploredCaveChunks());
+
+                                    if (!chunks.isEmpty()) {
+                                        saveExecutor.execute(() ->
+                                                save(playerName, uuid, worldName, chunks)
+                                        );
+                                    }
                                 }
                             }
-                        }
+                        });
                     });
-                });
-            } catch (Exception e) {
-                LOGGER.warning("Error saving cave data for world: " + e.getMessage());
-            }
-        });
+                } catch (Exception e) {
+                    LOGGER.warning("Error saving cave data for world: " + e.getMessage());
+                }
+            });
+        } finally {
+            saveInProgress.set(false);
+        }
     }
 
     /**
      * Saves cave exploration data for a specific player in a world.
-     *
-     * @param playerName The name of the player.
-     * @param playerUUID The UUID of the player.
-     * @param worldName  The name of the world.
      */
     public void save(String playerName, UUID playerUUID, @Nonnull String worldName) {
         if (playerUUID == null) {
@@ -158,7 +184,7 @@ public class CavePersistence {
         }
 
         Set<Long> chunks = new HashSet<>(state.getExploredCaveChunks());
-        
+
         if (!chunks.isEmpty()) {
             save(playerName, playerUUID, worldName, chunks);
         }
@@ -166,11 +192,6 @@ public class CavePersistence {
 
     /**
      * Saves cave exploration data with provided chunk data.
-     *
-     * @param playerName The player name.
-     * @param playerUUID The player UUID.
-     * @param worldName  The world name.
-     * @param chunks     Set of explored chunk indices.
      */
     public void save(String playerName, UUID playerUUID, @Nonnull String worldName, Set<Long> chunks) {
         if (chunks.isEmpty()) {
@@ -188,7 +209,7 @@ public class CavePersistence {
         }
 
         Path file = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID.toString() + ".bin");
-        Path tempFile = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID.toString() + ".bin.tmp");
+        Path tempFile = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID + ".bin.tmp");
 
         LOGGER.info("[CAVE SAVE] Saving " + chunks.size() + " cave chunks for " + playerName + " in " + worldName);
 
@@ -201,7 +222,7 @@ public class CavePersistence {
             }
         } catch (IOException e) {
             LOGGER.severe("Failed to write cave exploration data for " + playerName + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             return;
         }
 
@@ -212,19 +233,16 @@ public class CavePersistence {
                 Files.move(tempFile, file, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException ex) {
                 LOGGER.severe("Failed to finalize cave exploration data for " + playerName + ": " + ex.getMessage());
-                try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+                try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
             }
         } catch (IOException e) {
             LOGGER.severe("Failed to finalize cave exploration data for " + playerName + ": " + e.getMessage());
-            try { Files.deleteIfExists(tempFile); } catch (IOException ignored) {}
+            try {Files.deleteIfExists(tempFile);} catch (IOException ignored) {}
         }
     }
 
     /**
      * Loads all cave chunks from all player files in the specified world folder.
-     *
-     * @param worldName The name of the world.
-     * @return A set of all explored cave chunk indices.
      */
     public Set<Long> loadAllChunks(@Nonnull String worldName) {
         Set<Long> allChunks = new HashSet<>();
@@ -255,11 +273,6 @@ public class CavePersistence {
         return allChunks;
     }
 
-    /**
-     * Deletes all persisted cave exploration files for all worlds.
-     *
-     * @return Number of deleted files.
-     */
     public int clearAllData() {
         if (!Files.exists(storageDir)) {
             return 0;
@@ -268,16 +281,12 @@ public class CavePersistence {
         int deleted = 0;
         try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
             for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
-                if (!Files.isDirectory(worldDir)) {
-                    continue;
-                }
+                if (!Files.isDirectory(worldDir)) continue;
 
                 try (java.util.stream.Stream<Path> files = Files.list(worldDir)) {
                     for (Path file : (Iterable<Path>) files::iterator) {
                         String name = file.getFileName().toString();
-                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) {
-                            continue;
-                        }
+                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) continue;
                         try {
                             Files.deleteIfExists(file);
                             deleted++;
@@ -297,12 +306,6 @@ public class CavePersistence {
         return deleted;
     }
 
-    /**
-     * Deletes all persisted cave exploration files for one player across all worlds.
-     *
-     * @param playerUUID The player UUID.
-     * @return Number of deleted files.
-     */
     public int clearPlayerData(@Nonnull UUID playerUUID) {
         if (!Files.exists(storageDir)) {
             return 0;
@@ -313,9 +316,7 @@ public class CavePersistence {
 
         try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
             for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
-                if (!Files.isDirectory(worldDir)) {
-                    continue;
-                }
+                if (!Files.isDirectory(worldDir)) continue;
 
                 Path file = worldDir.resolve(targetFile);
                 try {
@@ -333,9 +334,6 @@ public class CavePersistence {
         return deleted;
     }
 
-    /**
-     * Lists all player UUIDs that have persisted cave exploration data.
-     */
     @Nonnull
     public Set<UUID> listSavedPlayerUuids() {
         Set<UUID> uuids = new HashSet<>();
@@ -345,16 +343,12 @@ public class CavePersistence {
 
         try (java.util.stream.Stream<Path> worldDirs = Files.list(storageDir)) {
             for (Path worldDir : (Iterable<Path>) worldDirs::iterator) {
-                if (!Files.isDirectory(worldDir)) {
-                    continue;
-                }
+                if (!Files.isDirectory(worldDir)) continue;
 
                 try (java.util.stream.Stream<Path> files = Files.list(worldDir)) {
                     for (Path file : (Iterable<Path>) files::iterator) {
                         String name = file.getFileName().toString();
-                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) {
-                            continue;
-                        }
+                        if (!name.startsWith(CAVE_FILE_PREFIX) || !name.endsWith(".bin")) continue;
 
                         String uuidPart = name.substring(CAVE_FILE_PREFIX.length(), name.length() - 4);
                         try {
