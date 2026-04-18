@@ -77,7 +77,7 @@ public class BetterMapCommand extends AbstractCommand {
 
     @Override
     protected String generatePermissionNode() {
-        return "";
+        return "bettermap";
     }
 
     /**

@@ -35,7 +35,7 @@ public class WaypointCommand extends AbstractCommand {
 
     @Override
     protected String generatePermissionNode() {
-        return "";
+        return "waypoint";
     }
 
     @NullableDecl
