@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.5-pre-release-2026.04.17-c2d518cc9
+
+* Update Api changes for the new release of hytale (2026.04.17-c2d518cc9) to fix the mod not loading in server
+
+## v1.3.5
+
+* Update Api changes for the new release of hytale (2026.03.26-89796e57b) to fix the map becoming black
+
 ## v1.3.4
 
 * Fix the black map issue due to going out of caves due to the unloading of chunks thanks to @xytronix
