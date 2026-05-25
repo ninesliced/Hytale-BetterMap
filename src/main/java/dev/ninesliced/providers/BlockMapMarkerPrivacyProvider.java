@@ -1,10 +1,10 @@
 package dev.ninesliced.providers;
 
 import com.hypixel.hytale.protocol.Direction;
-import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
@@ -123,12 +123,9 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 transform.position = new Position(pos.x() + 0.5f, pos.y(), pos.z() + 0.5f);
                 transform.orientation = new Direction(0, 0, 0);
 
-                FormattedMessage displayName = new FormattedMessage();
-                displayName.rawText = name;
-
                 MapMarker marker = new MapMarker(
                     markerData.getMarkerId(),
-                    displayName,
+                    Message.translation(name).getFormattedMessage(),
                     icon,
                     transform,
                     null,
