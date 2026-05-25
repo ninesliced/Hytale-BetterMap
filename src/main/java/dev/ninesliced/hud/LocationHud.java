@@ -28,6 +28,8 @@ import org.joml.Vector3d;
  */
 public class LocationHud extends CustomUIHud {
 
+    public static final String HUD_IDENTIFIER = "BetterMap_Location";
+
     private static final int HUD_WIDTH = 260;
     private static final int HUD_HEIGHT = 160;
     private static final int MARGIN = 20;
@@ -41,7 +43,7 @@ public class LocationHud extends CustomUIHud {
     private HudPosition position = HudPosition.TOP_LEFT;
 
     public LocationHud(@Nonnull PlayerRef playerRef) {
-        super(playerRef);
+        super(playerRef, HUD_IDENTIFIER);
     }
 
     public void setPosition(@Nonnull HudPosition position) {
