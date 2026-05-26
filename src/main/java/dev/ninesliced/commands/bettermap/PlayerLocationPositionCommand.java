@@ -18,9 +18,11 @@ import dev.ninesliced.hud.HudPosition;
 import dev.ninesliced.managers.PlayerConfigManager;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import java.awt.*;
 import java.util.concurrent.CompletableFuture;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Command to change the Location HUD position.
@@ -86,7 +88,7 @@ public class PlayerLocationPositionCommand extends AbstractCommand {
             config.setLocationHudPosition(newPosition.getId());
             PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());
 
-            player.sendMessage(Message.raw("Location HUD position set to: ")
+            PlayerRefUtil.resolve(player).sendMessage(Message.raw("Location HUD position set to: ")
                     .color(Color.GREEN)
                     .insert(Message.raw(newPosition.getDisplayName()).color(Color.CYAN)));
         }, world);

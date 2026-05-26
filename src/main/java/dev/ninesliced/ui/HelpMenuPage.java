@@ -17,10 +17,12 @@ import com.hypixel.hytale.server.core.ui.builder.UIEventBuilder;
 import com.hypixel.hytale.server.core.ui.builder.EventData;
 import com.hypixel.hytale.server.core.Message;
 import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.util.logging.Logger;
 
+import dev.ninesliced.utils.PlayerRefUtil;
 public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEventData> {
 
     private static final Logger LOGGER = Logger.getLogger(HelpMenuPage.class.getName());
@@ -107,7 +109,7 @@ public class HelpMenuPage extends InteractiveCustomUIPage<HelpMenuPage.HelpEvent
                     .insert(Message.raw("[BetterMap] ").color("#F38043").bold(true))
                     .insert(Message.raw("Need help? Join our Discord and open a ticket:\n").color("#ffffff"))
                     .insert(Message.raw(url).color("#4c9cff").link(url));
-                player.sendMessage(helpMessage);
+                PlayerRefUtil.resolve(player).sendMessage(helpMessage);
                 player.getPageManager().setPage(ref, store, Page.None);
                 return;
             }

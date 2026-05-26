@@ -6,8 +6,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerComponent;
 import com.hypixel.hytale.protocol.packets.worldmap.PlayerMarkerComponent;
@@ -27,6 +26,7 @@ import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.PermissionsUtil;
+import org.joml.Vector3d;
 
 public class MarkerTeleportContextCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> markerIdArg = this.withRequiredArg("markerId", "Marker ID", ArgTypes.STRING);
@@ -75,7 +75,7 @@ public class MarkerTeleportContextCommand extends AbstractPlayerCommand {
 
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         double fallbackY = transform != null ? transform.getPosition().y : 64.0;
-        Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+        Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
 
         int blockX = MathUtil.floor(markerX);
         int blockZ = MathUtil.floor(markerZ);

@@ -2,11 +2,9 @@ package dev.ninesliced.systems;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.component.system.tick.EntityTickingSystem;
-import com.hypixel.hytale.server.core.entity.EntityUtils;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -61,9 +59,8 @@ public class LocationSystem extends EntityTickingSystem<EntityStore> {
     @Override
     public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
                     @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        Holder<EntityStore> holder = EntityUtils.toHolder(index, archetypeChunk);
-        Player player = holder.getComponent(Player.getComponentType());
-        PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
+        Player player = archetypeChunk.getComponent(index, Player.getComponentType());
+        PlayerRef playerRef = archetypeChunk.getComponent(index, PlayerRef.getComponentType());
 
         if (player == null || playerRef == null) {
             return;

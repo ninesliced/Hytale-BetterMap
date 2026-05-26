@@ -6,11 +6,13 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Manages chunk streaming with delta updates for unloading.
@@ -91,7 +93,7 @@ public class ChunkStreamingManager {
      * Note: Load packets are handled by the native WorldMapTracker.
      */
     public int processLoadQueue(@Nonnull Player player) {
-        String playerName = player.getDisplayName();
+        String playerName = PlayerRefUtil.getUsername(player);
         PlayerStreamingState state = playerStates.get(playerName);
         if (state == null) {
             return 0;

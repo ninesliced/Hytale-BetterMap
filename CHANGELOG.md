@@ -1,8 +1,13 @@
 # Changelog
 
+## v1.3.6
+
+* Update Api changes for the new release of hytale update 5 to fix the mod not loading in server
+* fix the marker name on the map for the Forgotten_Temple_portal_Enter portal
+
 ## v1.3.5
 
-* Update Api changes for the new release of hytale (2026.02.26-7681d338c) to fix the map becoming black
+* Update Api changes for the new release of hytale (2026.03.26-89796e57b) to fix the map becoming black
 
 ## v1.3.4
 

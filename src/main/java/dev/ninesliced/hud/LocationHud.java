@@ -2,10 +2,7 @@ package dev.ninesliced.hud;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.server.core.entity.EntityUtils;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
@@ -24,11 +21,14 @@ import com.hypixel.hytale.server.core.universe.world.worldgen.IWorldGen;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.joml.Vector3d;
 
 /**
  * Custom HUD displaying location information (coordinates, world, biome, zone).
  */
 public class LocationHud extends CustomUIHud {
+
+    public static final String HUD_IDENTIFIER = "BetterMap_Location";
 
     private static final int HUD_WIDTH = 260;
     private static final int HUD_HEIGHT = 160;
@@ -43,7 +43,7 @@ public class LocationHud extends CustomUIHud {
     private HudPosition position = HudPosition.TOP_LEFT;
 
     public LocationHud(@Nonnull PlayerRef playerRef) {
-        super(playerRef);
+        super(playerRef, HUD_IDENTIFIER);
     }
 
     public void setPosition(@Nonnull HudPosition position) {
@@ -59,12 +59,11 @@ public class LocationHud extends CustomUIHud {
                           @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         if (!this.isEnabled) return;
 
-        Holder<EntityStore> holder = EntityUtils.toHolder(index, archetypeChunk);
-        Player player = holder.getComponent(Player.getComponentType());
-        TransformComponent transformComponent = holder.getComponent(TransformComponent.getComponentType());
+        Player player = archetypeChunk.getComponent(index, Player.getComponentType());
+        TransformComponent transformComponent = archetypeChunk.getComponent(index, TransformComponent.getComponentType());
 
         if (player != null && transformComponent != null && player.getWorld() != null) {
-            this.playerPosition = transformComponent.getPosition().clone();
+            this.playerPosition = new Vector3d(transformComponent.getPosition());
             this.worldName = player.getWorld().getName();
             updateBiomeAndZone(player.getWorld(), this.playerPosition);
         }
@@ -76,8 +75,8 @@ public class LocationHud extends CustomUIHud {
         IWorldGen worldGen = world.getChunkStore().getGenerator();
         if (worldGen instanceof ChunkGenerator generator) {
             int seed = (int) world.getWorldConfig().getSeed();
-            int x = (int) position.getX();
-            int z = (int) position.getZ();
+            int x = (int) position.x;
+            int z = (int) position.z;
 
             try {
                 ZoneBiomeResult result = generator.generateZoneBiomeResultAt(seed, x, z);
@@ -201,9 +200,9 @@ public class LocationHud extends CustomUIHud {
             return;
         }
 
-        int x = (int) this.playerPosition.getX();
-        int y = (int) this.playerPosition.getY();
-        int z = (int) this.playerPosition.getZ();
+        int x = (int) this.playerPosition.x;
+        int y = (int) this.playerPosition.y;
+        int z = (int) this.playerPosition.z;
 
         String positionText = String.format("Position: %d, %d, %d", x, y, z);
         ui.set("#LocationHudAnchor #Location #Background #Content #InfoPanel #PositionLabel.TextSpans", Message.raw(positionText));

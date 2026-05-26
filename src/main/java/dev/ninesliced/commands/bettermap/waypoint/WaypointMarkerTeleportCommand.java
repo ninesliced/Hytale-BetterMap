@@ -2,8 +2,7 @@ package dev.ninesliced.commands.bettermap.waypoint;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
@@ -17,6 +16,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.utils.PermissionsUtil;
+import org.joml.Vector3d;
 
 import javax.annotation.Nonnull;
 
@@ -55,7 +55,7 @@ public class WaypointMarkerTeleportCommand extends AbstractPlayerCommand {
         int z = this.zArg.get(context);
 
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-        Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+        Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
 
         Vector3d destination = new Vector3d(x + 0.5d, y, z + 0.5d);
         Teleport teleport = new Teleport(destination, currentRotation);

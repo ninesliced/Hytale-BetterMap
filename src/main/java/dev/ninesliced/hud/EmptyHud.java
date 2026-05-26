@@ -12,8 +12,12 @@ import javax.annotation.Nonnull;
  */
 public class EmptyHud extends CustomUIHud {
 
-    public EmptyHud(PlayerRef playerRef) {
-        super(playerRef);
+    public EmptyHud(@Nonnull PlayerRef playerRef) {
+        this(playerRef, LocationHud.HUD_IDENTIFIER);
+    }
+
+    public EmptyHud(@Nonnull PlayerRef playerRef, @Nonnull String hudIdentifier) {
+        super(playerRef, hudIdentifier);
     }
 
     @Override

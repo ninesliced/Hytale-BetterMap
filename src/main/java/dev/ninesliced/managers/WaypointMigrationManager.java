@@ -12,6 +12,7 @@ import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore.WorldMarkersResource;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.io.IOException;
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Handles migration of legacy waypoint files (global-pings.json and player-specific pings)
@@ -311,7 +313,7 @@ public class WaypointMigrationManager {
                 marker.setIcon(mapping.icon);
                 marker.setPosition(x, z);
                 marker.setColorTint(mapping.color);
-                marker.withCreatedByName(player.getDisplayName());
+                marker.withCreatedByName(PlayerRefUtil.getUsername(player));
                 marker.withCreatedByUuid(getPlayerUuid(player));
                 
                 personalStore.addUserMapMarker(marker);
@@ -389,7 +391,7 @@ public class WaypointMigrationManager {
     
     private static UUID getPlayerUuid(Player player) {
         try {
-            return ((com.hypixel.hytale.server.core.command.system.CommandSender) player).getUuid();
+            return player.getUuid();
         } catch (Exception e) {
             return null;
         }

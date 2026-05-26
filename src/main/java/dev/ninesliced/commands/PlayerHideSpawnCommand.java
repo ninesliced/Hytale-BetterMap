@@ -1,4 +1,5 @@
 package dev.ninesliced.commands;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -37,8 +38,8 @@ public class PlayerHideSpawnCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        Player player = (Player) context.sender();
-        UUID uuid = ((CommandSender) player).getUuid();
+        Player player = PlayerRefUtil.fromContext(context);
+        UUID uuid = player.getUuid();
         World world = player.getWorld();
         PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
 

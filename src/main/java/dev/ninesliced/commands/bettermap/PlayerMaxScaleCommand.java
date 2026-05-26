@@ -1,4 +1,5 @@
 package dev.ninesliced.commands.bettermap;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -48,7 +49,7 @@ public class PlayerMaxScaleCommand extends AbstractCommand {
             }
 
             UUID uuid = context.sender().getUuid();
-            Player player = (Player) context.sender();
+            Player player = PlayerRefUtil.fromContext(context);
             World world = player.getWorld();
             PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
 

@@ -43,7 +43,7 @@ public final class PermissionsUtil {
     }
 
     public static boolean isAdmin(@Nonnull Player player) {
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         PermissionsModule perms = PermissionsModule.get();
         if (perms == null) {
             return false;
@@ -67,7 +67,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -83,7 +83,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -103,7 +103,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -129,7 +129,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -150,7 +150,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -170,7 +170,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         return groups != null && groups.contains("OP");
     }
@@ -208,7 +208,7 @@ public final class PermissionsUtil {
             return true;
         }
 
-        UUID playerUuid = ((CommandSender) player).getUuid();
+        UUID playerUuid = player.getUuid();
         UUID creatorUuid = marker.getCreatedByUuid();
         if (creatorUuid != null && creatorUuid.equals(playerUuid)) {
             return true;
@@ -238,7 +238,7 @@ public final class PermissionsUtil {
             return false;
         }
 
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         Set<String> groups = perms.getGroupsForUser(uuid);
         if (groups != null && groups.contains("OP")) {
             return true;
@@ -288,7 +288,7 @@ public final class PermissionsUtil {
         if (perms == null) {
             return false;
         }
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         return perms.hasPermission(uuid, permission);
     }
 

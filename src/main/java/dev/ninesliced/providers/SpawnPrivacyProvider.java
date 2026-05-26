@@ -1,7 +1,6 @@
 package dev.ninesliced.providers;
 
 import com.hypixel.hytale.math.vector.Transform;
-import com.hypixel.hytale.math.vector.Vector3d;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
@@ -21,6 +20,7 @@ import com.hypixel.hytale.server.core.command.system.CommandSender;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
+import org.joml.Vector3d;
 
 public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
     public static final String PROVIDER_ID = "spawn";
@@ -35,7 +35,7 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            UUID playerUuid = ((CommandSender) player).getUuid();
+            UUID playerUuid = player.getUuid();
             PlayerConfig playerConfig = null;
             if (playerUuid != null) {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);

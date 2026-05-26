@@ -1,4 +1,5 @@
 package dev.ninesliced.commands;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
@@ -45,8 +46,8 @@ public class PlayerHiddenPoiCommand extends AbstractCommand {
             return CompletableFuture.completedFuture(null);
         }
 
-        UUID uuid = ((com.hypixel.hytale.server.core.command.system.CommandSender) context.sender()).getUuid();
-        Player player = (Player) context.sender();
+        UUID uuid = context.sender().getUuid();
+        Player player = PlayerRefUtil.fromContext(context);
         World world = player.getWorld();
         PlayerConfig config = PlayerConfigManager.getInstance().getPlayerConfig(uuid);
 

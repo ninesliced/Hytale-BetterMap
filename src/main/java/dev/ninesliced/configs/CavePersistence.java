@@ -4,6 +4,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import com.hypixel.hytale.server.core.universe.Universe;
 import dev.ninesliced.managers.CaveModeManager;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.io.*;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Handles persistence of cave exploration data to disk.
@@ -54,7 +56,7 @@ public class CavePersistence {
      * @param worldName The name of the world to load data from.
      */
     public void load(@Nonnull Player player, @Nonnull String worldName) {
-        UUID playerUUID = ((CommandSender) player).getUuid();
+        UUID playerUUID = player.getUuid();
         if (playerUUID == null)
             return;
 
@@ -62,7 +64,7 @@ public class CavePersistence {
         Path file = worldDir.resolve(CAVE_FILE_PREFIX + playerUUID + ".bin");
 
         if (!Files.exists(file)) {
-            LOGGER.fine("No cave data file found for " + player.getDisplayName() + " in " + worldName);
+            LOGGER.fine("No cave data file found for " + PlayerRefUtil.getUsername(player) + " in " + worldName);
             return;
         }
 
@@ -70,7 +72,7 @@ public class CavePersistence {
             int version = in.readInt();
             
             if (version != DATA_VERSION) {
-                LOGGER.warning("Incompatible cave data version for player " + player.getDisplayName() + ": " + version + " (expected " + DATA_VERSION + ")");
+                LOGGER.warning("Incompatible cave data version for player " + PlayerRefUtil.getUsername(player) + ": " + version + " (expected " + DATA_VERSION + ")");
                 return;
             }
             
@@ -81,10 +83,10 @@ public class CavePersistence {
             for (int i = 0; i < chunkCount; i++) {
                 chunks.add(in.readLong());
             }
-            LOGGER.info("Loaded " + chunkCount + " cave chunks for " + player.getDisplayName() + " in world " + worldName);
+            LOGGER.info("Loaded " + chunkCount + " cave chunks for " + PlayerRefUtil.getUsername(player) + " in world " + worldName);
 
         } catch (IOException e) {
-            LOGGER.severe("Failed to load cave exploration data for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.severe("Failed to load cave exploration data for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -96,10 +98,10 @@ public class CavePersistence {
     public void save(@Nonnull Player player) {
         if (player.getWorld() == null) return;
         
-        UUID uuid = ((CommandSender) player).getUuid();
+        UUID uuid = player.getUuid();
         if (uuid == null) return;
         
-        save(player.getDisplayName(), uuid, player.getWorld().getName());
+        save(PlayerRefUtil.getUsername(player), uuid, player.getWorld().getName());
     }
 
     /**
@@ -116,8 +118,8 @@ public class CavePersistence {
                     world.getPlayerRefs().forEach(playerRef -> {
                         Player player = playerRef.getComponent(Player.getComponentType());
                         if (player != null) {
-                            String playerName = player.getDisplayName();
-                            UUID uuid = ((CommandSender) player).getUuid();
+                            String playerName = PlayerRefUtil.getUsername(player);
+                            UUID uuid = player.getUuid();
                             String worldName = world.getName();
 
                             CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);

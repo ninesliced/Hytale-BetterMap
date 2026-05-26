@@ -3,9 +3,8 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.builtin.teleport.TeleportPlugin;
 import com.hypixel.hytale.builtin.teleport.Warp;
 import com.hypixel.hytale.component.Ref;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Transform;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -33,6 +32,8 @@ import java.util.UUID;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.joml.Vector3d;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Provides warp markers on the world map while optionally hiding other players' warps.
@@ -70,7 +71,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredWarps(viewer);
             PlayerConfig playerConfig = null;
             if (viewer != null) {
-                UUID playerUuid = ((CommandSender) viewer).getUuid();
+                UUID playerUuid = viewer.getUuid();
                 if (playerUuid != null) {
                     playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
                 }
@@ -141,8 +142,8 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
                     continue;
                 }
 
-                Vector3f rotation = transform.getRotation();
-                float yaw = rotation != null ? rotation.getYaw() : 0.0f;
+                Rotation3f rotation = transform.getRotation();
+                float yaw = rotation != null ? rotation.yaw() : 0.0f;
 
                 String markerId = buildMarkerId(warp);
                 String markerName = buildMarkerName(warp);
@@ -172,7 +173,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             return false;
         }
 
-        UUID viewerUuid = ((CommandSender) viewer).getUuid();
+        UUID viewerUuid = viewer.getUuid();
 
         if (creator.equalsIgnoreCase("*Teleporter")) {
             ExtendedTeleportIntegration integration = ExtendedTeleportIntegration.getInstance();
@@ -192,7 +193,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
             return true;
         }
 
-        String displayName = viewer.getDisplayName();
+        String displayName = PlayerRefUtil.getUsername(viewer);
         String normalizedDisplay = normalizeName(displayName);
         if (!normalizedDisplay.isEmpty() && normalizedCreator.equals(normalizedDisplay)) {
             return true;
@@ -229,7 +230,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         } catch (Exception ignored) {
         }
 
-        return viewer.getDisplayName();
+        return PlayerRefUtil.getUsername(viewer);
     }
 
     private static boolean isWarpExplored(Transform transform,
@@ -273,7 +274,7 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         com.hypixel.hytale.protocol.Transform packetTransform = PositionUtil.toTransformPacket(
             new com.hypixel.hytale.math.vector.Transform(
                 transform.getPosition(),
-                new Vector3f(0, yaw, 0)
+                new Rotation3f(0.0F, yaw, 0.0F)
             )
         );
 

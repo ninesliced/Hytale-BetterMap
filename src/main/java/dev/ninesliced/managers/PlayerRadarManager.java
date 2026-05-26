@@ -1,8 +1,7 @@
 package dev.ninesliced.managers;
 
 import com.hypixel.hytale.component.Ref;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
@@ -20,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import org.joml.Vector3d;
 
 /**
  * Manages the registration and lifecycle of the PlayerRadarProvider for world maps.
@@ -74,7 +74,7 @@ public class PlayerRadarManager {
         try {
             for (PlayerRef playerRef : world.getPlayerRefs()) {
                 Vector3d pos = null;
-                Vector3f rot = null;
+                Rotation3f rot = null;
 
                 Ref<EntityStore> ref = playerRef.getReference();
                 if (ref != null && ref.isValid()) {
@@ -98,7 +98,7 @@ public class PlayerRadarManager {
                         playerRef.getUuid().toString(),
                         playerRef.getUsername(),
                         new Vector3d(pos.x, pos.y, pos.z),
-                        rot != null ? new Vector3f(rot.x, rot.y, rot.z) : Vector3f.ZERO
+                    rot != null ? new Rotation3f(rot) : new Rotation3f(0.0F, 0.0F, 0.0F)
                 );
 
                 radarDataList.add(data);
@@ -206,9 +206,9 @@ public class PlayerRadarManager {
         public final String uuid;
         public final String name;
         public final Vector3d position;
-        public final Vector3f rotation;
+        public final Rotation3f rotation;
 
-        public RadarData(String uuid, String name, Vector3d position, Vector3f rotation) {
+        public RadarData(String uuid, String name, Vector3d position, Rotation3f rotation) {
             this.uuid = uuid;
             this.name = name;
             this.position = position;

@@ -12,12 +12,14 @@ import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.PlayerRadarManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.utils.WorldMapHook;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Ticker service that updates exploration status for players periodically.
@@ -159,7 +161,7 @@ public class ExplorationTicker {
                     Player player = playerRef.getStore().getComponent(playerRef, Player.getComponentType());
                     if (player == null) continue;
 
-                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(player.getDisplayName());
+                    ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(PlayerRefUtil.getUsername(player));
                     if (data == null) continue;
 
                     World playerWorld = player.getWorld();

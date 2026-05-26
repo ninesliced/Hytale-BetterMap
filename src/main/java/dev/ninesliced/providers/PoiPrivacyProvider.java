@@ -59,7 +59,7 @@ public class PoiPrivacyProvider implements WorldMapManager.MarkerProvider {
             boolean canOverridePoi = viewer != null && PermissionsUtil.canOverridePoi(viewer);
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredPoi(viewer);
             PlayerConfig playerConfig = null;
-            UUID playerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
+            UUID playerUuid = viewer != null ? viewer.getUuid() : null;
             if (playerUuid != null) {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }

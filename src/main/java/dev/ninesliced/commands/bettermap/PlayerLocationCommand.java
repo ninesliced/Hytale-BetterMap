@@ -17,10 +17,12 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.providers.LocationHudProvider;
 import org.checkerframework.checker.nullness.compatqual.NonNullDecl;
 import org.checkerframework.checker.nullness.compatqual.NullableDecl;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import java.awt.*;
 import java.util.concurrent.CompletableFuture;
 
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Handles the "location" command which allows players to toggle the visibility of the location HUD.
@@ -80,11 +82,11 @@ public class PlayerLocationCommand extends AbstractCommand {
             if (config.isLocationEnabled()) {
                 provider.disableHudForPlayer(player, playerRef);
                 config.setLocationEnabled(false);
-                player.sendMessage(Message.raw("Location HUD disabled.").color(Color.YELLOW));
+                PlayerRefUtil.resolve(player).sendMessage(Message.raw("Location HUD disabled.").color(Color.YELLOW));
             } else {
                 provider.enableHudForPlayer(player, playerRef);
                 config.setLocationEnabled(true);
-                player.sendMessage(Message.raw("Location HUD enabled.").color(Color.GREEN));
+                PlayerRefUtil.resolve(player).sendMessage(Message.raw("Location HUD enabled.").color(Color.GREEN));
             }
             PlayerConfigManager.getInstance().savePlayerConfig(playerRef.getUuid());
         }, world);

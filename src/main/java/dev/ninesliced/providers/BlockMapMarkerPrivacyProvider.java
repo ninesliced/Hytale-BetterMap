@@ -1,10 +1,10 @@
 package dev.ninesliced.providers;
 
 import com.hypixel.hytale.protocol.Direction;
-import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
 import com.hypixel.hytale.server.core.universe.world.worldmap.WorldMapManager;
@@ -53,7 +53,7 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
             boolean canOverridePoi = viewer != null && PermissionsUtil.canOverridePoi(viewer);
             boolean canOverrideUnexplored = viewer != null && PermissionsUtil.canOverrideUnexploredPoi(viewer);
             PlayerConfig playerConfig = null;
-            UUID playerUuid = viewer != null ? ((CommandSender) viewer).getUuid() : null;
+            UUID playerUuid = viewer != null ? viewer.getUuid() : null;
             if (playerUuid != null) {
                 playerConfig = PlayerConfigManager.getInstance().getPlayerConfig(playerUuid);
             }
@@ -113,22 +113,19 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
 
                 if (hideUnexplored) {
                     var pos = markerData.getPosition();
-                    if (!isExplored(pos.getX(), pos.getZ(), explorationData, sharedExploredChunks)) {
+                    if (!isExplored(pos.x(), pos.z(), explorationData, sharedExploredChunks)) {
                         continue;
                     }
                 }
 
                 var pos = markerData.getPosition();
                 Transform transform = new Transform();
-                transform.position = new Position(pos.getX() + 0.5f, pos.getY(), pos.getZ() + 0.5f);
+                transform.position = new Position(pos.x() + 0.5f, pos.y(), pos.z() + 0.5f);
                 transform.orientation = new Direction(0, 0, 0);
-
-                FormattedMessage displayName = new FormattedMessage();
-                displayName.rawText = name;
 
                 MapMarker marker = new MapMarker(
                     markerData.getMarkerId(),
-                    displayName,
+                    Message.translation(name).getFormattedMessage(),
                     icon,
                     transform,
                     null,

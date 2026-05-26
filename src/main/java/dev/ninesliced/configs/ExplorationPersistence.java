@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.Universe;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.exploration.ExplorationTracker;
 import dev.ninesliced.utils.ChunkUtil;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.io.*;
@@ -22,6 +23,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.logging.Logger;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Handles persistence of exploration data to disk.
@@ -57,7 +59,7 @@ public class ExplorationPersistence {
      * @param worldName The name of the world to load data from.
      */
     public void load(@Nonnull Player player, @Nonnull String worldName) {
-        UUID playerUUID = ((CommandSender) player).getUuid();
+        UUID playerUUID = player.getUuid();
         if (playerUUID == null)
             return;
 
@@ -71,7 +73,7 @@ public class ExplorationPersistence {
         try (DataInputStream in = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
             int version = in.readInt();
             if (version != DATA_VERSION) {
-                LOGGER.warning("Unknown data version for player " + player.getDisplayName() + ": " + version);
+                LOGGER.warning("Unknown data version for player " + PlayerRefUtil.getUsername(player) + ": " + version);
             }
 
             int count = in.readInt();
@@ -91,10 +93,10 @@ public class ExplorationPersistence {
                 data.getMapExpansion().updateBoundaries(x, z, 0);
             }
 
-            LOGGER.info("Loaded " + count + " explored chunks for " + player.getDisplayName() + " in world " + worldName);
+            LOGGER.info("Loaded " + count + " explored chunks for " + PlayerRefUtil.getUsername(player) + " in world " + worldName);
 
         } catch (IOException e) {
-            LOGGER.severe("Failed to load exploration data for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.severe("Failed to load exploration data for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -108,7 +110,7 @@ public class ExplorationPersistence {
         if (ref != null && ref.isValid()) {
             UUIDComponent uuidComp = ref.getStore().getComponent(ref, UUIDComponent.getComponentType());
             if (uuidComp != null && player.getWorld() != null) {
-                save(player.getDisplayName(), uuidComp.getUuid(), player.getWorld().getName());
+                save(PlayerRefUtil.getUsername(player), uuidComp.getUuid(), player.getWorld().getName());
             }
         }
     }
@@ -137,18 +139,13 @@ public class ExplorationPersistence {
                                 return;
                             }
 
-                            if (!(player instanceof CommandSender sender)) {
-                                LOGGER.warning("Skipping player save; player is not a CommandSender: " + player.getDisplayName());
-                                return;
-                            }
-
-                            UUID uuid = sender.getUuid();
+                            UUID uuid = player.getUuid();
                             if (uuid == null) {
-                                LOGGER.warning("Skipping player save; UUID is null for: " + player.getDisplayName());
+                                LOGGER.warning("Skipping player save; UUID is null for: " + PlayerRefUtil.getUsername(player));
                                 return;
                             }
 
-                            String playerName = player.getDisplayName();
+                            String playerName = PlayerRefUtil.getUsername(player);
                             String worldName = world.getName();
                             ExplorationTracker.PlayerExplorationData data = ExplorationTracker.getInstance().getPlayerData(playerName);
                             if (data == null) {

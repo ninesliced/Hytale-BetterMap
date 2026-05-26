@@ -4,8 +4,7 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.server.core.Message;
@@ -26,6 +25,7 @@ import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
+import org.joml.Vector3d;
 
 public class WaypointTeleportCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Waypoint name or marker id", ArgTypes.STRING);
@@ -61,7 +61,7 @@ public class WaypointTeleportCommand extends AbstractPlayerCommand {
 
         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
         double fallbackY = transform != null ? transform.getPosition().y : 64.0;
-        Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+        Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
 
         int blockX = MathUtil.floor(marker.getX());
         int blockZ = MathUtil.floor(marker.getZ());

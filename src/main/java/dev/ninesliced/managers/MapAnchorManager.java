@@ -4,8 +4,7 @@ import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.math.vector.Vector3d;
-import com.hypixel.hytale.math.vector.Vector3f;
+import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.protocol.Color;
 import com.hypixel.hytale.protocol.packets.interface_.CustomUIEventBindingType;
 import com.hypixel.hytale.protocol.packets.interface_.UpdateAnchorUI;
@@ -30,6 +29,7 @@ import dev.ninesliced.ui.ConfigMenuPage;
 import dev.ninesliced.ui.WaypointEditPage;
 import dev.ninesliced.ui.WaypointMenuPage;
 import dev.ninesliced.utils.PermissionsUtil;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -42,13 +42,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import org.joml.Vector3d;
+import dev.ninesliced.utils.PlayerRefUtil;
 
 /**
  * Manages the BetterMap anchor UI injected into the world map's "MapServerContent" anchor point.
  * <p>
  * Uses the Hytale Anchor UI system ({@code UpdateAnchorUI} packet) to inject a full-featured
  * waypoint panel directly into the Map page. Supports all waypoint operations: create, edit,
- * delete, and teleport — mirroring the full WaypointMenuPage functionality inline on the map.
+ * delete, and teleport â€” mirroring the full WaypointMenuPage functionality inline on the map.
  */
 public class MapAnchorManager {
 
@@ -92,7 +94,7 @@ public class MapAnchorManager {
     public void initialize() {
         AnchorActionModule anchorModule = AnchorActionModule.get();
         if (anchorModule == null) {
-            LOGGER.warning("AnchorActionModule not available – MapAnchorManager will not register handlers.");
+            LOGGER.warning("AnchorActionModule not available â€“ MapAnchorManager will not register handlers.");
             return;
         }
 
@@ -141,7 +143,7 @@ public class MapAnchorManager {
             if (WaypointManager.isSharedId(waypointId)) {
                 UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
                 if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
-                    player.sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
+                    PlayerRefUtil.resolve(player).sendMessage(Message.raw("You do not have permission to edit shared waypoints."));
                     return;
                 }
             }
@@ -158,13 +160,13 @@ public class MapAnchorManager {
             if (WaypointManager.isSharedId(waypointId)) {
                 UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
                 if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
-                    player.sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
+                    PlayerRefUtil.resolve(player).sendMessage(Message.raw("You do not have permission to delete shared waypoints."));
                     return;
                 }
             }
             boolean removed = WaypointManager.removeMarker(player, waypointId);
             if (removed) {
-                LOGGER.fine("Deleted waypoint " + waypointId + " for " + player.getDisplayName());
+                LOGGER.fine("Deleted waypoint " + waypointId + " for " + PlayerRefUtil.getUsername(player));
             }
         });
 
@@ -211,7 +213,7 @@ public class MapAnchorManager {
             }
 
             TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            Vector3f currentRotation = transform != null ? transform.getRotation() : Vector3f.ZERO;
+            Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
             Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
             Teleport teleport = new Teleport(destination, currentRotation);
 
@@ -253,7 +255,7 @@ public class MapAnchorManager {
     public void sendWaypointAnchor(@Nonnull Player player) {
         PlayerRef playerRef = resolvePlayerRef(player);
         if (playerRef == null) {
-            LOGGER.warning("MapAnchorManager: Could not resolve PlayerRef for " + player.getDisplayName() + ", skipping anchor UI send.");
+            LOGGER.warning("MapAnchorManager: Could not resolve PlayerRef for " + PlayerRefUtil.getUsername(player) + ", skipping anchor UI send.");
             return;
         }
 
@@ -261,7 +263,7 @@ public class MapAnchorManager {
             UICommandBuilder commands = new UICommandBuilder();
             UIEventBuilder events = new UIEventBuilder();
 
-            String playerName = player.getDisplayName();
+            String playerName = PlayerRefUtil.getUsername(player);
             boolean isAdmin = PermissionsUtil.isAdmin(player);
 
             List<UserMapMarker> markers = WaypointManager.getUserMarkers(player);
@@ -273,7 +275,7 @@ public class MapAnchorManager {
             commands.set("#AdminConfigSpacer.Visible", isAdmin);
             commands.set("#AdminConfigButton.Visible", isAdmin);
 
-            lastMarkerCounts.put(player.getDisplayName(), markerCount);
+            lastMarkerCounts.put(PlayerRefUtil.getUsername(player), markerCount);
 
             events.addEventBinding(
                 CustomUIEventBindingType.Activating,
@@ -307,11 +309,11 @@ public class MapAnchorManager {
                 new UpdateAnchorUI(MAP_ANCHOR_ID, true, commands.getCommands(), events.getEvents())
             );
 
-            activePlayers.put(player.getDisplayName(), playerRef);
-            LOGGER.fine("Sent waypoint anchor UI to " + player.getDisplayName());
+            activePlayers.put(PlayerRefUtil.getUsername(player), playerRef);
+            LOGGER.fine("Sent waypoint anchor UI to " + PlayerRefUtil.getUsername(player));
 
         } catch (Exception e) {
-            LOGGER.warning("Failed to send waypoint anchor UI to " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to send waypoint anchor UI to " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -320,7 +322,7 @@ public class MapAnchorManager {
      * Use this on player join instead of {@link #sendWaypointAnchor(Player)}.
      */
     public void sendWaypointAnchorDelayed(@Nonnull Player player, long delayMs) {
-        String playerName = player.getDisplayName();
+        String playerName = PlayerRefUtil.getUsername(player);
 
         ExplorationTicker.getInstance().scheduleDelayedTask(() -> {
             try {
@@ -369,7 +371,7 @@ public class MapAnchorManager {
     public void clearAnchor(@Nonnull Player player) {
         PlayerRef playerRef = resolvePlayerRef(player);
         if (playerRef == null) {
-            LOGGER.warning("MapAnchorManager: Could not resolve PlayerRef for " + player.getDisplayName() + ", skipping anchor UI clear.");
+            LOGGER.warning("MapAnchorManager: Could not resolve PlayerRef for " + PlayerRefUtil.getUsername(player) + ", skipping anchor UI clear.");
             return;
         }
 
@@ -377,9 +379,9 @@ public class MapAnchorManager {
             playerRef.getPacketHandler().writeNoCache(
                 new UpdateAnchorUI(MAP_ANCHOR_ID, true, null, null)
             );
-            activePlayers.remove(player.getDisplayName());
+            activePlayers.remove(PlayerRefUtil.getUsername(player));
         } catch (Exception e) {
-            LOGGER.warning("Failed to clear anchor UI for " + player.getDisplayName() + ": " + e.getMessage());
+            LOGGER.warning("Failed to clear anchor UI for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
         }
     }
 
@@ -387,7 +389,7 @@ public class MapAnchorManager {
      * Refreshes the anchor UI for a player (e.g., after a waypoint is added/removed/edited).
      */
     public void refreshAnchor(@Nonnull Player player) {
-        if (activePlayers.containsKey(player.getDisplayName())) {
+        if (activePlayers.containsKey(PlayerRefUtil.getUsername(player))) {
             sendWaypointAnchor(player);
         }
     }
@@ -399,7 +401,7 @@ public class MapAnchorManager {
         for (PlayerRef ref : world.getPlayerRefs()) {
             if (ref == null) continue;
             Player player = ref.getComponent(Player.getComponentType());
-            if (player != null && activePlayers.containsKey(player.getDisplayName())) {
+            if (player != null && activePlayers.containsKey(PlayerRefUtil.getUsername(player))) {
                 sendWaypointAnchor(player);
             }
         }

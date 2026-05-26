@@ -28,6 +28,7 @@ import java.util.logging.Logger;
 import javax.annotation.Nullable;
 import javax.annotation.Nonnull;
 
+import dev.ninesliced.utils.PlayerRefUtil;
 public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.EditData> {
 
     private static final String[] AVAILABLE_ICONS = {
@@ -113,7 +114,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         if (targetId != null && WaypointManager.isSharedId(targetId)) {
             UserMapMarker marker = WaypointManager.getMarker(player, targetId);
             if (marker == null || !PermissionsUtil.canEditSharedWaypoint(player, marker)) {
-                player.sendMessage(com.hypixel.hytale.server.core.Message.raw("You do not have permission to edit shared waypoints."));
+                PlayerRefUtil.resolve(player).sendMessage(com.hypixel.hytale.server.core.Message.raw("You do not have permission to edit shared waypoints."));
                 player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(this.playerRef));
                 return;
             }
@@ -223,7 +224,7 @@ public class WaypointEditPage extends InteractiveCustomUIPage<WaypointEditPage.E
         }
         if (targetMarker != null && WaypointManager.isSharedId(targetMarker.getId())
             && !PermissionsUtil.canEditSharedWaypoint(player, targetMarker)) {
-            player.sendMessage(com.hypixel.hytale.server.core.Message.raw("You do not have permission to edit shared waypoints."));
+            PlayerRefUtil.resolve(player).sendMessage(com.hypixel.hytale.server.core.Message.raw("You do not have permission to edit shared waypoints."));
             player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(this.playerRef));
             return;
         }

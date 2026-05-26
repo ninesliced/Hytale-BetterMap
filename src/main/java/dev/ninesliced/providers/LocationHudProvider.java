@@ -2,16 +2,13 @@ package dev.ninesliced.providers;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.entity.EntityUtils;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.compat.MultiHudCompat;
 import dev.ninesliced.configs.PlayerConfig;
-import dev.ninesliced.hud.EmptyHud;
 import dev.ninesliced.hud.HudPosition;
 import dev.ninesliced.hud.LocationHud;
 import dev.ninesliced.managers.PlayerConfigManager;
@@ -39,7 +36,7 @@ import java.util.logging.Logger;
 public class LocationHudProvider {
 
     private static final Logger LOGGER = Logger.getLogger(LocationHudProvider.class.getName());
-    private static final String HUD_IDENTIFIER = "BetterMap_Location";
+    private static final String HUD_IDENTIFIER = LocationHud.HUD_IDENTIFIER;
     private static final Field MAP_VISIBLE_FIELD = resolveMapVisibleField();
 
     private final Map<PlayerRef, LocationHud> huds = new HashMap<>();
@@ -60,9 +57,8 @@ public class LocationHudProvider {
      */
     public void showHud(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk,
                         @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        Holder<EntityStore> holder = EntityUtils.toHolder(index, archetypeChunk);
-        Player player = holder.getComponent(Player.getComponentType());
-        PlayerRef playerRef = holder.getComponent(PlayerRef.getComponentType());
+        Player player = archetypeChunk.getComponent(index, Player.getComponentType());
+        PlayerRef playerRef = archetypeChunk.getComponent(index, PlayerRef.getComponentType());
 
         if (player == null || playerRef == null) {
             return;
@@ -111,7 +107,7 @@ public class LocationHudProvider {
         if (MultiHudCompat.isAvailable()) {
             MultiHudCompat.hideCustomHud(player, playerRef, HUD_IDENTIFIER);
         } else if (this.attachedHuds.contains(playerUuid)) {
-            player.getHudManager().setCustomHud(playerRef, new EmptyHud(playerRef));
+            player.getHudManager().removeCustomHud(playerRef, HUD_IDENTIFIER);
         }
 
         this.visibleHuds.remove(playerUuid);
@@ -126,7 +122,7 @@ public class LocationHudProvider {
             if (this.warnedMissingMultiHud.add(playerUuid)) {
                 LOGGER.log(Level.WARNING, "MultipleHUD not found, Location HUD may conflict with other mods");
             }
-            player.getHudManager().setCustomHud(playerRef, hud);
+            player.getHudManager().addCustomHud(playerRef, hud);
             this.attachedHuds.add(playerUuid);
         } else {
             hud.show();
@@ -233,7 +229,7 @@ public class LocationHudProvider {
             MultiHudCompat.setCustomHud(player, playerRef, HUD_IDENTIFIER, hud);
             this.visibleHuds.add(playerUuid);
         } else if (!this.attachedHuds.contains(playerUuid)) {
-            player.getHudManager().setCustomHud(playerRef, hud);
+            player.getHudManager().addCustomHud(playerRef, hud);
             this.attachedHuds.add(playerUuid);
         } else {
             hud.show();
