@@ -322,21 +322,29 @@ public class ExplorationListener {
                         return;
                     }
 
-                    TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
-                    if (tc != null && finalTracker != null) {
-                        var pos = tc.getPosition();
-                        WorldMapHook.updateExplorationState(player, finalTracker, pos.x, pos.z);
-                    } else {
-                        LOGGER.fine("[DEBUG] TransformComponent or tracker was null for immediate update");
-                    }
-
-                    try {
-                        if (finalTracker != null) {
-                            ReflectionHelper.setFieldValueRecursive(finalTracker, "updateTimer", 0.0f);
+                    // Run on the world thread like the ticker path does; updateExplorationState
+                    // touches per-player exploration and cave state that is not thread-safe.
+                    currentWorld.execute(() -> {
+                        if (player.getWorld() != currentWorld) {
+                            return;
                         }
-                    } catch (Exception e) {
-                        LOGGER.fine("[DEBUG] Could not reset updateTimer: " + e.getMessage());
-                    }
+
+                        TransformComponent tc = holder.getComponent(TransformComponent.getComponentType());
+                        if (tc != null && finalTracker != null) {
+                            var pos = tc.getPosition();
+                            WorldMapHook.updateExplorationState(player, finalTracker, pos.x, pos.z);
+                        } else {
+                            LOGGER.fine("[DEBUG] TransformComponent or tracker was null for immediate update");
+                        }
+
+                        try {
+                            if (finalTracker != null) {
+                                ReflectionHelper.setFieldValueRecursive(finalTracker, "updateTimer", 0.0f);
+                            }
+                        } catch (Exception e) {
+                            LOGGER.fine("[DEBUG] Could not reset updateTimer: " + e.getMessage());
+                        }
+                    });
                 });
             }
         } catch (Exception e) {

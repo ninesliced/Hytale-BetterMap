@@ -10,7 +10,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Logger;
 import dev.ninesliced.utils.PlayerRefUtil;
 
@@ -24,7 +26,6 @@ import com.hypixel.hytale.math.iterator.CircleSpiralIterator;
 import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.protocol.ToClientPacket;
 import com.hypixel.hytale.protocol.packets.worldmap.MapChunk;
-import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMap;
 import com.hypixel.hytale.protocol.packets.worldmap.UpdateWorldMapSettings;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
@@ -93,11 +94,56 @@ public class WorldMapHook {
     private static final Map<String, Set<Long>> sharedCaveExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * Pending mutations to the WorldMapTracker's drained and applied on the WorldMap thread
-     * inside {@link #updateExplorationState} to safely modify the `loaded` set without concurrency issues.
+     * Pending mutations to the WorldMapTracker's `loaded` set, drained inside
+     * {@link #updateExplorationState} while holding the tracker's write lock
+     * (see {@link #runWithTrackerWriteLock}).
      */
     private static final Map<String, java.util.concurrent.ConcurrentLinkedQueue<Runnable>> pendingTrackerModifications =
             new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * Cached per-tracker reference to the vanilla {@code loadedLock}. Hytale's WorldMap
+     * thread iterates {@code loaded}, {@code pendingReloadChunks} and {@code pendingReloadFutures}
+     * while holding this lock, so every mutation we make to those collections must hold it too,
+     * otherwise the WorldMap thread can crash mid-iteration and the map dies for the whole world.
+     */
+    private static final Map<WorldMapTracker, ReentrantReadWriteLock> TRACKER_LOCKS =
+            Collections.synchronizedMap(new WeakHashMap<>());
+
+    private static volatile boolean warnedMissingLoadedLock = false;
+
+    @Nullable
+    private static ReentrantReadWriteLock getLoadedLock(@Nonnull WorldMapTracker tracker) {
+        ReentrantReadWriteLock lock = TRACKER_LOCKS.computeIfAbsent(tracker, t -> {
+            Object value = ReflectionHelper.getFieldValueRecursive(t, "loadedLock");
+            return value instanceof ReentrantReadWriteLock rrwl ? rrwl : null;
+        });
+        if (lock == null && !warnedMissingLoadedLock) {
+            warnedMissingLoadedLock = true;
+            LOGGER.warning("Could not resolve WorldMapTracker.loadedLock; tracker mutations will run unsynchronized");
+        }
+        return lock;
+    }
+
+    /**
+     * Runs {@code action} while holding the tracker's {@code loadedLock} write lock.
+     * Never call this while holding the {@link RestrictedSpiralIterator} monitor: the
+     * WorldMap thread acquires the tracker lock first and the iterator monitor second
+     * (loadImages -> init), so the opposite order can deadlock.
+     */
+    static void runWithTrackerWriteLock(@Nonnull WorldMapTracker tracker, @Nonnull Runnable action) {
+        ReentrantReadWriteLock lock = getLoadedLock(tracker);
+        if (lock == null) {
+            action.run();
+            return;
+        }
+        lock.writeLock().lock();
+        try {
+            action.run();
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
 
     /**
      * Gets or creates the cave mode loaded chunks set for a player.
@@ -216,9 +262,11 @@ public class WorldMapHook {
                     if (loadedObj instanceof Set) {
                         @SuppressWarnings("unchecked")
                         Set<Long> trackerLoaded = (Set<Long>) loadedObj;
-                        for (Long caveIdx : loadedCave) {
-                            trackerLoaded.remove(caveIdx);
-                        }
+                        runWithTrackerWriteLock(tracker, () -> {
+                            for (Long caveIdx : loadedCave) {
+                                trackerLoaded.remove(caveIdx);
+                            }
+                        });
                         LOGGER.info("[CAVE DRAIN] Removed " + loadedCave.size() +
                                    " cave chunk indices from tracker.loaded for " + playerName);
                     }
@@ -303,23 +351,25 @@ public class WorldMapHook {
             ReflectionHelper.setFieldValueRecursive(tracker, "spiralIterator", vanillaIterator);
             ReflectionHelper.setFieldValueRecursive(tracker, "viewRadiusOverride", null);
 
-            try {
-                Object pendingReloadFutures = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
-                if (pendingReloadFutures instanceof Map) {
-                    ((Map<?, ?>) pendingReloadFutures).clear();
+            runWithTrackerWriteLock(tracker, () -> {
+                try {
+                    Object pendingReloadFutures = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
+                    if (pendingReloadFutures instanceof Map) {
+                        ((Map<?, ?>) pendingReloadFutures).clear();
+                    }
+                } catch (Exception e) {
+                    LOGGER.fine("Could not clear pendingReloadFutures: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                LOGGER.fine("Could not clear pendingReloadFutures: " + e.getMessage());
-            }
 
-            try {
-                Object pendingReloadChunks = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
-                if (pendingReloadChunks instanceof Set) {
-                    ((Set<?>) pendingReloadChunks).clear();
+                try {
+                    Object pendingReloadChunks = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
+                    if (pendingReloadChunks instanceof Set) {
+                        ((Set<?>) pendingReloadChunks).clear();
+                    }
+                } catch (Exception e) {
+                    LOGGER.fine("Could not clear pendingReloadChunks: " + e.getMessage());
                 }
-            } catch (Exception e) {
-                LOGGER.fine("Could not clear pendingReloadChunks: " + e.getMessage());
-            }
+            });
 
             try {
                 ReflectionHelper.setFieldValueRecursive(tracker, "updateTimer", 999.0f);
@@ -419,13 +469,15 @@ public class WorldMapHook {
         try {
             java.util.concurrent.ConcurrentLinkedQueue<Runnable> pendingMods =
                     pendingTrackerModifications.get(PlayerRefUtil.getUsername(player));
-            if (pendingMods != null) {
-                Runnable mod;
-                while ((mod = pendingMods.poll()) != null) {
-                    try { mod.run(); } catch (Exception e) {
-                        LOGGER.fine("[CAVE] Error applying pending tracker mod: " + e.getMessage());
+            if (pendingMods != null && !pendingMods.isEmpty()) {
+                runWithTrackerWriteLock(tracker, () -> {
+                    Runnable mod;
+                    while ((mod = pendingMods.poll()) != null) {
+                        try { mod.run(); } catch (Exception e) {
+                            LOGGER.fine("[CAVE] Error applying pending tracker mod: " + e.getMessage());
+                        }
                     }
-                }
+                });
             }
 
             ExplorationTracker explorationTracker = ExplorationTracker.getInstance();
@@ -892,7 +944,8 @@ public class WorldMapHook {
             final Set<Long> finalTrackerToAdd = trackerToAdd;
             final Set<Long> finalTrackerToRemove = trackerToRemove;
 
-            // Queue trackerLoaded mutations to be applied on the WorldMap thread.
+            // Queue trackerLoaded mutations; they are applied under the tracker's write lock
+            // when the queue is drained in updateExplorationState.
             if (trackerLoaded != null && (!finalTrackerToRemove.isEmpty() || !finalTrackerToAdd.isEmpty())) {
                 final String pName = PlayerRefUtil.getUsername(player);
                 final Set<Long> frozenCaveChunks = new HashSet<>(loadedCaveChunks);
@@ -986,8 +1039,12 @@ public class WorldMapHook {
                 int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(caveChunkIdx);
                 int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(caveChunkIdx);
                 chunksToUnload.add(new MapChunk(mx, mz, null));
-                trackerLoaded.remove(caveChunkIdx);
             }
+            runWithTrackerWriteLock(tracker, () -> {
+                for (Long caveChunkIdx : loadedCaveChunks) {
+                    trackerLoaded.remove(caveChunkIdx);
+                }
+            });
 
             if (!chunksToUnload.isEmpty()) {
                 int batchSize = 50;
@@ -1065,22 +1122,24 @@ public class WorldMapHook {
 
             streamingManager.processLoadQueue(player);
 
-            List<Long> loadedSnapshot = new ArrayList<>(loaded);
             List<Long> toUnload = new ArrayList<>();
-            List<MapChunk> unloadPackets = new ArrayList<>();
-
-            for (Long idx : loadedSnapshot) {
-                if (!targetSet.contains(idx)) {
-                    toUnload.add(idx);
-                    int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                    int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                    unloadPackets.add(new MapChunk(mx, mz, null));
+            runWithTrackerWriteLock(tracker, () -> {
+                for (Long idx : loaded) {
+                    if (!targetSet.contains(idx)) {
+                        toUnload.add(idx);
+                    }
                 }
-            }
+                toUnload.forEach(loaded::remove);
+            });
 
             if (toUnload.isEmpty()) return;
 
-            toUnload.forEach(loaded::remove);
+            List<MapChunk> unloadPackets = new ArrayList<>(toUnload.size());
+            for (Long idx : toUnload) {
+                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
+                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
+                unloadPackets.add(new MapChunk(mx, mz, null));
+            }
 
             streamingManager.markChunksUnloaded(playerName, toUnload);
 
@@ -1161,22 +1220,24 @@ public class WorldMapHook {
                 state.getPendingCaveChunks().clear();
             }
 
-            try {
-                Object pendingReloadChunks = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
-                if (pendingReloadChunks != null) {
-                    java.lang.reflect.Method clearMethod = pendingReloadChunks.getClass().getMethod("clear");
-                    clearMethod.invoke(pendingReloadChunks);
-                    LOGGER.info("[MAP REFRESH] Cleared pendingReloadChunks");
+            runWithTrackerWriteLock(tracker, () -> {
+                try {
+                    Object pendingReloadChunks = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadChunks");
+                    if (pendingReloadChunks != null) {
+                        java.lang.reflect.Method clearMethod = pendingReloadChunks.getClass().getMethod("clear");
+                        clearMethod.invoke(pendingReloadChunks);
+                        LOGGER.info("[MAP REFRESH] Cleared pendingReloadChunks");
+                    }
+                    Object pendingReloadFutures = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
+                    if (pendingReloadFutures != null) {
+                        java.lang.reflect.Method clearMethod = pendingReloadFutures.getClass().getMethod("clear");
+                        clearMethod.invoke(pendingReloadFutures);
+                        LOGGER.info("[MAP REFRESH] Cleared pendingReloadFutures");
+                    }
+                } catch (Exception e) {
+                    LOGGER.fine("[MAP REFRESH] Could not clear pending reload state: " + e.getMessage());
                 }
-                Object pendingReloadFutures = ReflectionHelper.getFieldValueRecursive(tracker, "pendingReloadFutures");
-                if (pendingReloadFutures != null) {
-                    java.lang.reflect.Method clearMethod = pendingReloadFutures.getClass().getMethod("clear");
-                    clearMethod.invoke(pendingReloadFutures);
-                    LOGGER.info("[MAP REFRESH] Cleared pendingReloadFutures");
-                }
-            } catch (Exception e) {
-                LOGGER.fine("[MAP REFRESH] Could not clear pending reload state: " + e.getMessage());
-            }
+            });
 
             Object spiralIterator = ReflectionHelper.getFieldValueRecursive(tracker, "spiralIterator");
             if (spiralIterator instanceof RestrictedSpiralIterator restrictedIterator) {
@@ -1216,175 +1277,6 @@ public class WorldMapHook {
         } catch (Exception e) {
             LOGGER.warning("Failed to force full map refresh for " + PlayerRefUtil.getUsername(player) + ": " + e.getMessage());
             e.printStackTrace();
-        }
-    }
-
-    /**
-     * Generates cave mode images and sends them to the player PROGRESSIVELY.
-     * Works like the base map: only sends chunks that are ready, skips those that aren't.
-     * This prevents freezing by not waiting for all futures to complete.
-     *
-     * @param player  The player.
-     * @param world   The world.
-     * @param tracker The world map tracker.
-     * @param playerX Player X position.
-     * @param playerZ Player Z position.
-     * @param yLevel  The Y level for cave mode.
-     * @param range   The vertical range.
-     * @param maxGeneration Maximum number of pending generations allowed (like base map)
-     * @return Number of remaining generation slots
-     */
-    private static int generateCaveModeImagesProgressive(@Nonnull Player player, @Nonnull World world,
-                                                          @Nonnull WorldMapTracker tracker,
-                                                          double playerX, double playerZ,
-                                                          int yLevel, int range, int maxGeneration) {
-        try {
-            WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
-            float imageScale = settings.getImageScale();
-            int imageSize = MathUtil.fastFloor(32.0F * imageScale);
-
-            int playerMapChunkX = ((int) Math.floor(playerX)) >> 5;
-            int playerMapChunkZ = ((int) Math.floor(playerZ)) >> 5;
-
-            Object loadedObj = ReflectionHelper.getFieldValueRecursive(tracker, "loaded");
-            @SuppressWarnings("unchecked")
-            final Set<Long> loaded = (loadedObj instanceof Set) ? (Set<Long>) loadedObj : new HashSet<>();
-
-            String playerName = PlayerRefUtil.getUsername(player);
-            Set<Long> caveModeLoaded = getCaveModeLoadedChunks(playerName);
-            Set<Long> caveModeFailed = getCaveModeFailedChunks(playerName);
-            Set<Long> caveModeTarget = getCaveModeTargetChunks(playerName);
-            Set<Long> caveModePending = getCaveModePendingChunks(playerName);
-
-            ExplorationTracker.PlayerExplorationData explorationData = ExplorationTracker.getInstance().getPlayerData(player);
-            if (explorationData == null) {
-                return maxGeneration;
-            }
-
-            Set<Long> exploredWorldChunks;
-            CaveModeManager.DynamicCaveModeState state = CaveModeManager.getInstance().getState(player);
-            boolean shareCaves = ModConfig.getInstance().isShareAllExploration();
-            if (state != null) {
-                exploredWorldChunks = new HashSet<>(state.getExploredCaveChunks());
-                if (shareCaves) {
-                    exploredWorldChunks.addAll(getHydratedSharedCaveExploredChunks(world.getName()));
-                }
-            } else if (shareCaves) {
-                exploredWorldChunks = getHydratedSharedCaveExploredChunks(world.getName());
-            } else {
-                exploredWorldChunks = Collections.emptySet();
-            }
-
-            if (exploredWorldChunks.isEmpty()) {
-                return maxGeneration;
-            }
-
-            Set<Long> mapChunksSet = new HashSet<>();
-            for (Long chunkIdx : exploredWorldChunks) {
-                int wx = ChunkUtil.indexToChunkX(chunkIdx);
-                int wz = ChunkUtil.indexToChunkZ(chunkIdx);
-                int mx = wx >> 1;
-                int mz = wz >> 1;
-                long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(mx, mz);
-                mapChunksSet.add(mapChunkIdx);
-            }
-
-            List<Long> sortedChunks = new ArrayList<>(mapChunksSet);
-            sortedChunks.sort(Comparator.comparingLong(idx -> {
-                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                long dx = (long) mx - playerMapChunkX;
-                long dz = (long) mz - playerMapChunkZ;
-                return dx * dx + dz * dz;
-            }));
-
-            caveModeTarget.clear();
-            caveModeTarget.addAll(mapChunksSet);
-
-            List<Long> completedPending = new ArrayList<>();
-            List<MapChunk> chunksToSend = new ArrayList<>();
-
-            for (Long pendingIdx : new ArrayList<>(caveModePending)) {
-                CompletableFuture<CaveModeImageBuilder> future = pendingCaveModeFutures.get(playerName + "_" + pendingIdx);
-                if (future != null && future.isDone()) {
-                    completedPending.add(pendingIdx);
-                    caveModePending.remove(pendingIdx);
-                    pendingCaveModeFutures.remove(playerName + "_" + pendingIdx);
-
-                    CaveModeImageBuilder builder = future.getNow(null);
-                    if (builder != null) {
-                        MapImage image = builder.getImage();
-                        if (MapImageCompat.hasPixelData(image)) {
-                            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(pendingIdx);
-                            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(pendingIdx);
-                            chunksToSend.add(new MapChunk(mx, mz, image));
-                            loaded.add(pendingIdx);
-                            caveModeLoaded.add(pendingIdx);
-                            caveModeFailed.remove(pendingIdx);
-                        } else {
-                            caveModeFailed.add(pendingIdx);
-                        }
-                    } else {
-                        caveModeFailed.add(pendingIdx);
-                    }
-                }
-            }
-
-            for (Long chunkIdx : sortedChunks) {
-                if (maxGeneration <= 0) break;
-
-                if (caveModeLoaded.contains(chunkIdx) || caveModePending.contains(chunkIdx)) {
-                    continue;
-                }
-
-                CompletableFuture<CaveModeImageBuilder> future = CaveModeImageBuilder.build(
-                    chunkIdx, imageSize, imageSize, world, yLevel, range);
-
-                if (future.isDone()) {
-                    CaveModeImageBuilder builder = future.getNow(null);
-                    if (builder != null) {
-                        MapImage image = builder.getImage();
-                        if (MapImageCompat.hasPixelData(image)) {
-                            int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunkIdx);
-                            int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunkIdx);
-                            chunksToSend.add(new MapChunk(mx, mz, image));
-                            loaded.add(chunkIdx);
-                            caveModeLoaded.add(chunkIdx);
-                            caveModeFailed.remove(chunkIdx);
-                        } else {
-                            caveModeFailed.add(chunkIdx);
-                        }
-                    } else {
-                        caveModeFailed.add(chunkIdx);
-                    }
-                } else {
-                    caveModePending.add(chunkIdx);
-                    pendingCaveModeFutures.put(playerName + "_" + chunkIdx, future);
-                    maxGeneration--;
-                }
-            }
-
-            if (!chunksToSend.isEmpty()) {
-                int batchSize = 25;
-                for (int i = 0; i < chunksToSend.size(); i += batchSize) {
-                    int end = Math.min(i + batchSize, chunksToSend.size());
-                    List<MapChunk> batch = chunksToSend.subList(i, end);
-
-                    UpdateWorldMap packet = new UpdateWorldMap(
-                            batch.toArray(new MapChunk[0]),
-                            null,
-                            null
-                    );
-                    sendPacket(player, packet);
-                }
-
-                LOGGER.fine("[CAVE MODE] Sent " + chunksToSend.size() + " chunks (pending: " + caveModePending.size() + ")");
-            }
-
-            return maxGeneration;
-        } catch (Exception e) {
-            LOGGER.warning("[CAVE MODE] Error in progressive generation: " + e.getMessage());
-            return maxGeneration;
         }
     }
 
@@ -1762,6 +1654,9 @@ public class WorldMapHook {
                 super.init(cx, cz, startRadius, endRadius);
             } catch (Exception ignored) {}
 
+            List<Long> farChunkCleanupKeep = null;
+            List<Long> staleReloadCleanupKeep = null;
+
             synchronized (lock) {
                 if (stopped || caveModeActive) {
                     this.currentIterator = Collections.emptyIterator();
@@ -1895,18 +1790,28 @@ public class WorldMapHook {
 
                     if (++cleanupTimer > 100) {
                         cleanupTimer = 0;
-                        cleanupFarChunks(limitedRankedChunks);
+                        farChunkCleanupKeep = limitedRankedChunks;
                     }
 
                     if (++pendingReloadCleanupTimer > PENDING_RELOAD_CLEANUP_INTERVAL) {
                         pendingReloadCleanupTimer = 0;
-                        cleanupStalePendingReloads(this.targetMapChunks);
+                        staleReloadCleanupKeep = this.targetMapChunks;
                     }
                 } catch (Exception e) {
                     LOGGER.warning("Error in RestrictedSpiralIterator.init(): " + e.getMessage());
                     this.currentIterator = Collections.emptyIterator();
                     this.initialized = true;
                 }
+            }
+
+            // The cleanups acquire the tracker's loadedLock; run them only after releasing
+            // the iterator monitor, because the WorldMap thread takes loadedLock before
+            // entering this monitor (loadImages -> init) and the reverse order can deadlock.
+            if (farChunkCleanupKeep != null) {
+                cleanupFarChunks(farChunkCleanupKeep);
+            }
+            if (staleReloadCleanupKeep != null) {
+                cleanupStalePendingReloads(staleReloadCleanupKeep);
             }
         }
         
@@ -1954,38 +1859,40 @@ public class WorldMapHook {
 
                 Set<Long> currentTargetSet = new HashSet<>(currentTargetChunks);
 
-                int removedChunks = 0;
-                int removedFutures = 0;
+                runWithTrackerWriteLock(tracker, () -> {
+                    int removedChunks = 0;
+                    int removedFutures = 0;
 
-                if (pendingReloadChunksObj instanceof Set<?> pendingSet) {
-                    Iterator<?> it = pendingSet.iterator();
-                    while (it.hasNext()) {
-                        Object obj = it.next();
-                        if (obj instanceof Long idx) {
-                            if (!currentTargetSet.contains(idx)) {
-                                it.remove();
-                                removedChunks++;
+                    if (pendingReloadChunksObj instanceof Set<?> pendingSet) {
+                        Iterator<?> it = pendingSet.iterator();
+                        while (it.hasNext()) {
+                            Object obj = it.next();
+                            if (obj instanceof Long idx) {
+                                if (!currentTargetSet.contains(idx)) {
+                                    it.remove();
+                                    removedChunks++;
+                                }
                             }
                         }
                     }
-                }
 
-                if (pendingReloadFuturesObj instanceof Map<?, ?> futuresMap) {
-                    Iterator<? extends Map.Entry<?, ?>> it = futuresMap.entrySet().iterator();
-                    while (it.hasNext()) {
-                        Map.Entry<?, ?> entry = it.next();
-                        if (entry.getKey() instanceof Long idx) {
-                            if (!currentTargetSet.contains(idx)) {
-                                it.remove();
-                                removedFutures++;
+                    if (pendingReloadFuturesObj instanceof Map<?, ?> futuresMap) {
+                        Iterator<? extends Map.Entry<?, ?>> it = futuresMap.entrySet().iterator();
+                        while (it.hasNext()) {
+                            Map.Entry<?, ?> entry = it.next();
+                            if (entry.getKey() instanceof Long idx) {
+                                if (!currentTargetSet.contains(idx)) {
+                                    it.remove();
+                                    removedFutures++;
+                                }
                             }
                         }
                     }
-                }
 
-                if (removedChunks > 0 || removedFutures > 0) {
-                    LOGGER.fine("Cleaned up stale pending reloads: " + removedChunks + " chunks, " + removedFutures + " futures");
-                }
+                    if (removedChunks > 0 || removedFutures > 0) {
+                        LOGGER.fine("Cleaned up stale pending reloads: " + removedChunks + " chunks, " + removedFutures + " futures");
+                    }
+                });
             } catch (Exception e) {
                 LOGGER.warning("Failed to cleanup stale pending reloads: " + e.getMessage());
             }
@@ -1994,35 +1901,39 @@ public class WorldMapHook {
         private void cleanupFarChunks(List<Long> keepChunks) {
             try {
                 Object loadedObj = ReflectionHelper.getFieldValue(tracker, "loaded");
-                if (loadedObj instanceof Set<?> loadedSet) {
-                    if (loadedSet.size() > 20000) {
-                        Set<Long> keepSet = new HashSet<>(keepChunks);
-                        List<MapChunk> toRemovePackets = new ArrayList<>();
+                if (!(loadedObj instanceof Set<?> loadedSet)) {
+                    return;
+                }
 
-                        Iterator<?> it = loadedSet.iterator();
-                        while (it.hasNext()) {
-                            Object obj = it.next();
-                            if (obj instanceof Long idx) {
-                                if (!keepSet.contains(idx)) {
-                                    it.remove();
-                                    int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
-                                    int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
-                                    toRemovePackets.add(new MapChunk(mx, mz, null));
-                                }
+                List<MapChunk> toRemovePackets = new ArrayList<>();
+                runWithTrackerWriteLock(tracker, () -> {
+                    if (loadedSet.size() <= 20000) {
+                        return;
+                    }
+                    Set<Long> keepSet = new HashSet<>(keepChunks);
+                    Iterator<?> it = loadedSet.iterator();
+                    while (it.hasNext()) {
+                        Object obj = it.next();
+                        if (obj instanceof Long idx) {
+                            if (!keepSet.contains(idx)) {
+                                it.remove();
+                                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(idx);
+                                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(idx);
+                                toRemovePackets.add(new MapChunk(mx, mz, null));
                             }
                         }
+                    }
+                });
 
-                        if (!toRemovePackets.isEmpty()) {
-                            Player p = tracker.getPlayer();
-                            World w = p != null ? p.getWorld() : null;
-                            if (w != null) {
-                                final List<MapChunk> packets = new ArrayList<>(toRemovePackets);
-                                w.execute(() -> {
-                                    UpdateWorldMap pkt = new UpdateWorldMap(packets.toArray(new MapChunk[0]), null, null);
-                                    sendPacket(p, pkt);
-                                });
-                            }
-                        }
+                if (!toRemovePackets.isEmpty()) {
+                    Player p = tracker.getPlayer();
+                    World w = p != null ? p.getWorld() : null;
+                    if (w != null) {
+                        final List<MapChunk> packets = new ArrayList<>(toRemovePackets);
+                        w.execute(() -> {
+                            UpdateWorldMap pkt = new UpdateWorldMap(packets.toArray(new MapChunk[0]), null, null);
+                            sendPacket(p, pkt);
+                        });
                     }
                 }
             } catch (Exception e) {
@@ -2074,7 +1985,17 @@ public class WorldMapHook {
 
         @Override
         public int getCompletedRadius() {
-            return (stopped || caveModeActive) ? currentGoalRadius : currentRadius;
+            if (stopped || caveModeActive) {
+                return currentGoalRadius;
+            }
+            // Once every target chunk has been handed out, report the goal radius so the
+            // tracker's sentViewRadius converges and updateWorldMap idles between moves
+            // instead of re-scanning the whole loaded set every WorldMap tick.
+            Iterator<Long> iter = currentIterator;
+            if (iter == null || !iter.hasNext()) {
+                return currentGoalRadius;
+            }
+            return currentRadius;
         }
     }
 }
