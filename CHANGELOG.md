@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.7
+
+* Fix the WorldMap thread crash (blank map for all players until server restart) that could happen after a few hours of play, after teleports, large explorations or cave unloading. The crash was a NullPointerException in WorldMapTracker.unloadImages caused by our chunk load/unload optimizations modifying the tracker's loaded chunk set without holding Hytale's internal lock; all map tracker modifications now take that lock
+* Fix `/bettermap config track` (and 15 other commands like cavemode and the hide* commands) failing with "Assert not in thread" since Hytale moved command execution off the world thread
+* Big CPU reduction on the WorldMap thread: it now goes idle between player movements instead of re-scanning the whole loaded chunk set (up to 10K+ chunks) every tick
+* Big cave mode optimization: cave map images are now cached (per chunk and layer), so changing cave layers or re-entering caves reuses images instead of re-scanning ~25K blocks per chunk every time
+* Removed disk reads from the shared exploration path: with "share all exploration" enabled, persisted exploration files were re-read from disk on the map thread whenever any player explored a new chunk; they are now cached and only reloaded after saves
+* Cached the shared exploration map chunk conversion so the map thread no longer rebuilds and re-sorts the full explored chunk set on every update
+* Run exploration updates consistently on the world thread after world changes
+* Added `/bettermap benchmark [chunks]` admin command to compare map generation speed, CPU, RAM and network payload between Hytale default quality, BetterMap quality and cave mode over the same pre-loaded chunks (default 10000 chunks)
+
 ## v1.3.6
 
 * Update Api changes for the new release of hytale update 5 to fix the mod not loading in server
