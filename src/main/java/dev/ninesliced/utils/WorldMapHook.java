@@ -1543,6 +1543,14 @@ public class WorldMapHook {
         private volatile Set<Long> cachedMapChunks = null;
         private volatile long cachedMapChunksVersion = -1;
 
+        /**
+         * Caches the world-chunk -> map-chunk conversion of the shared exploration set.
+         * ExplorationManager returns the same Set instance until exploration changes, so
+         * identity comparison detects staleness without iterating the (potentially huge) set.
+         */
+        private volatile Set<Long> cachedSharedSource = null;
+        private volatile Set<Long> cachedSharedMapChunks = null;
+
         private static final int RESORT_DISTANCE_THRESHOLD = 4;
         private static final int PENDING_RELOAD_CLEANUP_INTERVAL = 20;
 
@@ -1590,6 +1598,8 @@ public class WorldMapHook {
                 this.cachedBoundaryChunks = null;
                 this.cachedMapChunks = null;
                 this.cachedMapChunksVersion = -1;
+                this.cachedSharedSource = null;
+                this.cachedSharedMapChunks = null;
                 try {
                     super.init(0, 0, 0, 1);
                 } catch (Exception ignored) {}
@@ -1692,12 +1702,18 @@ public class WorldMapHook {
                             currentExploredVersion = exploredWorldChunks.size();
                         }
                         
-                        mapChunksSet = new HashSet<>(exploredWorldChunks.size() / 2);
-                        for (Long chunkIdx : exploredWorldChunks) {
-                            int wx = ChunkUtil.indexToChunkX(chunkIdx);
-                            int wz = ChunkUtil.indexToChunkZ(chunkIdx);
-                            long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(wx >> 1, wz >> 1);
-                            mapChunksSet.add(mapChunkIdx);
+                        if (cachedSharedMapChunks != null && cachedSharedSource == exploredWorldChunks) {
+                            mapChunksSet = cachedSharedMapChunks;
+                        } else {
+                            mapChunksSet = new HashSet<>(Math.max(16, exploredWorldChunks.size() / 2));
+                            for (Long chunkIdx : exploredWorldChunks) {
+                                int wx = ChunkUtil.indexToChunkX(chunkIdx);
+                                int wz = ChunkUtil.indexToChunkZ(chunkIdx);
+                                long mapChunkIdx = com.hypixel.hytale.math.util.ChunkUtil.indexChunk(wx >> 1, wz >> 1);
+                                mapChunksSet.add(mapChunkIdx);
+                            }
+                            cachedSharedSource = exploredWorldChunks;
+                            cachedSharedMapChunks = mapChunksSet;
                         }
                     } else {
                         currentExploredVersion = data.getExploredChunks().getVersion();

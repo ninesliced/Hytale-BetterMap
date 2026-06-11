@@ -141,6 +141,9 @@ public class ExplorationManager {
     public void savePlayerData(@Nonnull Player player) {
         if (persistenceEnabled && persistence != null) {
             persistence.save(player);
+            if (player.getWorld() != null) {
+                invalidatePersistedChunksCache(player.getWorld().getName());
+            }
         }
         if (persistenceEnabled && cavePersistence != null && ModConfig.getInstance().isCaveModeEnabled()) {
             cavePersistence.save(player);
@@ -157,6 +160,7 @@ public class ExplorationManager {
     public void savePlayerData(String playerName, UUID playerUUID, String worldName) {
         if (persistenceEnabled) {
             persistence.save(playerName, playerUUID, worldName);
+            invalidatePersistedChunksCache(worldName);
             if (cavePersistence != null && ModConfig.getInstance().isCaveModeEnabled()) {
                 cavePersistence.save(playerName, playerUUID, worldName);
             }
@@ -171,7 +175,20 @@ public class ExplorationManager {
      */
     private final Map<String, Set<Long>> cachedAllExploredChunks = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, Long> cachedAllExploredVersion = new java.util.concurrent.ConcurrentHashMap<>();
-    
+
+    /**
+     * Cached union of all persisted exploration files per world. Reading these files on
+     * every getAllExploredChunks cache miss meant disk I/O on the WorldMap thread whenever
+     * any player explored a chunk; instead we load once and invalidate on save/reset.
+     */
+    private final Map<String, Set<Long>> cachedPersistedChunks = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void invalidatePersistedChunksCache(String worldName) {
+        if (worldName != null) {
+            cachedPersistedChunks.remove(worldName);
+        }
+    }
+
     public java.util.Set<Long> getAllExploredChunks(String worldName) {
         long combinedVersion = 0;
         int playerCount = 0;
@@ -194,7 +211,7 @@ public class ExplorationManager {
         Set<Long> allChunks = new HashSet<>();
 
         if (persistenceEnabled) {
-            allChunks.addAll(persistence.loadAllChunks(worldName));
+            allChunks.addAll(cachedPersistedChunks.computeIfAbsent(worldName, w -> persistence.loadAllChunks(w)));
         }
 
         Universe universe = Universe.get();
@@ -268,6 +285,7 @@ public class ExplorationManager {
 
         cachedAllExploredChunks.clear();
         cachedAllExploredVersion.clear();
+        cachedPersistedChunks.clear();
 
         int deletedFiles = 0;
         if (persistenceEnabled && persistence != null) {
@@ -285,6 +303,7 @@ public class ExplorationManager {
      */
     public int resetAllCaveExploration() {
         int runtimeResetCount = CaveModeManager.getInstance().clearAllCaveExploration();
+        dev.ninesliced.providers.CaveModeImageBuilder.clearImageCache();
 
         int deletedFiles = 0;
         if (persistenceEnabled && cavePersistence != null) {
@@ -424,6 +443,7 @@ public class ExplorationManager {
         if (!persistenceEnabled) return;
 
         persistence.saveAllPlayers();
+        cachedPersistedChunks.clear();
         if (cavePersistence != null && ModConfig.getInstance().isCaveModeEnabled()) {
             cavePersistence.saveAllPlayers();
         }

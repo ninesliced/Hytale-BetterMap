@@ -15,6 +15,9 @@ import dev.ninesliced.utils.MapImageCompat;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
@@ -32,7 +35,35 @@ import java.util.logging.Logger;
  */
 public class CaveModeImageBuilder {
     private static final Logger LOGGER = Logger.getLogger(CaveModeImageBuilder.class.getName());
-    
+
+    /**
+     * Cache of generated cave images keyed by world+chunk+layer+size. Generating one image
+     * scans ~25k blocks, and a layer change regenerates the whole cave radius; revisiting a
+     * layer within the TTL reuses the image instead. The TTL bounds staleness from block
+     * edits (the live layer is never resent while loaded anyway, so this matches existing
+     * behavior), and the LRU bound caps memory (~4k entries; a 32px image is 4 KB).
+     */
+    private static final int CACHE_MAX_ENTRIES = 4096;
+    private static final long CACHE_TTL_MS = 60_000L;
+    private static final Map<CacheKey, CachedImage> IMAGE_CACHE =
+            Collections.synchronizedMap(new LinkedHashMap<>(512, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<CacheKey, CachedImage> eldest) {
+                    return size() > CACHE_MAX_ENTRIES;
+                }
+            });
+
+    private record CacheKey(String worldName, long chunkIndex, int yLevel, int imageSize) {}
+
+    private record CachedImage(MapImage image, long createdAtMs) {}
+
+    /**
+     * Clears all cached cave images (admin resets, benchmarks).
+     */
+    public static void clearImageCache() {
+        IMAGE_CACHE.clear();
+    }
+
     private static final int COLOR_FLOOR_HIGH = packColor(120, 106, 92, 255);
     private static final int COLOR_FLOOR_MID = packColor(92, 80, 70, 255);
     private static final int COLOR_FLOOR_LOW = packColor(66, 56, 49, 255);
@@ -95,7 +126,24 @@ public class CaveModeImageBuilder {
             columnData[i] = new CaveColumnData();
         }
     }
-    
+
+    /**
+     * Lightweight instance carrying a cached image; skips scan buffers entirely.
+     */
+    private CaveModeImageBuilder(long index, World world, @Nonnull MapImage cachedImage) {
+        this.index = index;
+        this.world = world;
+        this.image = cachedImage;
+        this.rawPixels = new int[0];
+        this.sampleWidth = 0;
+        this.sampleHeight = 0;
+        this.blockStepX = 1;
+        this.blockStepZ = 1;
+        this.targetYLevel = 0;
+        this.verticalRange = 0;
+        this.columnData = new CaveColumnData[0];
+    }
+
     public long getIndex() {
         return index;
     }
@@ -732,9 +780,29 @@ public class CaveModeImageBuilder {
     @Nonnull
     public static CompletableFuture<CaveModeImageBuilder> build(long index, int imageWidth, int imageHeight,
                                                                   World world, int yLevel, int range) {
+        CacheKey key = new CacheKey(world.getName(), index, yLevel, imageWidth);
+        CachedImage cached = IMAGE_CACHE.get(key);
+        if (cached != null) {
+            if (System.currentTimeMillis() - cached.createdAtMs() < CACHE_TTL_MS) {
+                return CompletableFuture.completedFuture(new CaveModeImageBuilder(index, world, cached.image()));
+            }
+            IMAGE_CACHE.remove(key);
+        }
+
         return CompletableFuture.completedFuture(new CaveModeImageBuilder(index, imageWidth, imageHeight, world, yLevel, range))
                 .thenCompose(CaveModeImageBuilder::fetchChunk)
-                .thenApplyAsync(builder -> builder != null ? builder.generateCaveImage() : null);
+                .thenApplyAsync(builder -> {
+                    if (builder == null) {
+                        return null;
+                    }
+                    builder.generateCaveImage();
+                    // Only cache images built from real chunk data; the unexplored
+                    // fallback would otherwise mask the chunk for a whole TTL.
+                    if (builder.worldChunk != null && MapImageCompat.hasPixelData(builder.image)) {
+                        IMAGE_CACHE.put(key, new CachedImage(builder.image, System.currentTimeMillis()));
+                    }
+                    return builder;
+                });
     }
         
     /**
