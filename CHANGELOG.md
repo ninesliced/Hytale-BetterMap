@@ -10,6 +10,7 @@
 * Cached the shared exploration map chunk conversion so the map thread no longer rebuilds and re-sorts the full explored chunk set on every update
 * Run exploration updates consistently on the world thread after world changes
 * Added `/bettermap benchmark [chunks]` admin command to compare map generation speed, CPU, RAM and network payload between Hytale default quality, BetterMap quality and cave mode over the same pre-loaded chunks (default 10000 chunks)
+* Removed zap hosting banner from config menu
 
 ## v1.3.6
 

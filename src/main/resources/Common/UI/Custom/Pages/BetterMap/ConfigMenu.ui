@@ -63,13 +63,6 @@ $C = "../../Common.ui";
   OutlineSize: 1;
 };
 
-@BannerButtonStyle = TextButtonStyle(
-    Default: (Background: #000000(0)),
-    Hovered: (Background: #FFFFFF(0.15)),
-    Pressed: (Background: #FFFFFF(0.25)),
-    Sounds: $C.@ButtonSounds
-);
-
 @FieldRow = Group {
   LayoutMode: Left;
   Anchor: (Height: 36);
@@ -859,12 +852,6 @@ $C.@PageOverlay {
             }
           }
 
-          TextButton #HostingBannerBtn {
-            Anchor: (Top: 24, Height: 100);
-            Style: @BannerButtonStyle;
-            Background: "Assets/HostingBanner.png";
-          }
-
           TextButton #AdminResetDefaultsBtn {
             Anchor: (Height: 34, Top: 10, Bottom: 6);
             Text: "RESET ADMIN SETTINGS";
@@ -923,12 +910,6 @@ $C.@PageOverlay {
             FlexWeight: 1;
             Text: "CANCEL";
             Style: @NavButtonStyle;
-          }
-
-          TextButton #HostingBannerBtn {
-            Anchor: (Top: 24, Height: 100);
-            Style: @BannerButtonStyle;
-            Background: "Assets/HostingBanner.png";
           }
         }
       }
