@@ -42,6 +42,14 @@ public class ModConfig {
     private String locationHudPosition = "top_right";
     private boolean shareAllExploration = false;
     private int maxChunksToLoad = 10000;
+    /**
+     * Max distance (in map-chunks) the explored-area framing corners may sit from the player.
+     * Bounds how far the world map can frame out and guarantees the player is always inside the
+     * framed rectangle, preventing the zoom-out "jump to a distant explored corner / won't pan back"
+     * bug caused by an unbounded explored bounding box. Set &lt;= 0 to restore the legacy
+     * (unbounded) framing behavior.
+     */
+    private int mapFramingRadius = 128;
     private boolean radarEnabled = true;
     private int radarRange = -1;
     private boolean hidePlayersOnMap = false;
@@ -215,6 +223,12 @@ public class ModConfig {
                         this.maxChunksToLoad = this.mapQuality.maxChunks;
                         needsSave = true;
                         LOGGER.warning("maxChunksToLoad exceeded limit for " + this.mapQuality + " quality. Clamped to " + this.maxChunksToLoad);
+                    }
+
+                    if (jsonObject.has("mapFramingRadius")) {
+                        this.mapFramingRadius = loaded.mapFramingRadius;
+                    } else {
+                        needsSave = true;
                     }
 
                     if (jsonObject.has("radarEnabled")) {
@@ -771,6 +785,18 @@ public class ModConfig {
     }
 
     /**
+     * Gets the explored-area framing radius (in map-chunks). The four bounding-box framing corners
+     * sent to the client world map are clamped to within this distance of the player, and the
+     * framing rectangle is forced to contain the player. A value &lt;= 0 disables clamping (legacy
+     * unbounded behavior).
+     *
+     * @return The map framing radius in map-chunks.
+     */
+    public int getMapFramingRadius() {
+        return mapFramingRadius;
+    }
+
+    /**
      * Sets the max chunks to load and saves config.
      *
      * @param maxChunksToLoad The new max chunks limit.
@@ -1181,6 +1207,7 @@ public class ModConfig {
         this.locationHudPosition = defaults.locationHudPosition;
         this.shareAllExploration = defaults.shareAllExploration;
         this.maxChunksToLoad = defaults.maxChunksToLoad;
+        this.mapFramingRadius = defaults.mapFramingRadius;
         this.radarEnabled = defaults.radarEnabled;
         this.radarRange = defaults.radarRange;
         this.hidePlayersOnMap = defaults.hidePlayersOnMap;

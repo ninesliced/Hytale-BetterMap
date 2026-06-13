@@ -1738,11 +1738,29 @@ public class WorldMapHook {
                     MapExpansionManager.MapBoundaries bounds = data.getMapExpansion().getCurrentBoundaries();
                     Set<Long> boundaryChunks = new HashSet<>(4);
 
+                    int framingRadius = ModConfig.getInstance().getMapFramingRadius();
+
                     if (bounds.minX != Integer.MAX_VALUE) {
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.minZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.minX >> 1, bounds.maxZ >> 1));
-                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(bounds.maxX >> 1, bounds.maxZ >> 1));
+                        int cornerMinX = bounds.minX >> 1;
+                        int cornerMaxX = bounds.maxX >> 1;
+                        int cornerMinZ = bounds.minZ >> 1;
+                        int cornerMaxZ = bounds.maxZ >> 1;
+
+                        // Clamp the explored-area framing corners to within framingRadius map-chunks of
+                        // the player, and force the rectangle to contain the player. Without this, a far
+                        // explored point keeps a corner hundreds of chunks away, so the client frames the
+                        // whole rectangle and centres far from the player on zoom-out (the zoom-jump bug).
+                        if (framingRadius > 0) {
+                            cornerMinX = Math.max(cx - framingRadius, Math.min(cx, cornerMinX));
+                            cornerMaxX = Math.min(cx + framingRadius, Math.max(cx, cornerMaxX));
+                            cornerMinZ = Math.max(cz - framingRadius, Math.min(cz, cornerMinZ));
+                            cornerMaxZ = Math.min(cz + framingRadius, Math.max(cz, cornerMaxZ));
+                        }
+
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(cornerMinX, cornerMinZ));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(cornerMaxX, cornerMinZ));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(cornerMinX, cornerMaxZ));
+                        boundaryChunks.add(com.hypixel.hytale.math.util.ChunkUtil.indexChunk(cornerMaxX, cornerMaxZ));
                     }
 
                     boolean boundaryChunksChanged = cachedBoundaryChunks == null ||
@@ -1757,11 +1775,24 @@ public class WorldMapHook {
                     
                     if (needsResort) {
                         rankedChunks = new ArrayList<>(mapChunksSet.size());
-                        
+
                         for (Long chunk : mapChunksSet) {
-                            if (!boundaryChunks.contains(chunk)) {
-                                rankedChunks.add(chunk);
+                            if (boundaryChunks.contains(chunk)) {
+                                continue;
                             }
+                            // Bound the streamed chunks to a square of radius framingRadius around the
+                            // player. This keeps the client's loaded map extent centred on the player so
+                            // zoom-out frames the area around them instead of the whole explored region
+                            // (which spans back to spawn and made the view jump and refuse to pan back).
+                            // Far explored chunks are not lost — they re-stream when the player nears them.
+                            if (framingRadius > 0) {
+                                int mx = com.hypixel.hytale.math.util.ChunkUtil.xOfChunkIndex(chunk);
+                                int mz = com.hypixel.hytale.math.util.ChunkUtil.zOfChunkIndex(chunk);
+                                if (Math.abs(mx - cx) > framingRadius || Math.abs(mz - cz) > framingRadius) {
+                                    continue;
+                                }
+                            }
+                            rankedChunks.add(chunk);
                         }
 
                         final int sortCenterX = cx;
