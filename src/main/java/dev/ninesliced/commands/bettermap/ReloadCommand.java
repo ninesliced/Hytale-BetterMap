@@ -32,11 +32,6 @@ public class ReloadCommand extends AbstractCommand {
     }
 
     @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
-    @Override
     protected String generatePermissionNode() {
         return "reload";
     }

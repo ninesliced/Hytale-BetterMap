@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.8
+
+* Update API changes for Hytale update 6 (server `0.6.0`) so the mod loads and builds again
+* Commands now declare their permissions up front: `canGeneratePermission()` was removed from `AbstractCommand`, so the 45 commands that already call `requirePermission(...)` simply dropped the override, and the 14 player-facing ones (`/waypoint`, `/bettermap help`, the waypoint subcommands, ...) now call `requireNoPermission()` to stay open to everyone
+* `/bettermap location` and `/bettermap location position` are now in both the Adventurer and WorldEditor permission groups. They used the removed `setPermissionGroup(GameMode)`, called once per game mode, but each call replaced the previous group instead of adding to it, so only one of the two ever took effect
+* POI markers on the map now honour update 6's per-player `Discoverable` flag. Block map markers moved to a position-keyed map and lost `getPosition()`, and since BetterMap replaces Hytale's block marker provider it has to apply the reveal state itself — without this, discoverable markers would have shown to every player immediately
+* Cave mode reads light again: the per-block light accessors were removed from `BlockChunk`, so light now comes from the section's global light data. This also fixes a crash that could happen when a cave floor sat on the top block of the world
+* Map anchor UI actions rebuilt for the new `AnchorActionModule` handler signature, which no longer passes the event payload to handlers. Waypoint row buttons now identify their row in the action name, with the row-to-waypoint mapping tracked per player
+* Bumped the target server version to the update 6 range, so the mod no longer warns about a version mismatch on load
+
 ## v1.3.7
 
 * Fix the WorldMap thread crash (blank map for all players until server restart) that could happen after a few hours of play, after teleports, large explorations or cave unloading. The crash was a NullPointerException in WorldMapTracker.unloadImages caused by our chunk load/unload optimizations modifying the tracker's loaded chunk set without holding Hytale's internal lock; all map tracker modifications now take that lock

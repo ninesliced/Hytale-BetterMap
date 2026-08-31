@@ -14,12 +14,8 @@ import javax.annotation.Nonnull;
 public class WaypointCommand extends AbstractPlayerCommand {
     public WaypointCommand() {
         super("waypoint", "Open waypoint menu");
+        this.requireNoPermission();
         this.addAliases("wp");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

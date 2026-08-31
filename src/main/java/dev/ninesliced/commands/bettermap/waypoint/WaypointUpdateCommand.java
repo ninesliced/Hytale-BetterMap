@@ -25,12 +25,8 @@ public class WaypointUpdateCommand extends AbstractPlayerCommand {
 
     public WaypointUpdateCommand() {
         super("update", "Update a map waypoint");
+        this.requireNoPermission();
         this.addAliases("rename");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

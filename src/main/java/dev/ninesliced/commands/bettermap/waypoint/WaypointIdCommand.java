@@ -22,11 +22,7 @@ public class WaypointIdCommand extends AbstractPlayerCommand {
 
     public WaypointIdCommand() {
         super("id", "Get the marker id for a waypoint by name");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
 
     @Override

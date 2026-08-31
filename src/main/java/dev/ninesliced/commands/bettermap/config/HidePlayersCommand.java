@@ -32,11 +32,6 @@ public class HidePlayersCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the hide players toggle command.
      *

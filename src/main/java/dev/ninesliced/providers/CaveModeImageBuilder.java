@@ -363,20 +363,32 @@ public class CaveModeImageBuilder {
         result.isWallAtTarget = !isAirOrPassable(targetBlock);
         result.targetBlockId = targetBlock;
         
-        result.lightLevel = Math.max(
-            worldChunk.getBlockChunk().getBlockLight(x, targetYLevel, z),
-            worldChunk.getBlockChunk().getSkyLight(x, targetYLevel, z)
-        );
+        result.lightLevel = sampleLightLevel(worldChunk, x, targetYLevel, z);
         
-        if (result.hasValidFloor && result.floorY >= 0 && result.floorY < 320) {
-            int floorLight = Math.max(
-                worldChunk.getBlockChunk().getBlockLight(x, result.floorY + 1, z),
-                worldChunk.getBlockChunk().getSkyLight(x, result.floorY + 1, z)
-            );
+        if (result.hasValidFloor && result.floorY >= 0) {
+            int floorLight = sampleLightLevel(worldChunk, x, result.floorY + 1, z);
             result.lightLevel = Math.max(result.lightLevel, floorLight);
         }
     }
     
+    /**
+     * Reads the brightest of the block and sky light at a position, on the 0-15 scale the
+     * contrast pass expects.
+     * <p>
+     * The per-block light accessors were removed from {@link com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk},
+     * so light now comes from the global light data of the section holding the block.
+     *
+     * @return the light level, or 0 when {@code y} falls outside the world.
+     */
+    private static int sampleLightLevel(@Nonnull WorldChunk worldChunk, int x, int y, int z) {
+        if (y < 0 || y >= ChunkUtil.HEIGHT) {
+            return 0;
+        }
+
+        var light = worldChunk.getBlockChunk().getSectionAtBlockY(y).getGlobalLight();
+        return Math.max(light.getBlockLightIntensity(x, y, z), light.getSkyLight(x, y, z));
+    }
+
     /**
      * Renders a single column to the output image.
      */

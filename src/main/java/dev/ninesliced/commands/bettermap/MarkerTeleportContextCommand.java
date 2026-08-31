@@ -33,11 +33,7 @@ public class MarkerTeleportContextCommand extends AbstractPlayerCommand {
 
     public MarkerTeleportContextCommand() {
         super("mtp", "Teleport to a map marker");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
 
     @Override

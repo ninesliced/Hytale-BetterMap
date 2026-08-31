@@ -25,11 +25,7 @@ public class AdminCommand extends AbstractCommand {
 
     public AdminCommand() {
         super("admin", "Open BetterMap admin config");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
 
     @Override

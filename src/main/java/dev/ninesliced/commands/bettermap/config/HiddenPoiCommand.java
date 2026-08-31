@@ -37,11 +37,6 @@ public class HiddenPoiCommand extends AbstractCommand {
         this.addAliases("hiddenpois");
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {

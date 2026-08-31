@@ -37,11 +37,6 @@ public class MarkerTeleportCommand extends AbstractCommand {
         this.addAliases("markertp");
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext commandContext) {

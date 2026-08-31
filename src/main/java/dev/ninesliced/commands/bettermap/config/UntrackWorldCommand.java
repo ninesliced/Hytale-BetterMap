@@ -32,11 +32,6 @@ public class UntrackWorldCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the command.
      *

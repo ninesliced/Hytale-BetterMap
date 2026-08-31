@@ -22,12 +22,8 @@ public class WaypointDeleteCommand extends AbstractPlayerCommand {
 
     public WaypointDeleteCommand() {
         super("remove", "Remove a map waypoint by name");
+        this.requireNoPermission();
         this.addAliases("delete", "del");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

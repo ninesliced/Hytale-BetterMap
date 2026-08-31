@@ -62,9 +62,4 @@ public class ConfigCommand extends AbstractCommandCollection {
     protected String generatePermissionNode() {
         return "config";
     }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
 }

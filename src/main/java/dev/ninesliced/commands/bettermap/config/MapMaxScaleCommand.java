@@ -26,11 +26,6 @@ public class MapMaxScaleCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the max scale command, validating and updating the configuration.
      *

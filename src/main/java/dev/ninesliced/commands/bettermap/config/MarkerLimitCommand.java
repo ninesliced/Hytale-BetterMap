@@ -25,11 +25,6 @@ public class MarkerLimitCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     @Nullable
     @Override
     protected CompletableFuture<Void> execute(@Nonnull CommandContext context) {

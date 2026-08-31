@@ -30,13 +30,9 @@ import org.joml.Vector3d;
 public class WaypointTeleportCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Waypoint name or marker id", ArgTypes.STRING);
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     public WaypointTeleportCommand() {
         super("teleport", "Teleport to a map waypoint");
+        this.requireNoPermission();
         this.addAliases("tp");
     }
 

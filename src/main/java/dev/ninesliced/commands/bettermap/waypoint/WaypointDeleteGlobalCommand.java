@@ -21,11 +21,6 @@ import javax.annotation.Nonnull;
 public class WaypointDeleteGlobalCommand extends AbstractPlayerCommand {
     private final RequiredArg<String> targetArg = this.withRequiredArg("target", "Shared waypoint id", ArgTypes.STRING);
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     public WaypointDeleteGlobalCommand() {
         super("removeglobal", "Remove a global map waypoint");
         this.addAliases("deleteglobal", "delglobal");

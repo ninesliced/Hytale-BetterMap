@@ -32,10 +32,12 @@ import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.PlayerRefUtil;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,10 +64,15 @@ public class MapAnchorManager {
     private static final String ACTION_OPEN_CONFIG = "bettermap_openConfig";
     private static final String ACTION_OPEN_ADMIN_CONFIG = "bettermap_openAdminConfig";
     private static final String ACTION_CREATE = "bettermap_create";
-    private static final String ACTION_EDIT = "bettermap_edit";
-    private static final String ACTION_DELETE = "bettermap_delete";
-    private static final String ACTION_TELEPORT = "bettermap_teleport";
     private static final String ACTION_TOGGLE_EXPAND = "bettermap_toggleExpand";
+
+    // An anchor action no longer carries the event payload with it -- AnchorActionModule reads only
+    // the "action" key and hands the handler nothing else -- so the waypoint a row acts on has to be
+    // part of the action name. Rows are numbered, and the marker id behind each row number is kept
+    // per player in anchorSlotMarkers, refreshed every time the panel is rebuilt.
+    private static final String ACTION_EDIT_PREFIX = "bettermap_edit_";
+    private static final String ACTION_DELETE_PREFIX = "bettermap_delete_";
+    private static final String ACTION_TELEPORT_PREFIX = "bettermap_teleport_";
 
     private static final MapAnchorManager INSTANCE = new MapAnchorManager();
 
@@ -74,6 +81,12 @@ public class MapAnchorManager {
     private final Map<String, Integer> lastMarkerCounts = new ConcurrentHashMap<>();
 
     private final Map<String, Boolean> expandedPlayers = new ConcurrentHashMap<>();
+
+    /** Marker ids behind each anchor row, per player name. The list index is the row number. */
+    private final Map<String, List<String>> anchorSlotMarkers = new ConcurrentHashMap<>();
+
+    /** Row numbers that already have handlers registered. Grows to the longest panel ever built. */
+    private final Set<Integer> registeredSlots = ConcurrentHashMap.newKeySet();
 
     private ScheduledExecutorService pollScheduler;
     private ScheduledFuture<?> pollFuture;
@@ -98,19 +111,19 @@ public class MapAnchorManager {
             return;
         }
 
-        anchorModule.register(ACTION_OPEN_MANAGER, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+        anchorModule.register(ACTION_OPEN_MANAGER, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
             player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(playerRef));
         });
 
-        anchorModule.register(ACTION_OPEN_CONFIG, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+        anchorModule.register(ACTION_OPEN_CONFIG, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
             player.getPageManager().openCustomPage(ref, store, new ConfigMenuPage(playerRef));
         });
 
-        anchorModule.register(ACTION_OPEN_ADMIN_CONFIG, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+        anchorModule.register(ACTION_OPEN_ADMIN_CONFIG, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
 
@@ -121,24 +134,47 @@ public class MapAnchorManager {
             }
         });
 
-        anchorModule.register(ACTION_CREATE, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+        anchorModule.register(ACTION_CREATE, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
             player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(playerRef, null));
         });
 
-        anchorModule.register(ACTION_TOGGLE_EXPAND, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
+        anchorModule.register(ACTION_TOGGLE_EXPAND, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
             player.getPageManager().openCustomPage(ref, store, new WaypointMenuPage(playerRef));
         });
 
-        anchorModule.register(ACTION_EDIT, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
-            if (!data.has("waypointId")) return;
-            String waypointId = data.get("waypointId").getAsString();
+        LOGGER.info("MapAnchorManager: Anchor action handlers registered.");
 
+        startPolling();
+    }
+
+    /**
+     * Registers the edit, teleport and delete handlers for one anchor row, if they are not
+     * registered already. Rows are reused across rebuilds, so the number of registered handlers
+     * settles at the longest waypoint panel any player has been shown.
+     *
+     * @param slot the row number to register handlers for.
+     */
+    private void ensureSlotRegistered(int slot) {
+        if (!registeredSlots.add(slot)) {
+            return;
+        }
+
+        AnchorActionModule anchorModule = AnchorActionModule.get();
+        if (anchorModule == null) {
+            registeredSlots.remove(slot);
+            return;
+        }
+
+        anchorModule.register(ACTION_EDIT_PREFIX + slot, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
+
+            String waypointId = markerIdForSlot(player, slot);
+            if (waypointId == null) return;
 
             if (WaypointManager.isSharedId(waypointId)) {
                 UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
@@ -150,12 +186,12 @@ public class MapAnchorManager {
             player.getPageManager().openCustomPage(ref, store, new WaypointEditPage(playerRef, waypointId));
         });
 
-        anchorModule.register(ACTION_DELETE, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
-            if (!data.has("waypointId")) return;
-            String waypointId = data.get("waypointId").getAsString();
-
+        anchorModule.register(ACTION_DELETE_PREFIX + slot, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
+
+            String waypointId = markerIdForSlot(player, slot);
+            if (waypointId == null) return;
 
             if (WaypointManager.isSharedId(waypointId)) {
                 UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
@@ -170,59 +206,79 @@ public class MapAnchorManager {
             }
         });
 
-        anchorModule.register(ACTION_TELEPORT, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store, com.google.gson.JsonObject data) -> {
-            if (!data.has("waypointId")) return;
-            String waypointId = data.get("waypointId").getAsString();
-
+        anchorModule.register(ACTION_TELEPORT_PREFIX + slot, (PlayerRef playerRef, Ref<EntityStore> ref, Store<EntityStore> store) -> {
             Player player = store.getComponent(ref, Player.getComponentType());
             if (player == null) return;
 
-            if (!ModConfig.getInstance().isAllowWaypointTeleports() && !PermissionsUtil.canTeleportToWaypoints(player)) {
-                return;
-            }
+            String waypointId = markerIdForSlot(player, slot);
+            if (waypointId == null) return;
 
-            UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
-            if (marker == null) return;
-
-            World world = store.getExternalData().getWorld();
-            if (world == null) return;
-
-            float markerX = marker.getX();
-            float markerZ = marker.getZ();
-            Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
-
-            double destinationY = storedY != null ? storedY : 64.0;
-            try {
-                if (storedY == null) {
-                    long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
-                    WorldChunk chunk = world.getChunk(chunkIndex);
-                    if (chunk != null) {
-                        int blockX = MathUtil.floor(markerX);
-                        int blockZ = MathUtil.floor(markerZ);
-                        int localX = blockX & 31;
-                        int localZ = blockZ & 31;
-                        short surfaceHeight = chunk.getHeight(localX, localZ);
-                        destinationY = surfaceHeight + 1.0;
-                    }
-                }
-            } catch (Exception e) {
-                TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-                if (transform != null) {
-                    destinationY = transform.getPosition().y;
-                }
-            }
-
-            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-            Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
-            Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
-            Teleport teleport = new Teleport(destination, currentRotation);
-
-            world.execute(() -> store.addComponent(ref, Teleport.getComponentType(), teleport));
+            teleportToWaypoint(player, ref, store, waypointId);
         });
+    }
 
-        LOGGER.info("MapAnchorManager: Anchor action handlers registered.");
+    /**
+     * Resolves the waypoint behind an anchor row for the player who activated it.
+     *
+     * @return the marker id, or {@code null} if the panel has been rebuilt since and no longer
+     * has that row.
+     */
+    @Nullable
+    private String markerIdForSlot(@Nonnull Player player, int slot) {
+        List<String> slots = anchorSlotMarkers.get(PlayerRefUtil.getUsername(player));
+        if (slots == null || slot < 0 || slot >= slots.size()) {
+            return null;
+        }
+        return slots.get(slot);
+    }
 
-        startPolling();
+    /**
+     * Teleports a player to one of their waypoints, using the stored Y when there is one and the
+     * surface height of the column otherwise.
+     */
+    private void teleportToWaypoint(@Nonnull Player player, @Nonnull Ref<EntityStore> ref,
+                                    @Nonnull Store<EntityStore> store, @Nonnull String waypointId) {
+        if (!ModConfig.getInstance().isAllowWaypointTeleports() && !PermissionsUtil.canTeleportToWaypoints(player)) {
+            return;
+        }
+
+        UserMapMarker marker = WaypointManager.getMarker(player, waypointId);
+        if (marker == null) return;
+
+        World world = store.getExternalData().getWorld();
+        if (world == null) return;
+
+        float markerX = marker.getX();
+        float markerZ = marker.getZ();
+        Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
+
+        double destinationY = storedY != null ? storedY : 64.0;
+        try {
+            if (storedY == null) {
+                long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
+                WorldChunk chunk = world.getChunk(chunkIndex);
+                if (chunk != null) {
+                    int blockX = MathUtil.floor(markerX);
+                    int blockZ = MathUtil.floor(markerZ);
+                    int localX = blockX & 31;
+                    int localZ = blockZ & 31;
+                    short surfaceHeight = chunk.getHeight(localX, localZ);
+                    destinationY = surfaceHeight + 1.0;
+                }
+            }
+        } catch (Exception e) {
+            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+            if (transform != null) {
+                destinationY = transform.getPosition().y;
+            }
+        }
+
+        TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+        Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
+        Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
+        Teleport teleport = new Teleport(destination, currentRotation);
+
+        world.execute(() -> store.addComponent(ref, Teleport.getComponentType(), teleport));
     }
 
     /**
@@ -237,11 +293,15 @@ public class MapAnchorManager {
             anchorModule.unregister(ACTION_OPEN_CONFIG);
             anchorModule.unregister(ACTION_OPEN_ADMIN_CONFIG);
             anchorModule.unregister(ACTION_CREATE);
-            anchorModule.unregister(ACTION_EDIT);
-            anchorModule.unregister(ACTION_DELETE);
-            anchorModule.unregister(ACTION_TELEPORT);
             anchorModule.unregister(ACTION_TOGGLE_EXPAND);
+            for (int slot : registeredSlots) {
+                anchorModule.unregister(ACTION_EDIT_PREFIX + slot);
+                anchorModule.unregister(ACTION_DELETE_PREFIX + slot);
+                anchorModule.unregister(ACTION_TELEPORT_PREFIX + slot);
+            }
         }
+        registeredSlots.clear();
+        anchorSlotMarkers.clear();
         activePlayers.clear();
         lastMarkerCounts.clear();
         expandedPlayers.clear();
@@ -414,6 +474,7 @@ public class MapAnchorManager {
         activePlayers.remove(playerName);
         lastMarkerCounts.remove(playerName);
         expandedPlayers.remove(playerName);
+        anchorSlotMarkers.remove(playerName);
     }
 
     private PlayerRef resolvePlayerRef(@Nonnull Player player) {
@@ -434,13 +495,19 @@ public class MapAnchorManager {
         @Nonnull UIEventBuilder events
     ) {
         List<UserMapMarker> markers = WaypointManager.getUserMarkers(player);
+        String playerName = PlayerRefUtil.getUsername(player);
 
         if (markers == null || markers.isEmpty()) {
             commands.set("#WaypointAnchorList.Visible", false);
             commands.set("#EmptyLabel.Visible", true);
             commands.set("#WaypointCount.Text", "Waypoints (0)");
+            anchorSlotMarkers.remove(playerName);
             return markers != null ? markers : List.of();
         }
+
+        // Row buttons name their row rather than their waypoint, so record which waypoint each row
+        // is showing before the bindings that point at it go out.
+        List<String> slotMarkers = new ArrayList<>();
 
         commands.set("#WaypointCount.Text", "Waypoints (" + markers.size() + ")");
         commands.set("#EmptyLabel.Visible", false);
@@ -453,6 +520,9 @@ public class MapAnchorManager {
             if (marker == null || marker.getId() == null) continue;
 
             String itemPath = "#WaypointAnchorList[" + index + "]";
+
+            slotMarkers.add(marker.getId());
+            ensureSlotRegistered(index);
 
             commands.append("#WaypointAnchorList", "Hud/BetterMap/MapWaypointItem.ui");
 
@@ -484,9 +554,7 @@ public class MapAnchorManager {
                 events.addEventBinding(
                     CustomUIEventBindingType.Activating,
                     itemPath + " #EditButton",
-                    new EventData()
-                        .put("action", ACTION_EDIT)
-                        .put("waypointId", marker.getId()),
+                    EventData.of("action", ACTION_EDIT_PREFIX + index),
                     false
                 );
             }
@@ -496,9 +564,7 @@ public class MapAnchorManager {
                 events.addEventBinding(
                     CustomUIEventBindingType.Activating,
                     itemPath + " #TeleportButton",
-                    new EventData()
-                        .put("action", ACTION_TELEPORT)
-                        .put("waypointId", marker.getId()),
+                    EventData.of("action", ACTION_TELEPORT_PREFIX + index),
                     false
                 );
             }
@@ -508,9 +574,7 @@ public class MapAnchorManager {
                 events.addEventBinding(
                     CustomUIEventBindingType.Activating,
                     itemPath + " #DeleteButton",
-                    new EventData()
-                        .put("action", ACTION_DELETE)
-                        .put("waypointId", marker.getId()),
+                    EventData.of("action", ACTION_DELETE_PREFIX + index),
                     false
                 );
             }
@@ -518,6 +582,7 @@ public class MapAnchorManager {
             index++;
         }
 
+        anchorSlotMarkers.put(playerName, slotMarkers);
         return markers;
     }
 

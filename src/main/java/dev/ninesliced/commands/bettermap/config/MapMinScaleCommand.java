@@ -25,11 +25,6 @@ public class MapMinScaleCommand extends AbstractCommand {
         super("minscale", "Set min map zoom scale (lower = zoom out further)");
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
     /**
      * Executes the min scale command, validating and updating the configuration.
      *

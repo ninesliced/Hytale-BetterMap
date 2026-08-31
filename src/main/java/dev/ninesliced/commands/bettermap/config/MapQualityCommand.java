@@ -28,11 +28,6 @@ public class MapQualityCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the map quality command.
      * Updates the map quality configuration and notifies the user that a restart is required.

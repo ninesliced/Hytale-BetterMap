@@ -2,7 +2,7 @@ package dev.ninesliced.commands.bettermap;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.GameMode;
+import com.hypixel.hytale.server.core.permissions.provider.HytalePermissionsProvider;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
@@ -34,8 +34,7 @@ public class PlayerLocationPositionCommand extends AbstractCommand {
 
     public PlayerLocationPositionCommand() {
         super("locationpos", "Change the location HUD position");
-        this.setPermissionGroup(GameMode.Adventure);
-        this.setPermissionGroup(GameMode.Creative);
+        this.setPermissionGroups(HytalePermissionsProvider.GROUP_ADVENTURER, HytalePermissionsProvider.GROUP_WORLD_EDITOR);
         this.positionArg = this.withRequiredArg("position",
                 "Position: " + HudPosition.getAllIds(), ArgTypes.STRING);
     }

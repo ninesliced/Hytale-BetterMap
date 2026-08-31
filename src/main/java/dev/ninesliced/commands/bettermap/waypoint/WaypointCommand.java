@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 public class WaypointCommand extends AbstractCommand {
     public WaypointCommand() {
         super("waypoint", "Manage map waypoints");
+        this.requireNoPermission();
         this.addAliases("marker");
         this.addSubCommand(new WaypointAddCommand());
         this.addSubCommand(new WaypointDeleteCommand());
@@ -26,11 +27,6 @@ public class WaypointCommand extends AbstractCommand {
         this.addSubCommand(new WaypointTeleportCommand());
         this.addSubCommand(new WaypointMarkerTeleportCommand());
         this.addSubCommand(new WaypointIdCommand());
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

@@ -25,11 +25,7 @@ public class HelpCommand extends AbstractCommand {
      */
     public HelpCommand() {
         super("help", "Open BetterMap help menu");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
 
     @Override

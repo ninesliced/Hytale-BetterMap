@@ -45,6 +45,7 @@ public class BetterMapCommand extends AbstractCommand {
      */
     public BetterMapCommand() {
         super("bettermap", "Manage BetterMap plugin");
+        this.requireNoPermission();
         this.addAliases("bm", "map");
 
         this.addSubCommand(new ConfigCommand());
@@ -69,11 +70,6 @@ public class BetterMapCommand extends AbstractCommand {
         this.addSubCommand(new PlayerCaveModeCommand());
         this.addSubCommand(new WaypointCommand());
         this.addSubCommand(new MarkerTeleportContextCommand());
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

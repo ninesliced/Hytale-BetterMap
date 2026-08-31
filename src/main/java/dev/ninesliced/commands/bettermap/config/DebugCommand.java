@@ -26,11 +26,6 @@ public class DebugCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the debug command, updating the configuration.
      *

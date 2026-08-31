@@ -27,11 +27,7 @@ public class WaypointMarkerTeleportCommand extends AbstractPlayerCommand {
 
     public WaypointMarkerTeleportCommand() {
         super("markertp", "Teleport to a map marker position");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
 
     @Override

@@ -19,7 +19,7 @@ import dev.ninesliced.managers.PlayerConfigManager;
 import dev.ninesliced.utils.ChunkUtil;
 import dev.ninesliced.utils.MarkerTeleportUtil;
 import dev.ninesliced.utils.PermissionsUtil;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,7 +44,7 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 return;
             }
 
-            Long2ObjectMap<BlockMapMarkersResource.BlockMapMarkerData> markers = resource.getMarkers();
+            var markers = resource.getMarkers();
             if (markers == null || markers.isEmpty()) {
                 return;
             }
@@ -103,28 +103,43 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 }
             }
 
-            for (BlockMapMarkersResource.BlockMapMarkerData markerData : markers.values()) {
+            // Markers are keyed by block position now, and a discoverable one stays hidden until the
+            // viewer has revealed it. This provider replaces the built-in one, so it has to honour
+            // that per-player state itself.
+            final boolean filterUnexplored = hideUnexplored;
+            final ExplorationTracker.PlayerExplorationData viewerExploration = explorationData;
+            final Set<Long> sharedExplored = sharedExploredChunks;
+            final PlayerWorldData perWorldData = viewer != null
+                ? viewer.getPlayerConfigData().getPerWorldData(world.getName())
+                : null;
+
+            markers.forEach((x, y, z, markerData) -> {
+                String markerId = markerData.getMarkerId();
+                if (markerId == null) {
+                    return;
+                }
+
+                if (markerData.isDiscoverable() && (perWorldData == null || !perWorldData.isMarkerRevealed(markerId))) {
+                    return;
+                }
+
                 String name = markerData.getName();
                 String icon = markerData.getIcon();
 
                 if (shouldHideByName(name, icon, hiddenNames)) {
-                    continue;
+                    return;
                 }
 
-                if (hideUnexplored) {
-                    var pos = markerData.getPosition();
-                    if (!isExplored(pos.x(), pos.z(), explorationData, sharedExploredChunks)) {
-                        continue;
-                    }
+                if (filterUnexplored && !isExplored(x, z, viewerExploration, sharedExplored)) {
+                    return;
                 }
 
-                var pos = markerData.getPosition();
                 Transform transform = new Transform();
-                transform.position = new Position(pos.x() + 0.5f, pos.y(), pos.z() + 0.5f);
+                transform.position = new Position(x + 0.5f, y, z + 0.5f);
                 transform.orientation = new Direction(0, 0, 0);
 
                 MapMarker marker = new MapMarker(
-                    markerData.getMarkerId(),
+                    markerId,
                     Message.translation(name).getFormattedMessage(),
                     icon,
                     transform,
@@ -133,7 +148,7 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                 );
                 MarkerTeleportUtil.injectTeleportContextMenu(marker, viewer, PermissionsUtil.MarkerType.POI);
                 collector.add(marker);
-            }
+            });
         } catch (Exception e) {
             LOGGER.warning("Error in BlockMapMarkerPrivacyProvider.update: " + e.getMessage());
         }

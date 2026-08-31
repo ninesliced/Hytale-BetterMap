@@ -30,11 +30,6 @@ public class HideOtherWarpsCommand extends AbstractCommand {
         this.addAliases("hideotherwarps");
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {

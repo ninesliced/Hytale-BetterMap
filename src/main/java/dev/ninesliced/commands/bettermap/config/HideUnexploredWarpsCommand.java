@@ -29,11 +29,6 @@ public class HideUnexploredWarpsCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     @NullableDecl
     @Override
     protected CompletableFuture<Void> execute(@NonNullDecl CommandContext commandContext) {

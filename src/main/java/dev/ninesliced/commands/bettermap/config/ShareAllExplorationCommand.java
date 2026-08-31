@@ -23,11 +23,6 @@ public class ShareAllExplorationCommand extends AbstractCommand {
     }
 
     @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
-    @Override
     public CompletableFuture<Void> execute(@Nonnull CommandContext context) {
         ModConfig config = ModConfig.getInstance();
         ModConfig.getInstance().setShareAllExploration(!config.isShareAllExploration());

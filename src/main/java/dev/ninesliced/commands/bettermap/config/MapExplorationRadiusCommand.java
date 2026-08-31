@@ -26,11 +26,6 @@ public class MapExplorationRadiusCommand extends AbstractCommand {
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
 
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
-    }
-
     /**
      * Executes the radius command, validating and updating the configuration.
      *

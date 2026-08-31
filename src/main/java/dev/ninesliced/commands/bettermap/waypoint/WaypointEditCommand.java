@@ -28,11 +28,7 @@ public class WaypointEditCommand extends AbstractPlayerCommand {
     
     public WaypointEditCommand() {
         super("edit", "Edit a waypoint");
-    }
-    
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
+        this.requireNoPermission();
     }
     
     @Override

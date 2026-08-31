@@ -32,12 +32,8 @@ public class WaypointAddCommand extends AbstractPlayerCommand {
 
     public WaypointAddCommand() {
         super("add", "Add a waypoint at your current location");
+        this.requireNoPermission();
         this.addAliases("create");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override

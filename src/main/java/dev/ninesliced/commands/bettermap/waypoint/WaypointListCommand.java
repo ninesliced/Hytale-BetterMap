@@ -19,12 +19,8 @@ public class WaypointListCommand extends AbstractPlayerCommand {
 
     public WaypointListCommand() {
         super("list", "List all your map waypoints");
+        this.requireNoPermission();
         this.addAliases("markers");
-    }
-
-    @Override
-    protected boolean canGeneratePermission() {
-        return false;
     }
 
     @Override
