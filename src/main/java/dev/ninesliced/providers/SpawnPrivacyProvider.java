@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerIconSize;
 import com.hypixel.hytale.server.core.asset.type.gameplay.GameplayConfig;
 import com.hypixel.hytale.server.core.asset.type.gameplay.WorldMapConfig;
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -19,6 +20,7 @@ import dev.ninesliced.utils.PermissionsUtil;
 import com.hypixel.hytale.server.core.command.system.CommandSender;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import org.joml.Vector3d;
 
@@ -90,7 +92,12 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
                 return;
             }
 
-            Transform spawnTransform = spawnProvider.getSpawnPoint(world, playerUuid);
+            // Like the native provider, this runs on the map thread. Bound the wait so
+            // a failed column load cannot hold up marker refreshes indefinitely.
+            if (playerUuid == null) return;
+            Transform spawnTransform = spawnProvider.getSpawnPointAsync(world, playerUuid)
+                .orTimeout(10, TimeUnit.SECONDS)
+                .join();
             if (spawnTransform == null) {
                 return;
             }
@@ -106,6 +113,8 @@ public class SpawnPrivacyProvider implements WorldMapManager.MarkerProvider {
                 "Spawn.png",
                 PositionUtil.toTransformPacket(new Transform(position)),
                 null,
+                null,
+                MapMarkerIconSize.Default,
                 null
             );
             MarkerTeleportUtil.injectTeleportContextMenu(marker, player, PermissionsUtil.MarkerType.SPAWN);

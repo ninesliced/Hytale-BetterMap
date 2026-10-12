@@ -6,7 +6,6 @@ import javax.annotation.Nonnull;
 
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.Color;
@@ -26,8 +25,6 @@ import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarkersStore;
@@ -36,9 +33,11 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.worldstore
 import com.hypixel.hytale.server.core.util.PositionUtil;
 
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.BetterMap;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WaypointLimitUtil;
 import dev.ninesliced.utils.WorldMapHook;
+import dev.ninesliced.utils.WorldHeightUtil;
 import org.joml.Vector3d;
 
 /**
@@ -62,14 +61,14 @@ public class BetterMapPacketHandler implements SubPacketHandler {
     @Override
     public void registerHandlers() {
         if (ModConfig.getInstance().isDisableDistanceRestrictionsForMarkerDeletion()) {
-            IWorldPacketHandler.registerHandler(this.packetHandler, 119, this::handleRemoveMapMarker);
+            IWorldPacketHandler.registerHandler(this.packetHandler, RemoveMapMarker.PACKET_ID, this::handleRemoveMapMarker);
         }
-        IWorldPacketHandler.registerHandler(this.packetHandler, 244, this::handleTeleportToWorldMapMarker);
-        IWorldPacketHandler.registerHandler(this.packetHandler, 245, this::handleTeleportToWorldMapPosition);
+        IWorldPacketHandler.registerHandler(this.packetHandler, TeleportToWorldMapMarker.PACKET_ID, this::handleTeleportToWorldMapMarker);
+        IWorldPacketHandler.registerHandler(this.packetHandler, TeleportToWorldMapPosition.PACKET_ID, this::handleTeleportToWorldMapPosition);
         if (ModConfig.getInstance().isDisableDistanceRestrictionsForMarkerCreation()) {
-            IWorldPacketHandler.registerHandler(this.packetHandler, 246, this::handleCreateUserMarker);
+            IWorldPacketHandler.registerHandler(this.packetHandler, CreateUserMarker.PACKET_ID, this::handleCreateUserMarker);
         }
-        IWorldPacketHandler.registerHandler(this.packetHandler, 243, this::handleUpdateWorldMapVisible);
+        IWorldPacketHandler.registerHandler(this.packetHandler, UpdateWorldMapVisible.PACKET_ID, this::handleUpdateWorldMapVisible);
     }
 
     private void handleRemoveMapMarker(
@@ -143,11 +142,13 @@ public class BetterMapPacketHandler implements SubPacketHandler {
         if (marker != null) {
             Transform transform = PositionUtil.toTransform(marker.transform);
             if (MapMarkerUtils.isUserMarker(marker)) {
-                int blockX = (int) transform.getPosition().x;
-                int blockZ = (int) transform.getPosition().z;
-                WorldChunk chunk = world.getChunk(ChunkUtil.indexChunkFromBlock(blockX, blockZ));
-                int height = chunk == null ? 319 : chunk.getHeight(blockX, blockZ);
-                transform.getPosition().y = height;
+                WorldHeightUtil.getSurfaceYAsync(world, transform.getPosition().x, transform.getPosition().z)
+                    .thenAcceptAsync(surfaceY -> {
+                        if (!ref.isValid() || ref.getStore() != store || surfaceY == null) return;
+                        transform.getPosition().y = surfaceY;
+                        store.addComponent(ref, Teleport.getComponentType(), Teleport.createForPlayer(transform));
+                    }, world);
+                return;
             }
             Teleport teleportComponent = Teleport.createForPlayer(transform);
             world.getEntityStore().getStore().addComponent(
@@ -170,16 +171,12 @@ public class BetterMapPacketHandler implements SubPacketHandler {
             return;
         }
 
-        world.getChunkStore().getChunkReferenceAsync(
-                ChunkUtil.indexChunkFromBlock(packet.x, packet.y)
-        ).thenAcceptAsync((chunkRef) -> {
-            BlockChunk blockChunkComponent = (BlockChunk) world.getChunkStore()
-                    .getStore().getComponent(chunkRef, BlockChunk.getComponentType());
-            assert blockChunkComponent != null;
+        WorldHeightUtil.getSurfaceYAsync(world, packet.x, packet.y).thenAcceptAsync(surfaceY -> {
+            if (!ref.isValid() || ref.getStore() != store || surfaceY == null) return;
 
             Vector3d position = new Vector3d(
                     (double) packet.x,
-                    (double) (blockChunkComponent.getHeight(packet.x, packet.y) + 2),
+                    surfaceY + 1.0,
                     (double) packet.y);
             Teleport teleportComponent = Teleport.createForPlayer(
                     (World) null, position, new Rotation3f(0.0F, 0.0F, 0.0F));
@@ -244,6 +241,10 @@ public class BetterMapPacketHandler implements SubPacketHandler {
 
         if (packet.visible) {
             WorldMapHook.sendMapSettingsToPlayer(playerComponent);
+        }
+        var hudProvider = BetterMap.get().getLocationHudProvider();
+        if (hudProvider != null) {
+            hudProvider.setWorldMapVisible(playerRef.getUuid(), packet.visible);
         }
     }
 }

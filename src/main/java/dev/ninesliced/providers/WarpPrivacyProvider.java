@@ -7,6 +7,7 @@ import com.hypixel.hytale.math.vector.Rotation3f;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerIconSize;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
@@ -281,6 +282,6 @@ public class WarpPrivacyProvider implements WorldMapManager.MarkerProvider {
         FormattedMessage displayName = new FormattedMessage();
         displayName.rawText = name;
 
-        return new MapMarker(id, displayName, MARKER_ICON, packetTransform, null, null);
+        return new MapMarker(id, displayName, MARKER_ICON, packetTransform, null, null, MapMarkerIconSize.Default, null);
     }
 }

@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerIconSize;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerConfigData;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -194,6 +195,8 @@ public class PoiPlayerMarkerProvider implements WorldMapManager.MarkerProvider {
             marker.getIcon(),
             packetTransform,
             null,
+            null,
+            MapMarkerIconSize.Default,
             null
         );
         MarkerTeleportUtil.injectTeleportContextMenu(result, viewer, PermissionsUtil.MarkerType.POI);

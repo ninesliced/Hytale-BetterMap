@@ -177,7 +177,8 @@ public class ExplorationListener {
             Player player = playerRef.getHolder().getComponent(Player.getComponentType());
 
             if (player != null) {
-                World world = event.getWorld();
+                // Save and clean up the world being drained, not the destination.
+                World world = event.getSourceWorld();
                 String worldName = world.getName();
                 String playerName = PlayerRefUtil.getUsername(player);
                 LOGGER.info("[DEBUG] Player " + playerName + " leaving world " + worldName);
@@ -239,20 +240,6 @@ public class ExplorationListener {
                 config.getMaxPersonalMarkersPerPlayer(),
                 config.getMaxSharedMarkersPerPlayer()
             );
-
-            WorldMapTracker earlyTracker = player.getWorldMapTracker();
-            if (earlyTracker != null) {
-                try {
-                    ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToMarkers", false);
-
-                    boolean allowCoordTp = config.isAllowCoordinateTeleports()
-                        || PermissionsUtil.canTeleportToCoordinates(player);
-                    ReflectionHelper.setFieldValueRecursive(earlyTracker, "allowTeleportToCoordinates", allowCoordTp);
-
-                } catch (Exception e) {
-                    LOGGER.fine("Failed to set early tracker fields: " + e.getMessage());
-                }
-            }
 
             LOGGER.info("[DEBUG] Player " + playerName + " joining world: " + newWorldName + " (previous: " + oldWorldName + ")");
 

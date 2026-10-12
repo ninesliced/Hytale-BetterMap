@@ -1288,7 +1288,7 @@ public class WorldMapHook {
     public static void updateWorldMapConfigs(@Nonnull World world) {
         try {
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
-            UpdateWorldMapSettings packet = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
+            UpdateWorldMapSettings packet = settings.getSettingsPacket();
             ModConfig config = ModConfig.getInstance();
             WorldMapConfig worldMapConfig = world.getGameplayConfig().getWorldMapConfig();
             boolean allowNativeMarkerCreation = config.isAllowNativeMapMarkerCreation();
@@ -1305,9 +1305,6 @@ public class WorldMapHook {
                 ReflectionHelper.setFieldValueRecursive(worldMapConfig.getUserMapMarkerConfig(), "allowCreatingMarkers", allowNativeMarkerCreation);
                 ReflectionHelper.setFieldValueRecursive(worldMapConfig.getUserMapMarkerConfig(), "allowDeleteOtherPlayersSharedMarkers", false);
             }
-
-            ReflectionHelper.setFieldValueRecursive(settings, "minScale", config.getMinScale());
-            ReflectionHelper.setFieldValueRecursive(settings, "maxScale", config.getMaxScale());
 
         } catch (Exception e) {
             LOGGER.warning("Failed to update world map configs: " + e.getMessage());
@@ -1343,7 +1340,7 @@ public class WorldMapHook {
             updateWorldMapConfigs(world);
 
             WorldMapSettings settings = world.getWorldMapManager().getWorldMapSettings();
-            UpdateWorldMapSettings basePacket = (UpdateWorldMapSettings) ReflectionHelper.getFieldValue(settings, "settingsPacket");
+            UpdateWorldMapSettings basePacket = settings.getSettingsPacket();
 
             if (basePacket == null)
                 return;
@@ -1357,8 +1354,6 @@ public class WorldMapHook {
                 packet.maxScale = playerConfig.getMaxScale();
             }
 
-            WorldMapTracker tracker = player.getWorldMapTracker();
-
             boolean allowCoordTp;
             if (ModConfig.getInstance().isAllowCoordinateTeleports()) {
                 allowCoordTp = true;
@@ -1366,9 +1361,6 @@ public class WorldMapHook {
                 allowCoordTp = PermissionsUtil.isAdmin(player)
                         || PermissionsUtil.canTeleportToCoordinates(player);
             }
-
-            ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToMarkers", false);
-            ReflectionHelper.setFieldValueRecursive(tracker, "allowTeleportToCoordinates", allowCoordTp);
 
             packet.allowTeleportToCoordinates = allowCoordTp;
             packet.allowTeleportToMarkers = false;
@@ -1468,8 +1460,6 @@ public class WorldMapHook {
         }
 
         clearCollections(markerTracker);
-        ReflectionHelper.invokeMethod(markerTracker, "clear", new Class<?>[0], new Object[0]);
-        ReflectionHelper.invokeMethod(markerTracker, "reset", new Class<?>[0], new Object[0]);
     }
 
     private static Object findMarkerTracker(@Nonnull WorldMapTracker tracker) {

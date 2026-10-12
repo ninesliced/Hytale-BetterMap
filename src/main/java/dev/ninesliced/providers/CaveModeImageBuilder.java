@@ -1,16 +1,13 @@
 package dev.ninesliced.providers;
 
-import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.math.util.ChunkUtil;
 import com.hypixel.hytale.protocol.ShaderType;
 import com.hypixel.hytale.protocol.packets.worldmap.MapImage;
 import com.hypixel.hytale.server.core.asset.type.blocktype.config.BlockType;
 import com.hypixel.hytale.server.core.asset.type.fluid.Fluid;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.ChunkColumn;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import com.hypixel.hytale.server.core.universe.world.chunk.section.BlockSection;
 import com.hypixel.hytale.server.core.universe.world.chunk.section.FluidSection;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import dev.ninesliced.utils.MapImageCompat;
 
 import javax.annotation.Nonnull;
@@ -103,7 +100,7 @@ public class CaveModeImageBuilder {
     private final Color scratchColorA = new Color();
     private final Color scratchColorB = new Color();
     @Nullable
-    private WorldChunk worldChunk;
+    private BlockSection[] blockSections;
     private FluidSection[] fluidSections;
     
     /**
@@ -156,27 +153,28 @@ public class CaveModeImageBuilder {
     @Nonnull
     private CompletableFuture<CaveModeImageBuilder> fetchChunk() {
         return world.getChunkStore().getChunkReferenceAsync(index)
-            .thenApplyAsync(ref -> {
-                try {
-                    if (ref != null && ref.isValid()) {
-                        this.worldChunk = ref.getStore().getComponent((Ref<ChunkStore>) ref, WorldChunk.getComponentType());
-                        ChunkColumn chunkColumn = ref.getStore().getComponent((Ref<ChunkStore>) ref, ChunkColumn.getComponentType());
-                        this.fluidSections = new FluidSection[10];
-                        
-                        for (int y = 0; y < 10; y++) {
-                            Ref<ChunkStore> sectionRef = chunkColumn.getSection(y);
-                            this.fluidSections[y] = world.getChunkStore().getStore().getComponent(sectionRef, FluidSection.getComponentType());
-                        }
-                        
-                        return this;
-                    } else {
-                        return null;
-                    }
-                } catch (Exception e) {
-                    LOGGER.fine("Failed to fetch chunk " + index + ": " + e.getMessage());
-                    return null;
+            .thenCompose(ref -> {
+                if (ref == null || !ref.isValid()) {
+                    return CompletableFuture.completedFuture(null);
                 }
-            }, world)
+                // Sections can load independently of their column in 0.7.0.
+                // Resolve them before rendering, as the native image builder does.
+                blockSections = new BlockSection[ChunkUtil.HEIGHT_SECTIONS];
+                fluidSections = new FluidSection[ChunkUtil.HEIGHT_SECTIONS];
+                var futures = new CompletableFuture<?>[ChunkUtil.HEIGHT_SECTIONS];
+                for (int y = 0; y < ChunkUtil.HEIGHT_SECTIONS; y++) {
+                    final int sectionY = y;
+                    futures[y] = world.getChunkStore().getChunkSectionReferenceAsync(
+                        ChunkUtil.xOfChunkIndex(index), y, ChunkUtil.zOfChunkIndex(index))
+                        .thenAcceptAsync(sectionRef -> {
+                            if (sectionRef == null || !sectionRef.isValid()) return;
+                            var store = sectionRef.getStore();
+                            blockSections[sectionY] = store.getComponentConcurrent(sectionRef, BlockSection.getComponentType());
+                            fluidSections[sectionY] = store.getComponentConcurrent(sectionRef, FluidSection.getComponentType());
+                        });
+                }
+                return CompletableFuture.allOf(futures).thenApply(ignored -> this);
+            })
             .exceptionally(ex -> {
                 LOGGER.fine("Exception fetching chunk " + index + ": " + ex.getMessage());
                 return null;
@@ -188,7 +186,7 @@ public class CaveModeImageBuilder {
      */
     @Nonnull
     private CaveModeImageBuilder generateCaveImage() {
-        if (worldChunk == null) {
+        if (blockSections == null) {
             for (int i = 0; i < rawPixels.length; i++) {
                 rawPixels[i] = COLOR_UNEXPLORED;
             }
@@ -253,7 +251,7 @@ public class CaveModeImageBuilder {
         result.reset();
         
         int minY = Math.max(0, targetYLevel - verticalRange);
-        int maxY = Math.min(319, targetYLevel + verticalRange);
+        int maxY = Math.min(ChunkUtil.HEIGHT - 1, targetYLevel + verticalRange);
         
         int airCount = 0;
         int solidCount = 0;
@@ -271,7 +269,7 @@ public class CaveModeImageBuilder {
         int bestCaveSize = 0;
         
         for (int y = minY; y <= maxY; y++) {
-            int blockId = worldChunk.getBlock(x, y, z);
+            int blockId = getBlockAt(x, y, z);
             boolean isAir = isAirOrPassable(blockId);
 
             if (blockId != 0) {
@@ -318,12 +316,12 @@ public class CaveModeImageBuilder {
                     
                     if (containsTarget && !bestContainsTarget) {
                         bestFloorY = currentCaveFloorY;
-                        bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                        bestFloorBlock = getBlockAt(x, Math.max(0, currentCaveFloorY), z);
                         ceilingY = currentCaveCeilingY + 1;
                         bestCaveSize = caveSize;
                     } else if ((containsTarget == bestContainsTarget) && caveSize > bestCaveSize) {
                         bestFloorY = currentCaveFloorY;
-                        bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                        bestFloorBlock = getBlockAt(x, Math.max(0, currentCaveFloorY), z);
                         ceilingY = currentCaveCeilingY + 1;
                         bestCaveSize = caveSize;
                     }
@@ -337,7 +335,7 @@ public class CaveModeImageBuilder {
             int caveSize = currentCaveCeilingY - currentCaveFloorY;
             if (caveSize > bestCaveSize) {
                 bestFloorY = currentCaveFloorY;
-                bestFloorBlock = worldChunk.getBlock(x, Math.max(0, currentCaveFloorY), z);
+                bestFloorBlock = getBlockAt(x, Math.max(0, currentCaveFloorY), z);
                 ceilingY = maxY;
                 bestCaveSize = caveSize;
             }
@@ -355,18 +353,18 @@ public class CaveModeImageBuilder {
         } else if (airCount > 0) {
             result.hasValidFloor = false;
             result.floorY = lowestAirY > 0 ? lowestAirY - 1 : targetYLevel;
-            result.floorBlockId = worldChunk.getBlock(x, Math.max(0, result.floorY), z);
+            result.floorBlockId = getBlockAt(x, Math.max(0, result.floorY), z);
             result.caveHeight = highestAirY - lowestAirY + 1;
         }
         
-        int targetBlock = worldChunk.getBlock(x, targetYLevel, z);
+        int targetBlock = getBlockAt(x, targetYLevel, z);
         result.isWallAtTarget = !isAirOrPassable(targetBlock);
         result.targetBlockId = targetBlock;
         
-        result.lightLevel = sampleLightLevel(worldChunk, x, targetYLevel, z);
+        result.lightLevel = sampleLightLevel(x, targetYLevel, z);
         
         if (result.hasValidFloor && result.floorY >= 0) {
-            int floorLight = sampleLightLevel(worldChunk, x, result.floorY + 1, z);
+            int floorLight = sampleLightLevel(x, result.floorY + 1, z);
             result.lightLevel = Math.max(result.lightLevel, floorLight);
         }
     }
@@ -380,13 +378,22 @@ public class CaveModeImageBuilder {
      *
      * @return the light level, or 0 when {@code y} falls outside the world.
      */
-    private static int sampleLightLevel(@Nonnull WorldChunk worldChunk, int x, int y, int z) {
+    private int sampleLightLevel(int x, int y, int z) {
         if (y < 0 || y >= ChunkUtil.HEIGHT) {
             return 0;
         }
 
-        var light = worldChunk.getBlockChunk().getSectionAtBlockY(y).getGlobalLight();
+        var section = blockSections[ChunkUtil.chunkCoordinate(y)];
+        if (section == null) return 0;
+        var light = section.getGlobalLight();
         return Math.max(light.getBlockLightIntensity(x, y, z), light.getSkyLight(x, y, z));
+    }
+
+    private int getBlockAt(int x, int y, int z) {
+        int sectionY = ChunkUtil.chunkCoordinate(y);
+        if (sectionY < 0 || sectionY >= ChunkUtil.HEIGHT_SECTIONS || blockSections == null) return BlockType.EMPTY_ID;
+        var section = blockSections[sectionY];
+        return section == null ? BlockType.EMPTY_ID : section.get(x, y, z);
     }
 
     /**
@@ -602,7 +609,7 @@ public class CaveModeImageBuilder {
         getFloorBlockColor(col.highestNonAirBlockId, outColor);
 
         int minScanY = Math.max(0, targetYLevel - verticalRange);
-        int maxScanY = Math.min(319, targetYLevel + verticalRange);
+        int maxScanY = Math.min(ChunkUtil.HEIGHT - 1, targetYLevel + verticalRange);
         int scanRange = Math.max(1, maxScanY - minScanY);
         float yNorm = Math.max(0.0f, Math.min(1.0f, (col.highestNonAirY - minScanY) / (float) scanRange));
 
@@ -762,7 +769,7 @@ public class CaveModeImageBuilder {
      */
     private int getFluidAt(int x, int y, int z) {
         int chunkY = ChunkUtil.chunkCoordinate(y);
-        if (chunkY >= 0 && chunkY < 10 && fluidSections != null) {
+        if (chunkY >= 0 && chunkY < ChunkUtil.HEIGHT_SECTIONS && fluidSections != null) {
             FluidSection fluidSection = fluidSections[chunkY];
             if (fluidSection != null && !fluidSection.isEmpty()) {
                 return fluidSection.getFluidId(x, y, z);
@@ -810,7 +817,7 @@ public class CaveModeImageBuilder {
                     builder.generateCaveImage();
                     // Only cache images built from real chunk data; the unexplored
                     // fallback would otherwise mask the chunk for a whole TTL.
-                    if (builder.worldChunk != null && MapImageCompat.hasPixelData(builder.image)) {
+                    if (builder.blockSections != null && MapImageCompat.hasPixelData(builder.image)) {
                         IMAGE_CACHE.put(key, new CachedImage(builder.image, System.currentTimeMillis()));
                     }
                     return builder;

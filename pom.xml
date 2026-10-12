@@ -6,11 +6,10 @@
 
     <groupId>dev.ninesliced</groupId>
     <artifactId>BetterMap</artifactId>
-    <version>1.3.8</version>
+    <version>1.3.9</version>
 
     <properties>
-        <!-- Matches java.targetversion in the Hytale server build. Update 6 ships on a
-             Temurin JRE 26 runtime, but the server itself is still compiled for 25. -->
+        <!-- Matches java.targetversion in the Hytale 0.7.0 server build. -->
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
         <maven.compiler.release>25</maven.compiler.release>
@@ -23,22 +22,36 @@
             <id>hytale-release</id>
             <url>https://maven.hytale.com/release</url>
         </repository>
-        <!-- Hytale pre-release repository -->
-        <repository>
-            <id>hytale-pre-release</id>
-            <url>https://maven.hytale.com/pre-release</url>
-        </repository>
     </repositories>
 
     <dependencies>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.14.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.hypixel.hytale</groupId>
             <artifactId>Server</artifactId>
-            <!-- Replace with latest version, we provide jars for the last five releases.
-                 This is the Update 6 API; switch to 0.6.0 once it lands in the release repo. -->
-            <version>0.6.0-pre.13.1</version>
+            <!-- Hytale 0.7.0 release API. -->
+            <version>0.7.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+                <configuration>
+                    <!-- Hytale components require their log manager before JUL initializes. -->
+                    <argLine>-Djava.util.logging.manager=com.hypixel.hytale.logger.backend.HytaleLogManager</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

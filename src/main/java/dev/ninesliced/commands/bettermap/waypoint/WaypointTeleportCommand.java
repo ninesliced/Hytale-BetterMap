@@ -5,8 +5,6 @@ import javax.annotation.Nonnull;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.command.system.CommandContext;
 import com.hypixel.hytale.server.core.command.system.arguments.system.RequiredArg;
@@ -17,11 +15,10 @@ import com.hypixel.hytale.server.core.modules.entity.component.TransformComponen
 import com.hypixel.hytale.server.core.modules.entity.teleport.Teleport;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.chunk.BlockChunk;
-import com.hypixel.hytale.server.core.universe.world.storage.ChunkStore;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
 import dev.ninesliced.configs.ModConfig;
+import dev.ninesliced.utils.WorldHeightUtil;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
 import dev.ninesliced.utils.WorldMapHook;
@@ -59,22 +56,9 @@ public class WaypointTeleportCommand extends AbstractPlayerCommand {
         double fallbackY = transform != null ? transform.getPosition().y : 64.0;
         Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
 
-        int blockX = MathUtil.floor(marker.getX());
-        int blockZ = MathUtil.floor(marker.getZ());
-        long chunkIndex = ChunkUtil.indexChunkFromBlock(blockX, blockZ);
-
-        world.getChunkStore().getChunkReferenceAsync(chunkIndex).thenAcceptAsync(chunkRef -> {
-            double destinationY = storedY != null ? storedY : fallbackY;
-            try {
-                if (storedY == null) {
-                    BlockChunk blockChunk = world.getChunkStore().getStore()
-                        .getComponent((Ref<ChunkStore>) chunkRef, BlockChunk.getComponentType());
-                    if (blockChunk != null) {
-                        destinationY = blockChunk.getHeight(blockX, blockZ) + 1.0;
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+        WorldHeightUtil.getSurfaceYAsync(world, marker.getX(), marker.getZ()).thenAcceptAsync(surfaceY -> {
+            if (!ref.isValid() || ref.getStore() != store) return;
+            double destinationY = storedY != null ? storedY : (surfaceY != null ? surfaceY : fallbackY);
 
             Vector3d destination = new Vector3d(marker.getX(), destinationY, marker.getZ());
             Teleport teleport = new Teleport(destination, currentRotation);

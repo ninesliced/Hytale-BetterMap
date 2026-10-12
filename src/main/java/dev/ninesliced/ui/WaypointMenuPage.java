@@ -23,10 +23,8 @@ import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserM
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.WaypointManager;
 import dev.ninesliced.utils.PermissionsUtil;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
 import com.hypixel.hytale.math.vector.Rotation3f;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import dev.ninesliced.utils.WorldHeightUtil;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -278,33 +276,15 @@ public class WaypointMenuPage extends InteractiveCustomUIPage<WaypointMenuPage.W
                         float markerZ = marker.getZ();
                         Double storedY = WaypointManager.getMarkerY(world, player, marker.getId());
 
-                        double destinationY = storedY != null ? storedY : 64.0;
-                        try {
-                            if (storedY == null) {
-                                long chunkIndex = ChunkUtil.indexChunkFromBlock(markerX, markerZ);
-                                WorldChunk chunk = world.getChunk(chunkIndex);
-                                if (chunk != null) {
-                                    int blockX = MathUtil.floor(markerX);
-                                    int blockZ = MathUtil.floor(markerZ);
-                                    int localX = blockX & 31;
-                                    int localZ = blockZ & 31;
-                                    short surfaceHeight = chunk.getHeight(localX, localZ);
-                                    destinationY = surfaceHeight + 1.0;
-                                }
-                            }
-                        } catch (Exception e) {
-                            TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
-                            if (transform != null) {
-                                destinationY = transform.getPosition().y;
-                            }
-                        }
-
                         TransformComponent transform = store.getComponent(ref, TransformComponent.getComponentType());
+                        double fallbackY = transform != null ? transform.getPosition().y : 64.0;
                         Rotation3f currentRotation = transform != null ? transform.getRotation() : new Rotation3f(0.0F, 0.0F, 0.0F);
-                        Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
-                        Teleport teleport = new Teleport(destination, currentRotation);
-
-                        world.execute(() -> store.addComponent(ref, Teleport.getComponentType(), teleport));
+                        WorldHeightUtil.getSurfaceYAsync(world, markerX, markerZ).thenAcceptAsync(surfaceY -> {
+                            if (!ref.isValid() || ref.getStore() != store) return;
+                            double destinationY = storedY != null ? storedY : (surfaceY != null ? surfaceY : fallbackY);
+                            Vector3d destination = new Vector3d(markerX, destinationY, markerZ);
+                            store.addComponent(ref, Teleport.getComponentType(), new Teleport(destination, currentRotation));
+                        }, world);
                     }
                 }
             }

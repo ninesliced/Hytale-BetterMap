@@ -37,9 +37,7 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.modules.entity.component.TransformComponent;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.math.util.ChunkUtil;
-import com.hypixel.hytale.math.util.MathUtil;
-import com.hypixel.hytale.server.core.universe.world.chunk.WorldChunk;
+import dev.ninesliced.utils.WorldHeightUtil;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.MapMarkerTracker;
 import com.hypixel.hytale.server.core.universe.world.worldmap.markers.user.UserMapMarker;
@@ -409,7 +407,22 @@ public class WaypointManager {
             return fallback;
         }
 
-        double resolvedY = resolveHighestBlockY(world, entry.marker.getX(), entry.marker.getZ(), fallback);
+        Double resolvedY = WorldHeightUtil.getLoadedSurfaceY(world, entry.marker.getX(), entry.marker.getZ());
+        if (resolvedY == null) {
+            // Map providers must not block the world thread to load a distant marker's
+            // column. Use the fallback for this refresh and save only a real height.
+            UUID ownerUuid = resolveOwnerUuid(player, entry.marker);
+            WorldHeightUtil.getSurfaceYAsync(world, entry.marker.getX(), entry.marker.getZ())
+                .thenAccept(surfaceY -> {
+                    if (surfaceY == null || getMarkerY(world, player, markerId) != null) return;
+                    if (entry.shared) {
+                        WaypointYPersistence.getInstance().setGlobalY(world.getName(), markerId, surfaceY);
+                    } else if (ownerUuid != null) {
+                        WaypointYPersistence.getInstance().setPersonalY(world.getName(), ownerUuid, markerId, surfaceY);
+                    }
+                });
+            return fallback;
+        }
 
         UUID ownerUuid = resolveOwnerUuid(player, entry.marker);
         if (entry.shared) {
@@ -442,25 +455,6 @@ public class WaypointManager {
         } catch (Exception ignored) {
         }
         return fallback;
-    }
-
-    private static double resolveHighestBlockY(@Nonnull World world, float x, float z, double fallback) {
-        try {
-            long chunkIndex = ChunkUtil.indexChunkFromBlock(x, z);
-            WorldChunk chunk = world.getChunk(chunkIndex);
-            if (chunk == null) {
-                return fallback;
-            }
-
-            int blockX = MathUtil.floor(x);
-            int blockZ = MathUtil.floor(z);
-            int localX = blockX & 31;
-            int localZ = blockZ & 31;
-            short surfaceHeight = chunk.getHeight(localX, localZ);
-            return surfaceHeight + 1.0;
-        } catch (Exception ignored) {
-            return fallback;
-        }
     }
 
     private static UserMapMarkersStore resolveStore(@Nonnull World world, @Nonnull Player player, boolean shared) {

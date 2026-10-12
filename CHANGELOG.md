@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.3.9
+
+* Update the server dependency to Hytale `0.7.0` release and the supported server range to `>=0.7.0 <0.8.0`
+* Use the source world from the updated world-drain event when saving exploration and cleaning up cave mode
+* Preserve the new compass alerts on block map markers, including their icon, duration, timeout and tint
+* Read terrain heights from `HeightmapColumn` and load teleport destinations asynchronously; handle unknown heights without saving them as waypoint coordinates
+* Load cave block and light data through chunk section components, including sections loaded separately from their column
+* Update map markers for the new icon size and compass image fields, preserving block marker settings
+* Resolve spawn markers through the asynchronous spawn API with a bounded wait
+* Remove stale reflection hooks and track map visibility from client packets so the location HUD hides while the map is open
+* Add API compatibility and regression tests for terrain heights, cave sections, marker packets and HUD visibility
+
 ## v1.3.8
 
 * Update API changes for Hytale update 6 (server `0.6.0`) so the mod loads and builds again

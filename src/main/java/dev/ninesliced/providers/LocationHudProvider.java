@@ -5,7 +5,6 @@ import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
-import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.compat.MultiHudCompat;
 import dev.ninesliced.configs.PlayerConfig;
@@ -19,7 +18,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -37,7 +36,7 @@ public class LocationHudProvider {
 
     private static final Logger LOGGER = Logger.getLogger(LocationHudProvider.class.getName());
     private static final String HUD_IDENTIFIER = LocationHud.HUD_IDENTIFIER;
-    private static final Field MAP_VISIBLE_FIELD = resolveMapVisibleField();
+    private final Set<UUID> playersWithMapOpen = ConcurrentHashMap.newKeySet();
 
     private final Map<PlayerRef, LocationHud> huds = new HashMap<>();
     private final Set<UUID> warnedMissingMultiHud = new HashSet<>();
@@ -73,7 +72,7 @@ public class LocationHudProvider {
             return;
         }
 
-        if (isWorldMapVisible(player)) {
+        if (isWorldMapVisible(playerUuid)) {
             hideHudIfVisible(player, playerRef, playerUuid);
             return;
         }
@@ -140,29 +139,16 @@ public class LocationHudProvider {
         this.attachedHuds.remove(playerUuid);
         this.visibleHuds.remove(playerUuid);
         this.warnedMissingMultiHud.remove(playerUuid);
+        this.playersWithMapOpen.remove(playerUuid);
     }
 
-    private static Field resolveMapVisibleField() {
-        try {
-            Field field = WorldMapTracker.class.getDeclaredField("clientHasWorldMapVisible");
-            field.setAccessible(true);
-            return field;
-        } catch (NoSuchFieldException ex) {
-            return null;
-        }
+    public void setWorldMapVisible(@Nonnull UUID playerUuid, boolean visible) {
+        if (visible) playersWithMapOpen.add(playerUuid);
+        else playersWithMapOpen.remove(playerUuid);
     }
 
-    private boolean isWorldMapVisible(@Nonnull Player player) {
-        try {
-            WorldMapTracker tracker = player.getWorldMapTracker();
-            if (tracker == null || MAP_VISIBLE_FIELD == null) {
-                return false;
-            }
-            Object value = MAP_VISIBLE_FIELD.get(tracker);
-            return value instanceof Boolean && (Boolean) value;
-        } catch (IllegalAccessException ex) {
-            return false;
-        }
+    boolean isWorldMapVisible(@Nonnull UUID playerUuid) {
+        return playersWithMapOpen.contains(playerUuid);
     }
 
     /**
@@ -275,6 +261,7 @@ public class LocationHudProvider {
      * Cleans up all managed HUDs. Call on server shutdown.
      */
     public void cleanup() {
+        playersWithMapOpen.clear();
         huds.clear();
         attachedHuds.clear();
         visibleHuds.clear();

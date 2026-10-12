@@ -4,6 +4,7 @@ import com.hypixel.hytale.protocol.Direction;
 import com.hypixel.hytale.protocol.Position;
 import com.hypixel.hytale.protocol.Transform;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerComponent;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.meta.state.BlockMapMarkersResource;
@@ -134,24 +135,30 @@ public class BlockMapMarkerPrivacyProvider implements WorldMapManager.MarkerProv
                     return;
                 }
 
-                Transform transform = new Transform();
-                transform.position = new Position(x + 0.5f, y, z + 0.5f);
-                transform.orientation = new Direction(0, 0, 0);
-
-                MapMarker marker = new MapMarker(
-                    markerId,
-                    Message.translation(name).getFormattedMessage(),
-                    icon,
-                    transform,
-                    null,
-                    null
-                );
+                MapMarker marker = createMarker(x, y, z, markerData);
                 MarkerTeleportUtil.injectTeleportContextMenu(marker, viewer, PermissionsUtil.MarkerType.POI);
                 collector.add(marker);
             });
         } catch (Exception e) {
             LOGGER.warning("Error in BlockMapMarkerPrivacyProvider.update: " + e.getMessage());
         }
+    }
+
+    static MapMarker createMarker(int x, int y, int z, BlockMapMarkersResource.BlockMapMarkerData markerData) {
+        Transform transform = new Transform();
+        transform.position = new Position(x + 0.5f, y, z + 0.5f);
+        transform.orientation = new Direction(0, 0, 0);
+        var alert = markerData.getAlert();
+        return new MapMarker(
+            markerData.getMarkerId(),
+            Message.translation(markerData.getName()).getFormattedMessage(),
+            markerData.getIcon(),
+            transform,
+            null,
+            alert == null ? null : new MapMarkerComponent[]{alert.toComponent()},
+            markerData.getIconSize(),
+            markerData.getCompassIcon()
+        );
     }
 
     private static boolean shouldHideByName(String name, String icon, @Nullable List<String> hiddenNames) {

@@ -3,6 +3,7 @@ package dev.ninesliced.providers;
 import com.hypixel.hytale.math.vector.Transform;
 import com.hypixel.hytale.protocol.FormattedMessage;
 import com.hypixel.hytale.protocol.packets.worldmap.MapMarker;
+import com.hypixel.hytale.protocol.packets.worldmap.MapMarkerIconSize;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerDeathPositionData;
 import com.hypixel.hytale.server.core.entity.entities.player.data.PlayerWorldData;
@@ -118,6 +119,8 @@ public class DeathPrivacyProvider implements WorldMapManager.MarkerProvider {
             MARKER_ICON,
             PositionUtil.toTransformPacket(deathPosition.getTransform()),
             null,
+            null,
+            MapMarkerIconSize.Default,
             null
         );
     }

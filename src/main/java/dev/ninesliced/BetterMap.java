@@ -173,7 +173,10 @@ public class BetterMap extends JavaPlugin {
             LOGGER.info("Map Anchor Manager: INITIALIZED (Anchor UI on MapServerContent)");
 
             this.getEventRegistry().registerGlobal(PlayerReadyEvent.class, ExplorationListener::onPlayerReady);
-            this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, ExplorationListener::onPlayerQuit);
+            this.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, event -> {
+                locationHudProvider.setWorldMapVisible(event.getPlayerRef().getUuid(), false);
+                ExplorationListener.onPlayerQuit(event);
+            });
 
             this.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, ExplorationListener::onPlayerJoinWorld);
 

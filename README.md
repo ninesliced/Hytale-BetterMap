@@ -265,6 +265,18 @@ Map data is saved per world. You can find the saved exploration files here: `mod
 
 ![alt text](https://media.forgecdn.net/attachments/1470/2/example-map-quality-low-png.png)
 
+## Building
+
+Use JDK 25 or newer and Maven, then run `mvn clean verify`. The plugin targets Hytale `0.7.0` release.
+
+If the `0.7.0` artifact has not yet appeared in Hytale's Maven release repository, install the official `HytaleServer.jar` from your Hytale 0.7.0 release installation into your local Maven cache first:
+
+```shell
+mvn org.apache.maven.plugins:maven-install-plugin:3.1.4:install-file "-Dfile=/path/to/HytaleServer.jar" -DgroupId=com.hypixel.hytale -DartifactId=Server -Dversion=0.7.0 -Dpackaging=jar -DgeneratePom=true
+```
+
+The release update was compiled and tested against the official `0.7.0+10` server JAR. Tests do not replace an in-game server check.
+
 ## Credits
 
 This project was created to improve the exploration quality of life in Hytale.
