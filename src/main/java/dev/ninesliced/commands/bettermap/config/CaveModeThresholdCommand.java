@@ -30,7 +30,7 @@ public class CaveModeThresholdCommand extends AbstractCommand {
     private final OptionalArg<Integer> thresholdArg = this.withOptionalArg("y", "Y threshold (0-319)", ArgTypes.INTEGER);
 
     public CaveModeThresholdCommand() {
-        super("cavethreshold", "Set the Y level threshold for cave mode activation");
+        super("cavethreshold", "Set the maximum Y coordinate for cave mode activation");
         this.addAliases("cmthreshold", "cavey");
         this.requirePermission(ConfigCommand.CONFIG_PERMISSION);
     }
@@ -64,6 +64,7 @@ public class CaveModeThresholdCommand extends AbstractCommand {
             if (newThreshold == null) {
                 playerRef.sendMessage(Message.raw("Current underground threshold: Y=" + config.getCaveModeUndergroundThreshold()).color(Color.YELLOW));
                 playerRef.sendMessage(Message.raw("Usage: /bettermap config cavethreshold <0-319>").color(Color.GRAY));
+                playerRef.sendMessage(Message.raw("This is an absolute Y coordinate. A value of 5 activates only below Y=5; the default is 100.").color(Color.GRAY));
                 return;
             }
 
@@ -75,6 +76,7 @@ public class CaveModeThresholdCommand extends AbstractCommand {
             state.setUndergroundThreshold(threshold);
 
             playerRef.sendMessage(Message.raw("Cave mode will activate below Y=" + threshold).color(Color.GREEN));
+            playerRef.sendMessage(Message.raw("This is an absolute Y coordinate, not depth below the surface.").color(Color.GRAY));
         }, world);
     }
 }

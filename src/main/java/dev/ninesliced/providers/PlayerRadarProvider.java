@@ -44,6 +44,7 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
     public void update(World world, Player viewingPlayer, MarkersCollector collector) {
         try {
             UUID viewerUuid = viewingPlayer.getUuid();
+            if (viewerUuid == null) return;
 
             ModConfig globalConfig = ModConfig.getInstance();
             if (!globalConfig.isRadarEnabled()) {
@@ -91,6 +92,8 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
             for (PlayerRef playerRef : world.getPlayerRefs()) {
                 playerRefMap.put(playerRef.getUuid(), playerRef);
             }
+            PlayerRef viewerRef = playerRefMap.get(viewerUuid);
+            if (viewerRef == null) return;
 
             for (RadarData otherData : radarDataList) {
                 if (otherData.uuid.equals(viewerUuid.toString())) {
@@ -98,16 +101,15 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
                 }
 
                 try {
-                    boolean isHidden = false;
+                    UUID otherUuid;
                     try {
-                        UUID otherUuid = UUID.fromString(otherData.uuid);
-                        PlayerRef playerRef = playerRefMap.get(otherUuid);
-                        if (playerRef != null) {
-                            isHidden = playerRef.getHiddenPlayersManager().isPlayerHidden(viewerUuid);
-                        }
-                    } catch (IllegalArgumentException e) { }
-
-                    if (isHidden) {
+                        otherUuid = UUID.fromString(otherData.uuid);
+                    } catch (IllegalArgumentException e) {
+                        continue;
+                    }
+                    // HiddenPlayersManager belongs to the viewer and contains hidden targets.
+                    if (!playerRefMap.containsKey(otherUuid)
+                        || viewerRef.getHiddenPlayersManager().isPlayerHidden(otherUuid)) {
                         continue;
                     }
 
@@ -129,7 +131,8 @@ public class PlayerRadarProvider implements WorldMapManager.MarkerProvider {
 
                     MapMarker marker = createMarker(markerId, markerName, otherData);
                     MarkerTeleportUtil.injectTeleportContextMenu(marker, viewingPlayer, PermissionsUtil.MarkerType.PLAYER);
-                    collector.add(marker);
+                    // BetterMap applies its own radar range; instance map view distance may be smaller.
+                    collector.addIgnoreViewDistance(marker);
                 } catch (Exception e) {}
             }
         } catch (Exception e) {

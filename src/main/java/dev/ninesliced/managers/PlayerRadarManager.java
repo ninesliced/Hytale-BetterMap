@@ -13,10 +13,8 @@ import dev.ninesliced.providers.PlayerRadarProvider;
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import org.joml.Vector3d;
@@ -33,7 +31,6 @@ public class PlayerRadarManager {
     private static final Logger LOGGER = Logger.getLogger(PlayerRadarManager.class.getName());
     private static PlayerRadarManager instance;
 
-    private final Set<String> registeredWorlds = new HashSet<>();
     private final Map<String, List<RadarData>> worldRadarCache = new ConcurrentHashMap<>();
     private final PlayerRadarProvider radarProvider;
 
@@ -146,10 +143,6 @@ public class PlayerRadarManager {
     public void registerForWorld(@Nonnull World world) {
         String worldName = world.getName();
 
-        if (registeredWorlds.contains(worldName)) {
-            return;
-        }
-
         try {
             WorldMapManager mapManager = world.getWorldMapManager();
             if (mapManager == null) {
@@ -159,10 +152,7 @@ public class PlayerRadarManager {
 
             if (!mapManager.getMarkerProviders().containsKey(PlayerRadarProvider.PROVIDER_ID)) {
                 mapManager.addMarkerProvider(PlayerRadarProvider.PROVIDER_ID, radarProvider);
-                registeredWorlds.add(worldName);
                 LOGGER.info("Registered PlayerRadarProvider for world: " + worldName);
-            } else {
-                registeredWorlds.add(worldName);
             }
         } catch (Exception e) {
             LOGGER.warning("Failed to register radar provider for world " + worldName + ": " + e.getMessage());
@@ -178,7 +168,7 @@ public class PlayerRadarManager {
      * @param worldName The name of the world to unregister.
      */
     public void unregisterForWorld(@Nonnull String worldName) {
-        registeredWorlds.remove(worldName);
+        worldRadarCache.remove(worldName);
         LOGGER.info("Unregistered PlayerRadarProvider for world: " + worldName);
     }
 
@@ -186,7 +176,6 @@ public class PlayerRadarManager {
      * Cleans up all registrations. Called on plugin shutdown.
      */
     public void cleanup() {
-        registeredWorlds.clear();
         worldRadarCache.clear();
         LOGGER.info("PlayerRadarManager cleaned up");
     }
@@ -196,7 +185,6 @@ public class PlayerRadarManager {
      */
     public void clearWorldCache(@Nonnull String worldName) {
         worldRadarCache.remove(worldName);
-        registeredWorlds.remove(worldName);
     }
 
     /**

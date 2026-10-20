@@ -426,7 +426,7 @@ $C.@PageOverlay {
                 }
                 @ParamRow {
                   Label { Text: "Underground Threshold (Y)"; Style: @ParamNameStyle; }
-                  Label { Text: "The Y coordinate below which a player is considered underground and cave mode activates. Range: 0-319. Default: 100. Adjust based on your world's typical terrain height."; Style: @ParamDescStyle; Anchor: (Top: 4); }
+                  Label { Text: "The absolute Y coordinate below which cave mode activates, not depth below the surface. Setting 5 only activates below Y=5. Range: 0-319. Default: 100. Cave mapping requires a tracked world and cave mode enabled in both server and player settings."; Style: @ParamDescStyle; Anchor: (Top: 4); }
                 }
                 @ParamRow {
                   Label { Text: "Cave Radius (chunks)"; Style: @ParamNameStyle; }

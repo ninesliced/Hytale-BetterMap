@@ -741,7 +741,7 @@ $C.@PageOverlay {
 
             @FieldRow {
               Anchor: (Top: 4);
-              Label { Text: "Underground Threshold (Y)"; Style: @FieldLabelStyle; FlexWeight: 1; }
+              Label { Text: "Activate Below Y (not depth)"; Style: @FieldLabelStyle; FlexWeight: 1; }
               $C.@NumberField #CaveModeThreshold { Anchor: (Width: 120, Height: 28); }
             }
 

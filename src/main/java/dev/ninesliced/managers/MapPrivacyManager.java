@@ -1,14 +1,13 @@
 package dev.ninesliced.managers;
 
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.WeakHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 import dev.ninesliced.utils.PlayerRefUtil;
 
@@ -40,7 +39,7 @@ public class MapPrivacyManager {
     private static final Logger LOGGER = Logger.getLogger(MapPrivacyManager.class.getName());
     private static MapPrivacyManager instance;
     private final Set<World> monitoredWorlds = Collections.newSetFromMap(new WeakHashMap<>());
-    private final Map<World, Map<String, WorldMapManager.MarkerProvider>> backedUpProviders = new WeakHashMap<>();
+    private final Map<World, Map<String, WorldMapManager.MarkerProvider>> backedUpProviders = Collections.synchronizedMap(new WeakHashMap<>());
 
     private MapPrivacyManager() {
     }
@@ -86,7 +85,7 @@ public class MapPrivacyManager {
             try {
                 for (World world : this.monitoredWorlds) {
                     if (world == null) continue;
-                    this.removeProvider(world);
+                    this.refreshWorldProviders(world);
                 }
             } catch (Exception e) {
                 LOGGER.warning("Error in privacy provider poller: " + e.getMessage());
@@ -111,7 +110,7 @@ public class MapPrivacyManager {
                 if (world == null) continue;
 
                 world.execute(() -> {
-                    this.removeProvider(world);
+                    this.refreshWorldProviders(world);
 
                     try {
                         for (PlayerRef playerRef : world.getPlayerRefs()) {
@@ -215,7 +214,7 @@ public class MapPrivacyManager {
 
         if (world != null) {
             this.monitoredWorlds.add(world);
-            this.removeProvider(world);
+            this.refreshWorldProviders(world);
         }
 
         try {
@@ -295,6 +294,10 @@ public class MapPrivacyManager {
         }
     }
 
+    public void refreshWorldProviders(World world) {
+        removeProvider(world);
+    }
+
     private void removeProvider(World world) {
         try {
             if (world == null) return;
@@ -310,26 +313,30 @@ public class MapPrivacyManager {
             Map<String, WorldMapManager.MarkerProvider> providers = mapManager.getMarkerProviders();
             if (providers == null) return;
 
-            List<String> targetKeys = Arrays.asList("playerIcons", "players");
-
-            Map<String, WorldMapManager.MarkerProvider> worldBackups = backedUpProviders.computeIfAbsent(world, ignored -> new HashMap<>());
-
-            if (shouldRemove) {
-                for (String key : targetKeys) {
-                    if (!providers.containsKey(key)) continue;
-
-                    worldBackups.put(key, providers.get(key));
-                    providers.remove(key);
-                }
-            } else {
-                for (String key : targetKeys) {
-                    if (worldBackups.containsKey(key) && !providers.containsKey(key)) {
-                        providers.put(key, worldBackups.get(key));
-                    }
-                }
-            }
+            Map<String, WorldMapManager.MarkerProvider> worldBackups = backedUpProviders.computeIfAbsent(world, ignored -> new ConcurrentHashMap<>());
+            synchronizePlayerProviders(providers, worldBackups,
+                config.isRadarEnabled() ? PlayerRadarManager.getInstance().getRadarProvider() : null,
+                shouldRemove);
         } catch (Exception e) {
             LOGGER.severe("Error managing provider: " + e.getMessage());
+        }
+    }
+
+    /** Install the replacement before removing native icons, including in untracked instances. */
+    static void synchronizePlayerProviders(Map<String, WorldMapManager.MarkerProvider> providers,
+                                           Map<String, WorldMapManager.MarkerProvider> backups,
+                                           WorldMapManager.MarkerProvider radarProvider,
+                                           boolean hideNativeProviders) {
+        if (radarProvider != null) {
+            providers.putIfAbsent(dev.ninesliced.providers.PlayerRadarProvider.PROVIDER_ID, radarProvider);
+        }
+        for (String key : List.of("playerIcons", "players")) {
+            if (hideNativeProviders) {
+                var previous = providers.remove(key);
+                if (previous != null) backups.put(key, previous);
+            } else if (backups.containsKey(key)) {
+                providers.putIfAbsent(key, backups.get(key));
+            }
         }
     }
 

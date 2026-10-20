@@ -10,6 +10,7 @@ import com.hypixel.hytale.server.core.universe.world.WorldMapTracker;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import dev.ninesliced.configs.ModConfig;
 import dev.ninesliced.managers.PlayerRadarManager;
+import dev.ninesliced.managers.MapPrivacyManager;
 import dev.ninesliced.managers.WorldBorderManager;
 import dev.ninesliced.utils.WorldMapHook;
 import dev.ninesliced.utils.PlayerRefUtil;
@@ -128,6 +129,8 @@ public class ExplorationTicker {
                     long startNs = System.nanoTime();
                     updateWorldPlayers(world, startNs);
                     PlayerRadarManager.getInstance().updateRadarData(world);
+                    // Player markers work in every world, even when exploration is not tracked.
+                    MapPrivacyManager.getInstance().refreshWorldProviders(world);
                     WorldBorderManager.getInstance().hookWorldMapManager(world);
                 });
             } catch (IllegalThreadStateException ignored) {

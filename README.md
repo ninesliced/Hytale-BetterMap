@@ -223,6 +223,12 @@ _Note: Changing `mapQuality` or `maxChunksToLoad` requires a server restart to t
 }
 ```
 
+### Cave mode activation
+
+`caveModeUndergroundThreshold` is an absolute Y coordinate. With the default `100`, cave mode activates below Y=100. Setting it to `5` only activates below Y=5; it does not mean five blocks below the surface. Set the threshold above the Y coordinate where you want cave mapping to start, using `/bettermap config cavethreshold 100` to restore the default.
+
+Cave mapping requires the world to be in `allowedWorlds` and cave mode to be enabled in both the server config and your personal `/bm` settings. Player icons work in instances even when those worlds are not tracked for exploration.
+
 ### Saved Exploration Data
 
 Map data is saved per world. You can find the saved exploration files here: `mods/bettermap/data/`

@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.10
+
+* Fix missing player icons in instances such as the Forgotten Temple and Goblin encounters: register the radar replacement in every world before removing native player icons, independently of exploration tracking
+* Refresh player marker providers when worlds are created or their providers change, including recreated instances
+* Apply BetterMap's radar range independently of the native map view distance, and check hidden players from the viewer's perspective
+* Clarify cave mode's threshold in the config UI, help and command feedback: it is an absolute Y coordinate, so 5 only activates below Y=5; it does not mean five blocks below the surface
+* Add regression tests for instance marker registration and cave entry, layer changes, exit and disabled mode
+
 ## v1.3.9
 
 * Update the server dependency to Hytale `0.7.0` release and the supported server range to `>=0.7.0 <0.8.0`

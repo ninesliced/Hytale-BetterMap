@@ -168,10 +168,30 @@ public class CaveModeManager {
      */
     public boolean updateUndergroundState(@Nonnull Player player, int playerY, boolean hasCeiling) {
         DynamicCaveModeState state = getOrCreateState(player);
-        
         boolean wasUnderground = state.isCurrentlyUnderground();
         int oldLayer = state.getCurrentLayer();
-        
+        boolean undergroundStateChanged = updateUndergroundState(state, playerY, hasCeiling);
+        int newLayer = state.getCurrentLayer();
+
+        if (state.isLayerChanged()) {
+            LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) +
+                       " changed layer from " + oldLayer + " to " + newLayer);
+        }
+        if (undergroundStateChanged) {
+            if (!wasUnderground) {
+                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) +
+                           " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + state.getLayerSize()) + ")");
+            } else {
+                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) +
+                           " returned to surface from Y=" + playerY);
+            }
+        }
+        return undergroundStateChanged;
+    }
+
+    static boolean updateUndergroundState(@Nonnull DynamicCaveModeState state, int playerY, boolean hasCeiling) {
+        boolean wasUnderground = state.isCurrentlyUnderground();
+        int oldLayer = state.getCurrentLayer();
         int threshold = state.getUndergroundThreshold();
         int layerSize = state.getLayerSize();
         
@@ -186,8 +206,6 @@ public class CaveModeManager {
             if (oldLayer != newLayer && wasUnderground) {
                 state.setPreviousLayer(oldLayer);
                 state.setLayerChanged(true);
-                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
-                           " changed layer from " + oldLayer + " to " + newLayer);
             } else {
                 state.setLayerChanged(false);
             }
@@ -197,19 +215,7 @@ public class CaveModeManager {
             state.setLayerChanged(false);
         }
         
-        boolean undergroundStateChanged = (wasUnderground != isUnderground);
-        
-        if (undergroundStateChanged) {
-            if (isUnderground) {
-                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
-                           " entered underground at Y=" + playerY + " (layer " + newLayer + "-" + (newLayer + layerSize) + ")");
-            } else {
-                LOGGER.info("[DYNAMIC CAVE] Player " + PlayerRefUtil.getUsername(player) + 
-                           " returned to surface from Y=" + playerY);
-            }
-        }
-        
-        return undergroundStateChanged;
+        return wasUnderground != isUnderground;
     }
     
     /**
